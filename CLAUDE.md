@@ -102,17 +102,19 @@ src/
 - [x] Partner-Verwaltung (CRUD + Provisionsmodell)
 - [x] Kundenfreigabe-Ansicht (öffentlicher Link, interaktiv)
 - [x] Build fehlerfrei (0 Errors, 0 Warnings)
-- [ ] Deployment auf Vercel
-- [ ] CSV-Export
-- [ ] PDF-Ansicht (später)
-- [ ] Produktbilder hochladen (Supabase Storage)
+- [x] Deployment auf Vercel (fra1/Frankfurt, DSGVO-konform)
+- [ ] Design-Verbesserungen (nach erstem echten Einsatz)
+- [ ] CSV-Export für Produktliste pro Projekt
+- [ ] Produktbilder: Upload über Supabase Storage statt URL-Eingabe
+- [ ] Testen mit echten Daten (Lisa & Soraya)
 - [ ] Sortierung/Drag & Drop für Räume und Produkte
+- [ ] PDF-Ansicht (später)
 
 ## Nächste Schritte
-1. Vercel Deployment einrichten + Umgebungsvariablen setzen
-2. CSV-Export für Produktliste pro Projekt
-3. Produktbilder: Upload über Supabase Storage statt URL-Eingabe
-4. Sortierung: Räume und Produkte per Drag & Drop umsortieren
+1. Design verbessern – nach Feedback aus erstem echten Einsatz
+2. CSV-Export: Produktliste pro Projekt als Download
+3. Produktbilder: Upload-Funktion über Supabase Storage
+4. Echte Daten eintragen und testen mit Lisa & Soraya
 
 ## Wichtige Entscheidungen
 - MVP nur Deutsch
@@ -122,10 +124,18 @@ src/
 - Videos optional
 - MwSt. 19% hardcoded (für spätere Konfigurierbarkeit vorgesehen)
 
+## Deployment
+- Plattform: Vercel (vercel.com)
+- Region: fra1 (Frankfurt, DSGVO-konform)
+- Auto-Deploy: jeder Push auf `main` löst automatisch ein neues Deployment aus
+- Umgebungsvariablen in Vercel Dashboard hinterlegt (Production + Preview + Development)
+- Supabase Auth Redirect URL muss auf die Live-URL zeigen: `[domain]/auth/callback`
+
 ## Session-Log
 - Session 1: Setup abgeschlossen – GitHub, Supabase, Claude Code installiert
 - Session 2: CLAUDE.md erstellt, Next.js initialisiert, Supabase-Client eingerichtet, Auth + Login + Dashboard gebaut
 - Session 3: Vollständige App gebaut – Kunden/Projekte/Räume/Produkte/Partner CRUD, Preiskalkulation, Freigabe-System. Build fehlerfrei. Push auf GitHub.
+- Session 4: Vercel Deployment eingerichtet (vercel.json, fra1, Env-Vars). App ist live. CLAUDE.md aktualisiert. Nächste Schritte: Design, CSV-Export, Bildupload, echte Daten.
 
 ## Anweisung
 Am Ende jeder Session diesen Session-Log mit einem kurzen Eintrag aktualisieren was gemacht wurde und was als nächstes kommt.
