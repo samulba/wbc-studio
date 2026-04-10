@@ -155,9 +155,6 @@ export default function PreisePage() {
                       : 'bg-white border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md hover:-translate-y-1'
                   }`}
                 >
-                  {plan.highlight && (
-                    <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-400 via-indigo-500 to-violet-400 rounded-t-2xl" />
-                  )}
                   {plan.badge && (
                     <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#6366F1] text-white text-[11px] font-bold rounded-full whitespace-nowrap uppercase tracking-wide shadow-md shadow-indigo-200">
                       {plan.badge}

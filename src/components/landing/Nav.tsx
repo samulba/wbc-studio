@@ -48,8 +48,8 @@ export default function Nav() {
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'bg-white border-b border-gray-100 shadow-sm shadow-gray-100/60'
-            : 'bg-white/96 backdrop-blur-md'
+            ? 'bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm shadow-gray-100/60'
+            : 'bg-white/85 backdrop-blur-xl'
         }`}
       >
         <div className="w-full px-8 h-[68px] flex items-center justify-between gap-8">
