@@ -3,7 +3,7 @@
 import { useFormState, useFormStatus } from 'react-dom'
 import { useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Upload, Loader2, X } from 'lucide-react'
+import { Upload, Loader2, X, Wand2 } from 'lucide-react'
 import type { ProduktActionState } from '@/app/actions/produkte'
 import type { Partner, ProduktMitDetails } from '@/lib/supabase/types'
 
@@ -59,7 +59,11 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
   const [menge, setMenge] = useState<number>(initialData?.menge ?? 1)
   const [bildUrl, setBildUrl] = useState<string>(initialData?.bild_url ?? '')
   const [bildUploading, setBildUploading] = useState(false)
+  const [produktName, setProduktName] = useState<string>(initialData?.name ?? '')
+  const [scrapingLoading, setScrapingLoading] = useState(false)
+  const [scrapingFehler, setScrapingFehler] = useState<string | null>(null)
   const bildInputRef = useRef<HTMLInputElement>(null)
+  const urlInputRef  = useRef<HTMLInputElement>(null)
 
   const handleBildUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -99,6 +103,24 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
     if (ep > 0) setMarge(r2(((val - ep) / ep) * 100))
   }, [ep])
 
+  const handleUrlScrape = useCallback(async () => {
+    const url = urlInputRef.current?.value?.trim()
+    if (!url || !url.startsWith('http')) return
+    setScrapingLoading(true)
+    setScrapingFehler(null)
+    try {
+      const res  = await fetch(`/api/scrape-product?url=${encodeURIComponent(url)}`)
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      if (data.title && !produktName) setProduktName(data.title)
+      if (data.image && !bildUrl)     setBildUrl(data.image)
+    } catch {
+      setScrapingFehler('Automatisches Auslesen fehlgeschlagen. Bitte manuell eingeben.')
+    } finally {
+      setScrapingLoading(false)
+    }
+  }, [produktName, bildUrl])
+
   return (
     <form action={formAction} className="space-y-7">
       {state?.fehler && (
@@ -116,7 +138,8 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
           </label>
           <input
             id="name" name="name" type="text" required
-            defaultValue={initialData?.name ?? ''}
+            value={produktName}
+            onChange={(e) => setProduktName(e.target.value)}
             className={inp}
             placeholder="z. B. Stehleuchte Arc"
           />
@@ -171,15 +194,35 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
           </select>
         </div>
 
-        {/* Produktlink */}
+        {/* Produktlink mit Auto-Fill */}
         <div className="col-span-2">
-          <label htmlFor="produkt_url" className={lbl}>Produktlink (URL)</label>
-          <input
-            id="produkt_url" name="produkt_url" type="url"
-            defaultValue={initialData?.produkt_url ?? ''}
-            className={inp}
-            placeholder="https://…"
-          />
+          <label htmlFor="produkt_url" className={lbl}>
+            Produktlink (URL)
+            <span className="ml-1.5 text-gray-400 font-normal normal-case">— nach Eingabe automatisch ausfüllen</span>
+          </label>
+          <div className="flex gap-2">
+            <input
+              ref={urlInputRef}
+              id="produkt_url" name="produkt_url" type="url"
+              defaultValue={initialData?.produkt_url ?? ''}
+              className={inp}
+              placeholder="https://…"
+              onBlur={handleUrlScrape}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleUrlScrape() } }}
+            />
+            <button type="button" onClick={handleUrlScrape} disabled={scrapingLoading}
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              title="Produktdaten auslesen">
+              {scrapingLoading
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
+                : <Wand2 className="w-3.5 h-3.5 text-gray-400" />}
+            </button>
+          </div>
+          {scrapingFehler && (
+            <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+              <span>⚠</span> {scrapingFehler}
+            </p>
+          )}
         </div>
 
         {/* Beschreibung */}

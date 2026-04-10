@@ -23,6 +23,7 @@ async function getKunden(): Promise<KundeKarte[]> {
     email: k.email ?? null,
     telefon: k.telefon ?? null,
     projektCount: projektCounts[k.id] ?? 0,
+    status: (k.status as string) ?? 'aktiv',
   }))
 }
 

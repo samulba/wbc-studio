@@ -5,6 +5,8 @@ import { useFormState, useFormStatus } from 'react-dom'
 import {
   saveAllgemein,
   saveFreigabe,
+  saveFreigabeLinks,
+  saveBenachrichtigungen,
   type EinstellungActionState,
 } from '@/app/actions/einstellungen'
 import {
@@ -20,10 +22,12 @@ import type { User } from '@supabase/supabase-js'
 // ── Konstanten ────────────────────────────────────────────────
 
 const TABS = [
-  { key: 'allgemein',   label: 'Allgemein' },
-  { key: 'team',        label: 'Team' },
-  { key: 'sicherheit',  label: 'Sicherheit' },
-  { key: 'abrechnung',  label: 'Abrechnung' },
+  { key: 'allgemein',        label: 'Allgemein' },
+  { key: 'team',             label: 'Team' },
+  { key: 'sicherheit',       label: 'Sicherheit' },
+  { key: 'benachrichtigungen', label: 'Benachrichtigungen' },
+  { key: 'freigabe',         label: 'Freigabe & Links' },
+  { key: 'abrechnung',       label: 'Abrechnung' },
 ]
 
 const ZEITZONEN = [
@@ -510,6 +514,119 @@ function SicherheitTab({
   )
 }
 
+// ── Tab: Benachrichtigungen ───────────────────────────────────
+
+function BenachrichtigungenTab({ einstellungen }: { einstellungen: Record<string, string> }) {
+  const [state, action] = useFormState(saveBenachrichtigungen, null)
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">
+        Diese Einstellungen werden in einer zukünftigen Version aktiviert. Änderungen werden bereits gespeichert.
+      </div>
+
+      <form action={action} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+          <h3 className="text-sm font-semibold text-gray-900">E-Mail-Benachrichtigungen</h3>
+        </div>
+        <div className="px-6 py-5 space-y-0">
+          {[
+            { label: 'Neue Freigabeanfrage',    name: 'benach_neue_freigabe', beschreibung: 'Bei neuer Kundenfreigabe benachrichtigen', checked: einstellungen.benach_neue_freigabe === 'true' },
+            { label: 'Freigabe abgelehnt',       name: 'benach_ablehnung',     beschreibung: 'Bei Ablehnung durch den Kunden',            checked: einstellungen.benach_ablehnung     === 'true' },
+            { label: 'Tägliche Zusammenfassung', name: 'benach_taeglich',      beschreibung: 'Einmal täglich alle offenen Aktionen',      checked: einstellungen.benach_taeglich      === 'true' },
+          ].map((t) => (
+            <div key={t.name} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+              <div>
+                <p className="text-sm font-medium text-gray-800">{t.label}</p>
+                {t.beschreibung && <p className="text-xs text-gray-500 mt-0.5">{t.beschreibung}</p>}
+              </div>
+              <input type="hidden" name={t.name} value="false" />
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" name={t.name} value="true" defaultChecked={t.checked} className="sr-only peer" />
+                <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-indigo-600 peer-focus:ring-2 peer-focus:ring-indigo-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
+              </label>
+            </div>
+          ))}
+        </div>
+        <div className="px-6 pb-5 space-y-3 border-t border-gray-100 pt-4">
+          <label className="block text-xs font-medium text-gray-700 mb-1.5">Benachrichtigungs-E-Mail</label>
+          <input name="benach_email" type="email" defaultValue={einstellungen.benach_email ?? ''}
+            placeholder="lisa@wellbeing-concepts.de"
+            className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition" />
+          <button type="submit" className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">Speichern</button>
+          {state?.fehler && <p className="text-xs text-red-500">{state.fehler}</p>}
+          {state?.erfolg && <p className="text-xs text-emerald-600">{state.erfolg}</p>}
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// ── Tab: Freigabe & Links ─────────────────────────────────────
+
+function FreigabeLinksTab({ einstellungen }: { einstellungen: Record<string, string> }) {
+  const [state, action] = useFormState(saveFreigabeLinks, null)
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <form action={action} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+          <h3 className="text-sm font-semibold text-gray-900">Freigabelink-Einstellungen</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Gilt für neu erstellte Freigabelinks</p>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Standard-Ablaufzeit</label>
+              <select name="freigabe_ablaufzeit" defaultValue={einstellungen.freigabe_ablaufzeit ?? '30'}
+                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
+                <option value="7">7 Tage</option>
+                <option value="14">14 Tage</option>
+                <option value="30">30 Tage</option>
+                <option value="0">Kein Ablauf</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">PIN-Länge</label>
+              <select name="freigabe_pin_laenge" defaultValue={einstellungen.freigabe_pin_laenge ?? '4'}
+                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition">
+                <option value="4">4-stellig</option>
+                <option value="6">6-stellig</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Toggles */}
+          {[
+            { label: 'PIN-Schutz standard aktivieren', name: 'freigabe_pin_schutz', checked: einstellungen.freigabe_pin_schutz === 'true' },
+            { label: 'Logo auf Freigabe zeigen',       name: 'freigabe_logo_zeigen', checked: einstellungen.freigabe_logo_zeigen === 'true' },
+          ].map((t) => (
+            <div key={t.name} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+              <p className="text-sm font-medium text-gray-800">{t.label}</p>
+              <input type="hidden" name={t.name} value="false" />
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" name={t.name} value="true" defaultChecked={t.checked} className="sr-only peer" />
+                <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-indigo-600 peer-focus:ring-2 peer-focus:ring-indigo-300 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
+              </label>
+            </div>
+          ))}
+
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">Intro-Text für Kunden</label>
+            <textarea name="freigabe_intro_text" rows={3} defaultValue={einstellungen.freigabe_intro_text ?? ''}
+              placeholder="z.B. Bitte prüfen Sie die folgenden Produkte und geben Sie diese frei oder lehnen Sie sie ab."
+              className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition resize-none" />
+          </div>
+
+          <button type="submit" className="px-4 py-2 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors">Speichern</button>
+          {state?.fehler && <p className="text-xs text-red-500">{state.fehler}</p>}
+          {state?.erfolg && <p className="text-xs text-emerald-600">{state.erfolg}</p>}
+        </div>
+      </form>
+    </div>
+  )
+}
+
 // ── Tab: Abrechnung ───────────────────────────────────────────
 
 function AbrechnungTab() {
@@ -598,12 +715,12 @@ export default function EinstellungenTabs({
       </div>
 
       {/* Inhalt */}
-      {aktuellerTab === 'allgemein'  && <AllgemeinTab einstellungen={einstellungen} />}
-      {aktuellerTab === 'team'       && <TeamTab team={team} />}
-      {aktuellerTab === 'sicherheit' && (
-        <SicherheitTab userEmail={userEmail} lastSignIn={lastSignIn} einstellungen={einstellungen} />
-      )}
-      {aktuellerTab === 'abrechnung' && <AbrechnungTab />}
+      {aktuellerTab === 'allgemein'          && <AllgemeinTab einstellungen={einstellungen} />}
+      {aktuellerTab === 'team'               && <TeamTab team={team} />}
+      {aktuellerTab === 'sicherheit'         && <SicherheitTab userEmail={userEmail} lastSignIn={lastSignIn} einstellungen={einstellungen} />}
+      {aktuellerTab === 'benachrichtigungen' && <BenachrichtigungenTab einstellungen={einstellungen} />}
+      {aktuellerTab === 'freigabe'           && <FreigabeLinksTab einstellungen={einstellungen} />}
+      {aktuellerTab === 'abrechnung'         && <AbrechnungTab />}
     </div>
   )
 }

@@ -80,6 +80,7 @@ export async function addListItem(
   if (error) return { fehler: 'Fehler beim Speichern.' }
 
   revalidatePath('/dashboard/einstellungen')
+  revalidatePath('/dashboard/kategorien')
   return { erfolg: `„${name}" hinzugefügt.` }
 }
 
@@ -100,9 +101,47 @@ export async function deleteListItem(schluessel: string, name: string): Promise<
 
   await upsertEinstellung(schluessel, liste.join(','))
   revalidatePath('/dashboard/einstellungen')
+  revalidatePath('/dashboard/kategorien')
 }
 
-// ── Freigabe-Einstellungen ────────────────────────────────────
+// ── Benachrichtigungen ────────────────────────────────────────
+
+export async function saveBenachrichtigungen(
+  prevState: EinstellungActionState,
+  formData: FormData
+): Promise<EinstellungActionState> {
+  const felder: [string, string][] = [
+    ['benach_neue_freigabe', formData.get('benach_neue_freigabe') === 'true' ? 'true' : 'false'],
+    ['benach_ablehnung',     formData.get('benach_ablehnung')     === 'true' ? 'true' : 'false'],
+    ['benach_taeglich',      formData.get('benach_taeglich')      === 'true' ? 'true' : 'false'],
+    ['benach_email',         (formData.get('benach_email')        as string) || ''],
+  ]
+  const ergebnisse = await Promise.all(felder.map(([k, v]) => upsertEinstellung(k, v)))
+  if (ergebnisse.some((r) => r.error)) return { fehler: 'Fehler beim Speichern.' }
+  revalidatePath('/dashboard/einstellungen')
+  return { erfolg: 'Benachrichtigungen gespeichert.' }
+}
+
+// ── Freigabe & Links ──────────────────────────────────────────
+
+export async function saveFreigabeLinks(
+  prevState: EinstellungActionState,
+  formData: FormData
+): Promise<EinstellungActionState> {
+  const felder: [string, string][] = [
+    ['freigabe_ablaufzeit',  (formData.get('freigabe_ablaufzeit')  as string) || '30'],
+    ['freigabe_pin_schutz',  formData.get('freigabe_pin_schutz')  === 'true' ? 'true' : 'false'],
+    ['freigabe_pin_laenge',  (formData.get('freigabe_pin_laenge')  as string) || '4'],
+    ['freigabe_intro_text',  (formData.get('freigabe_intro_text')  as string) || ''],
+    ['freigabe_logo_zeigen', formData.get('freigabe_logo_zeigen') === 'true' ? 'true' : 'false'],
+  ]
+  const ergebnisse = await Promise.all(felder.map(([k, v]) => upsertEinstellung(k, v)))
+  if (ergebnisse.some((r) => r.error)) return { fehler: 'Fehler beim Speichern.' }
+  revalidatePath('/dashboard/einstellungen')
+  return { erfolg: 'Freigabe-Einstellungen gespeichert.' }
+}
+
+// ── Freigabe-Einstellungen (Legacy) ──────────────────────────
 
 export async function saveFreigabe(
   prevState: EinstellungActionState,

@@ -5,6 +5,8 @@ export type Json = string | number | boolean | null | { [key: string]: Json } | 
 export type ProduktStatus = 'ausstehend' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung'
 export type ProjektStatus = 'offen' | 'in_bearbeitung' | 'freigegeben' | 'abgeschlossen'
 
+export type KundeStatus = 'aktiv' | 'abgeschlossen' | 'pausiert'
+
 export interface Kunde {
   id: string
   name: string
@@ -13,6 +15,7 @@ export interface Kunde {
   telefon: string | null
   adresse: string | null
   notizen: string | null
+  status: KundeStatus
   deleted_at: string | null
   created_at: string
   updated_at: string

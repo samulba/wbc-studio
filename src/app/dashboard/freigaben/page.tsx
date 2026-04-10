@@ -6,7 +6,7 @@ async function getAlleProdukte(): Promise<FreigabeEintrag[]> {
   const { data } = await supabase
     .from('produkte')
     .select(`
-      id, name, kategorie, menge, einheit, verkaufspreis,
+      id, name, kategorie, menge, einheit, verkaufspreis, bild_url, created_at,
       raeume(id, name, projekt_id, projekte(id, name, kunden(id, name))),
       produktstatus(status, kommentar)
     `)
