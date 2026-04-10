@@ -33,22 +33,25 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-wbc-creme flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        {/* Logo / Titel */}
-        <div className="mb-10 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-stone-800">
-            WBC Studio
+        {/* Logo */}
+        <div className="mb-12 text-center">
+          <h1 className="font-heading text-5xl font-light tracking-[0.25em] text-wbc-gruen uppercase">
+            WBC
           </h1>
-          <p className="mt-1 text-sm text-stone-400">Internes Verwaltungstool</p>
+          <p className="mt-1 text-xs tracking-[0.35em] text-wbc-grau uppercase font-light">
+            Studio
+          </p>
+          <div className="mt-5 h-px w-12 bg-wbc-sand mx-auto" />
         </div>
 
         {/* Login-Formular */}
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label
               htmlFor="email"
-              className="block text-xs font-medium text-stone-500 mb-1.5 uppercase tracking-wide"
+              className="block text-xs font-medium text-wbc-grau uppercase tracking-widest mb-1.5"
             >
               E-Mail
             </label>
@@ -59,7 +62,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm bg-white border border-stone-200 rounded-lg text-stone-800 placeholder:text-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-300 focus:border-transparent transition"
+              className="w-full px-4 py-3 text-sm bg-white border border-[#e8ddd3] rounded-lg text-wbc-gruen placeholder:text-[#c5b8ab] focus:outline-none focus:ring-2 focus:ring-wbc-gruen/20 focus:border-wbc-gruen/40 transition"
               placeholder="name@wellbeing-concepts.de"
             />
           </div>
@@ -67,7 +70,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="passwort"
-              className="block text-xs font-medium text-stone-500 mb-1.5 uppercase tracking-wide"
+              className="block text-xs font-medium text-wbc-grau uppercase tracking-widest mb-1.5"
             >
               Passwort
             </label>
@@ -78,13 +81,13 @@ export default function LoginPage() {
               required
               value={passwort}
               onChange={(e) => setPasswort(e.target.value)}
-              className="w-full px-3 py-2.5 text-sm bg-white border border-stone-200 rounded-lg text-stone-800 placeholder:text-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-300 focus:border-transparent transition"
+              className="w-full px-4 py-3 text-sm bg-white border border-[#e8ddd3] rounded-lg text-wbc-gruen placeholder:text-[#c5b8ab] focus:outline-none focus:ring-2 focus:ring-wbc-gruen/20 focus:border-wbc-gruen/40 transition"
               placeholder="••••••••"
             />
           </div>
 
           {fehler && (
-            <p className="text-xs text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+            <p className="text-xs text-wbc-terra bg-wbc-terra/5 border border-wbc-terra/20 rounded-lg px-3 py-2.5">
               {fehler}
             </p>
           )}
@@ -92,7 +95,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={laedt}
-            className="w-full py-2.5 px-4 bg-stone-800 hover:bg-stone-700 disabled:bg-stone-300 text-white text-sm font-medium rounded-lg transition-colors"
+            className="w-full py-3 px-4 bg-wbc-gruen hover:bg-wbc-gruen-dark disabled:opacity-50 text-white text-xs font-medium tracking-[0.15em] uppercase rounded-lg transition-colors"
           >
             {laedt ? 'Anmelden…' : 'Anmelden'}
           </button>

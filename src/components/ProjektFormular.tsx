@@ -27,7 +27,7 @@ function SpeichernButton() {
     <button
       type="submit"
       disabled={pending}
-      className="px-5 py-2.5 bg-stone-800 hover:bg-stone-700 disabled:bg-stone-300 text-white text-sm font-medium rounded-lg transition-colors"
+      className="px-5 py-2.5 bg-wbc-gruen hover:bg-wbc-gruen-dark disabled:opacity-50 text-white text-xs font-medium tracking-[0.12em] uppercase rounded-lg transition-colors"
     >
       {pending ? 'Wird gespeichert…' : 'Speichern'}
     </button>
@@ -56,7 +56,7 @@ export default function ProjektFormular({
   return (
     <form action={formAction} className="space-y-5">
       {state?.fehler && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">
+        <div className="text-sm text-wbc-terra bg-wbc-terra/5 border border-wbc-terra/20 rounded-lg px-4 py-3">
           {state.fehler}
         </div>
       )}
@@ -193,7 +193,7 @@ export default function ProjektFormular({
         <SpeichernButton />
         <a
           href={abbrechen}
-          className="px-5 py-2.5 text-sm text-stone-500 hover:text-stone-800 transition-colors"
+          className="px-5 py-2.5 text-sm text-wbc-grau/60 hover:text-wbc-grau transition-colors"
         >
           Abbrechen
         </a>
@@ -203,7 +203,7 @@ export default function ProjektFormular({
 }
 
 const labelKlasse =
-  'block text-xs font-medium text-stone-500 uppercase tracking-wide mb-1.5'
+  'block text-xs font-medium text-wbc-grau/70 uppercase tracking-widest mb-1.5'
 
 const inputKlasse =
-  'w-full px-3 py-2.5 text-sm bg-white border border-stone-200 rounded-lg text-stone-800 placeholder:text-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-300 focus:border-transparent transition'
+  'w-full px-3 py-2.5 text-sm bg-white border border-[#e8ddd3] rounded-lg text-wbc-gruen placeholder:text-[#c5b8ab] focus:outline-none focus:ring-2 focus:ring-wbc-gruen/20 focus:border-wbc-gruen/40 transition'

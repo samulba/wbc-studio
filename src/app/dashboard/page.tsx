@@ -25,30 +25,30 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-xl font-semibold text-stone-800">Übersicht</h1>
-        <p className="text-sm text-stone-400 mt-0.5">WBC Studio – Internes Verwaltungstool</p>
+      <div className="mb-10">
+        <h1 className="font-heading text-3xl font-light text-wbc-gruen tracking-wide">Übersicht</h1>
+        <p className="text-sm text-wbc-grau/60 mt-1 tracking-wide">Wellbeing-Concepts Studio</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         {kacheln.map((k) => (
           <a
             key={k.label}
             href={k.href}
-            className="bg-white border border-stone-100 rounded-xl p-6 hover:border-stone-200 hover:shadow-sm transition-all group"
+            className="bg-white border border-[#ede4d9] rounded-xl p-6 hover:border-wbc-sand/60 hover:shadow-sm transition-all group"
           >
-            <p className="text-xs font-medium text-stone-400 uppercase tracking-wide mb-3">
+            <p className="text-xs font-medium text-wbc-grau/60 uppercase tracking-widest mb-4">
               {k.label}
             </p>
-            <p className="text-3xl font-semibold text-stone-800 group-hover:text-stone-600 transition-colors">
+            <p className="font-heading text-4xl font-light text-wbc-gruen group-hover:text-wbc-gruen/70 transition-colors">
               {k.wert}
             </p>
           </a>
         ))}
       </div>
 
-      <div className="bg-white border border-stone-100 rounded-xl p-6">
-        <h2 className="text-sm font-medium text-stone-600 mb-4">Schnellzugriff</h2>
+      <div className="bg-white border border-[#ede4d9] rounded-xl p-6">
+        <h2 className="text-xs font-medium text-wbc-grau/60 uppercase tracking-widest mb-4">Schnellzugriff</h2>
         <div className="flex flex-wrap gap-2">
           {[
             { label: '+ Neuer Kunde', href: '/dashboard/kunden/neu' },
@@ -58,7 +58,7 @@ export default async function DashboardPage() {
             <a
               key={link.label}
               href={link.href}
-              className="text-sm px-4 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-700 transition-colors"
+              className="text-xs px-4 py-2.5 bg-wbc-gruen text-white rounded-lg hover:bg-wbc-gruen-dark transition-colors tracking-wide"
             >
               {link.label}
             </a>

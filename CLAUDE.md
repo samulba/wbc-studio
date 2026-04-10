@@ -136,6 +136,7 @@ src/
 - Session 2: CLAUDE.md erstellt, Next.js initialisiert, Supabase-Client eingerichtet, Auth + Login + Dashboard gebaut
 - Session 3: Vollständige App gebaut – Kunden/Projekte/Räume/Produkte/Partner CRUD, Preiskalkulation, Freigabe-System. Build fehlerfrei. Push auf GitHub.
 - Session 4: Vercel Deployment eingerichtet (vercel.json, fra1, Env-Vars). App ist live. CLAUDE.md aktualisiert. Nächste Schritte: Design, CSV-Export, Bildupload, echte Daten.
+- Session 5: Komplettes CI-Redesign – Wellbeing-Concepts Farbpalette (Creme/Dunkelgrün/Mint/Terrakotta/Sand), Google Fonts (Cormorant Garamond + Montserrat), WBC Tailwind Custom Colors. Alle Seiten und Komponenten überarbeitet (Login, Dashboard, Kunden, Projekte, Räume, Produkte, Partner, Freigabe-Ansicht). Build fehlerfrei (0 Errors/Warnings). Nächste Schritte: CSV-Export, Produktbilder-Upload.
 
 ## Anweisung
 Am Ende jeder Session diesen Session-Log mit einem kurzen Eintrag aktualisieren was gemacht wurde und was als nächstes kommt.

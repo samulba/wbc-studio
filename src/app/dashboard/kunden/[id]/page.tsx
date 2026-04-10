@@ -12,10 +12,10 @@ const projektStatusLabel: Record<string, string> = {
 }
 
 const projektStatusFarbe: Record<string, string> = {
-  offen: 'bg-stone-100 text-stone-500',
-  in_bearbeitung: 'bg-blue-50 text-blue-600',
-  freigegeben: 'bg-green-50 text-green-600',
-  abgeschlossen: 'bg-stone-100 text-stone-400',
+  offen:          'bg-wbc-creme text-wbc-grau',
+  in_bearbeitung: 'bg-wbc-mint/25 text-wbc-gruen',
+  freigegeben:    'bg-wbc-mint/40 text-wbc-gruen',
+  abgeschlossen:  'bg-[#ede4d9] text-wbc-grau',
 }
 
 async function getKunde(id: string) {
@@ -61,23 +61,23 @@ export default async function KundeDetailPage({
         <div>
           <Link
             href="/dashboard/kunden"
-            className="text-xs text-stone-400 hover:text-stone-700 transition-colors mb-3 inline-block"
+            className="text-xs text-wbc-grau/40 hover:text-wbc-gruen transition-colors mb-3 inline-block"
           >
             ← Zurück zu Kunden
           </Link>
-          <h1 className="text-xl font-semibold text-stone-800">{kunde.name}</h1>
+          <h1 className="font-heading text-3xl font-light text-wbc-gruen tracking-wide">{kunde.name}</h1>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href={`/dashboard/kunden/${kunde.id}/bearbeiten`}
-            className="px-4 py-2 text-sm text-stone-600 border border-stone-200 hover:border-stone-300 hover:bg-stone-50 rounded-lg transition-colors"
+            className="px-4 py-2 text-xs text-wbc-grau/70 border border-[#e8ddd3] hover:border-wbc-sand/60 hover:bg-wbc-creme/40 rounded-lg transition-colors tracking-wide"
           >
             Bearbeiten
           </Link>
           <form action={loeschenMitId}>
             <button
               type="submit"
-              className="px-4 py-2 text-sm text-red-400 hover:text-red-600 transition-colors"
+              className="px-4 py-2 text-xs text-wbc-terra/60 hover:text-wbc-terra transition-colors"
               onClick={(e) => {
                 if (!confirm(`„${kunde.name}" wirklich löschen?`)) e.preventDefault()
               }}
@@ -91,8 +91,8 @@ export default async function KundeDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Stammdaten */}
         <div className="lg:col-span-1 space-y-4">
-          <div className="bg-white border border-stone-100 rounded-xl p-5">
-            <h2 className="text-xs font-medium text-stone-400 uppercase tracking-wide mb-4">
+          <div className="bg-white border border-[#ede4d9] rounded-xl p-5">
+            <h2 className="text-xs font-medium text-wbc-grau/50 uppercase tracking-widest mb-4">
               Kontaktdaten
             </h2>
             <dl className="space-y-3">
@@ -104,11 +104,11 @@ export default async function KundeDetailPage({
           </div>
 
           {kunde.notizen && (
-            <div className="bg-white border border-stone-100 rounded-xl p-5">
-              <h2 className="text-xs font-medium text-stone-400 uppercase tracking-wide mb-3">
+            <div className="bg-white border border-[#ede4d9] rounded-xl p-5">
+              <h2 className="text-xs font-medium text-wbc-grau/50 uppercase tracking-widest mb-3">
                 Notizen
               </h2>
-              <p className="text-sm text-stone-600 whitespace-pre-wrap leading-relaxed">
+              <p className="text-sm text-wbc-grau/70 whitespace-pre-wrap leading-relaxed">
                 {kunde.notizen}
               </p>
             </div>
@@ -117,15 +117,15 @@ export default async function KundeDetailPage({
 
         {/* Projekte */}
         <div className="lg:col-span-2">
-          <div className="bg-white border border-stone-100 rounded-xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-stone-50">
-              <h2 className="text-sm font-medium text-stone-700">
+          <div className="bg-white border border-[#ede4d9] rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#f0e8de]">
+              <h2 className="text-sm font-medium text-wbc-gruen">
                 Projekte{' '}
-                <span className="text-stone-400 font-normal">({projekte.length})</span>
+                <span className="text-wbc-grau/40 font-normal">({projekte.length})</span>
               </h2>
               <Link
                 href={`/dashboard/projekte/neu?kunde=${kunde.id}`}
-                className="text-xs text-stone-500 hover:text-stone-800 transition-colors"
+                className="text-xs text-wbc-grau/50 hover:text-wbc-gruen transition-colors"
               >
                 + Neues Projekt
               </Link>
@@ -133,29 +133,29 @@ export default async function KundeDetailPage({
 
             {projekte.length === 0 ? (
               <div className="text-center py-10">
-                <p className="text-sm text-stone-400">Noch keine Projekte.</p>
+                <p className="text-sm text-wbc-grau/40">Noch keine Projekte.</p>
               </div>
             ) : (
-              <ul className="divide-y divide-stone-50">
+              <ul className="divide-y divide-[#f5ede4]">
                 {projekte.map((p) => (
                   <li key={p.id}>
                     <Link
                       href={`/dashboard/projekte/${p.id}`}
-                      className="flex items-center justify-between px-5 py-4 hover:bg-stone-50 transition-colors group"
+                      className="flex items-center justify-between px-5 py-4 hover:bg-wbc-creme/20 transition-colors group"
                     >
                       <div>
-                        <p className="text-sm font-medium text-stone-800 group-hover:text-stone-600">
+                        <p className="text-sm font-medium text-wbc-gruen group-hover:text-wbc-gruen/70">
                           {p.name}
                         </p>
                         {p.beschreibung && (
-                          <p className="text-xs text-stone-400 mt-0.5 line-clamp-1">
+                          <p className="text-xs text-wbc-grau/50 mt-0.5 line-clamp-1">
                             {p.beschreibung}
                           </p>
                         )}
                       </div>
                       <span
                         className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                          projektStatusFarbe[p.status] ?? 'bg-stone-100 text-stone-500'
+                          projektStatusFarbe[p.status] ?? 'bg-wbc-creme text-wbc-grau'
                         }`}
                       >
                         {projektStatusLabel[p.status] ?? p.status}
@@ -184,10 +184,10 @@ function InfoZeile({
   if (!wert) return null
   return (
     <div>
-      <dt className="text-xs text-stone-400 mb-0.5">{label}</dt>
-      <dd className="text-sm text-stone-700">
+      <dt className="text-xs text-wbc-grau/50 mb-0.5">{label}</dt>
+      <dd className="text-sm text-wbc-grau/80">
         {link ? (
-          <a href={link} className="hover:text-stone-900 transition-colors">
+          <a href={link} className="hover:text-wbc-gruen transition-colors">
             {wert}
           </a>
         ) : (

@@ -120,11 +120,11 @@ export default async function FreigabePage({ params }: Props) {
 // ── Fehler-Seite ──────────────────────────────────────────────
 function Fehlerseite({ meldung }: { meldung: string }) {
   return (
-    <div className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-wbc-creme flex items-center justify-center px-4">
       <div className="max-w-sm text-center">
-        <p className="text-xs text-stone-400 uppercase tracking-widest mb-4">WBC Studio</p>
-        <h1 className="text-lg font-semibold text-stone-800 mb-2">Link nicht verfügbar</h1>
-        <p className="text-sm text-stone-500 leading-relaxed">{meldung}</p>
+        <p className="font-heading text-xs tracking-[0.3em] text-wbc-grau/40 uppercase mb-6">Wellbeing-Concepts</p>
+        <h1 className="font-heading text-2xl font-light text-wbc-gruen tracking-wide mb-2">Link nicht verfügbar</h1>
+        <p className="text-sm text-wbc-grau/60 leading-relaxed">{meldung}</p>
       </div>
     </div>
   )
