@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { Check } from 'lucide-react'
+import { Check, Clock, AlertCircle, Zap } from 'lucide-react'
 
 // ── Animated Background ──────────────────────────────────────────
 function AnimatedBG() {
@@ -31,14 +31,13 @@ function AnimatedBG() {
           style={{
             width: o.w, height: o.h,
             top: o.top,
-            ...(('right' in o && o.right) ? { right: o.right } : { left: (o as { left: string }).left }),
+            ...('right' in o && o.right ? { right: o.right } : { left: (o as { left: string }).left }),
             opacity: o.op,
             animation: `pulseOrb ${o.dur} ease-in-out infinite`,
             animationDelay: o.delay,
           }}
         />
       ))}
-
       {squares.map((sq, i) => (
         <div
           key={i}
@@ -46,7 +45,7 @@ function AnimatedBG() {
           style={{
             width: sq.size, height: sq.size,
             top: sq.top,
-            ...(('right' in sq && sq.right !== undefined) ? { right: sq.right } : { left: (sq as { left: string }).left }),
+            ...('right' in sq && sq.right !== undefined ? { right: sq.right } : { left: (sq as { left: string }).left }),
             opacity: sq.op,
             transform: `rotate(${sq.rotate}deg)`,
             animation: `${sq.anim} ${sq.dur} ease-in-out infinite`,
@@ -54,7 +53,6 @@ function AnimatedBG() {
           }}
         />
       ))}
-
       <div
         className="absolute inset-0 opacity-[0.022]"
         style={{
@@ -66,45 +64,58 @@ function AnimatedBG() {
   )
 }
 
-// ── Live Freigabe Mockup ─────────────────────────────────────────
-function FreigabeMockup() {
+// ── Dashboard Mockup (Designer-Ansicht) ──────────────────────────
+function DashboardMockup() {
   const [approved, setApproved] = useState(false)
 
   useEffect(() => {
     let t1: ReturnType<typeof setTimeout>
-    const CYCLE = 6000
-
+    const CYCLE = 7000
     function cycle() {
       setApproved(false)
-      t1 = setTimeout(() => setApproved(true), 2600)
+      t1 = setTimeout(() => setApproved(true), 2400)
     }
-
     cycle()
     const interval = setInterval(cycle, CYCLE)
     return () => { clearTimeout(t1); clearInterval(interval) }
   }, [])
 
   return (
-    <div className="relative w-full max-w-[400px] mx-auto lg:mx-0 select-none">
-      {/* Floating chip – top left */}
+    <div className="relative w-full max-w-[460px] mx-auto lg:mx-0 select-none">
+
+      {/* Floating chip – auto calculation (top right) */}
       <div
-        className="absolute -top-5 -left-6 z-20 flex items-center gap-2 bg-white rounded-xl border border-gray-100 shadow-xl px-3 py-2"
-        style={{ animation: 'floatB 8s ease-in-out infinite' }}
+        className="absolute -top-5 -right-3 z-20 flex items-center gap-2 bg-[#6366F1] rounded-xl shadow-xl shadow-indigo-200/60 px-3.5 py-2.5"
+        style={{ animation: 'floatA 8s ease-in-out infinite', animationDelay: '-2s' }}
       >
-        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-        <span className="text-[12px] font-semibold text-gray-700 whitespace-nowrap">23 aktive Projekte</span>
+        <Zap className="w-3.5 h-3.5 text-indigo-200 shrink-0" />
+        <div>
+          <p className="text-[9px] text-indigo-200/70 leading-none mb-0.5 font-medium">Auto-Kalkulation</p>
+          <p className="text-[12px] font-bold text-white whitespace-nowrap leading-none">
+            EP 1.200€ · 40% → 2.856€
+          </p>
+        </div>
       </div>
 
-      {/* Floating chip – bottom right */}
+      {/* Floating chip – freigabe notification (bottom left, appears when approved) */}
       <div
-        className="absolute -bottom-5 -right-5 z-20 flex items-center gap-2 bg-[#6366F1] rounded-xl shadow-xl px-3 py-2"
-        style={{ animation: 'floatA 7s ease-in-out infinite', animationDelay: '-3s' }}
+        className="absolute -bottom-5 -left-3 z-20 flex items-center gap-2.5 bg-white rounded-xl border border-emerald-100 shadow-xl px-3.5 py-2.5 transition-all duration-500 ease-out"
+        style={{
+          opacity: approved ? 1 : 0,
+          transform: approved ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.94)',
+          pointerEvents: 'none',
+        }}
       >
-        <Check className="w-3.5 h-3.5 text-white shrink-0" strokeWidth={3} />
-        <span className="text-[12px] font-semibold text-white whitespace-nowrap">Kein Login nötig</span>
+        <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+          <Check className="w-4 h-4 text-white" strokeWidth={3} />
+        </div>
+        <div>
+          <p className="text-[11px] font-bold text-gray-800 leading-none mb-0.5">Freigabe erhalten</p>
+          <p className="text-[10px] text-gray-400 leading-none whitespace-nowrap">Hängeleuchte Flos Aim</p>
+        </div>
       </div>
 
-      {/* Browser / app frame */}
+      {/* Main app frame */}
       <div className="rounded-2xl overflow-hidden shadow-2xl shadow-indigo-100/60 border border-gray-200 bg-white">
 
         {/* URL bar */}
@@ -115,7 +126,7 @@ function FreigabeMockup() {
             <div className="w-2.5 h-2.5 rounded-full bg-emerald-300" />
           </div>
           <div className="flex-1 bg-white border border-gray-100 rounded-md px-2.5 py-1 text-[10px] text-gray-400 font-mono truncate">
-            wbc-studio.app/freigabe/e8f2c…
+            wbc-studio.app/dashboard/projekte/villa-mueller
           </div>
         </div>
 
@@ -127,82 +138,97 @@ function FreigabeMockup() {
             </div>
             <span className="font-syne font-bold text-[12px] text-gray-800">WBC Studio</span>
           </div>
-          <span className="text-[10px] text-gray-400">Freigabe-Ansicht</span>
+          <span className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-600 font-semibold rounded-full border border-emerald-100">
+            Aktiv
+          </span>
         </div>
 
-        {/* Breadcrumb */}
-        <div className="px-4 py-2 bg-gray-50/60 border-b border-gray-50 flex items-center gap-1.5 text-[10px] text-gray-400">
-          <span>Villa Müller</span>
-          <span>›</span>
-          <span>Wohnzimmer</span>
-          <span>›</span>
-          <span className="text-gray-600 font-medium">Produktliste</span>
+        {/* Project header */}
+        <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
+          <div>
+            <p className="text-[12px] font-bold text-gray-800">Villa Müller · Wohnzimmer</p>
+            <p className="text-[10px] text-gray-400 mt-0.5">3 Produkte · Budget 45.000 €</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[9px] text-gray-400 mb-0.5">Gesamt brutto</p>
+            <p className="font-syne font-bold text-[13px] text-[#0F1117]">4.726,00 €</p>
+          </div>
         </div>
 
-        {/* Product card */}
-        <div className="p-4">
-          <div className="border border-gray-100 rounded-xl p-3.5 bg-gray-50/60 mb-3">
-            <div className="flex items-start justify-between mb-2.5">
-              <div>
-                <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full uppercase tracking-wide">
-                  Polstermöbel
-                </span>
-                <h3 className="font-semibold text-[13px] text-gray-900 mt-1.5 leading-tight">
-                  Sofa &bdquo;Venedig&ldquo; 3-Sitzer
-                </h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">Walter Knoll · Hallingdal 65</p>
-              </div>
-              <div className="text-right shrink-0 ml-3">
-                <p className="text-[9px] text-gray-400">Menge</p>
-                <p className="font-bold text-[14px] text-gray-800">1×</p>
-              </div>
+        {/* Product rows */}
+        <div className="divide-y divide-gray-50/80">
+
+          {/* Row 1 – Freigegeben */}
+          <div className="flex items-center gap-2.5 px-4 py-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-bold text-[#6366F1] uppercase tracking-wide mb-0.5">Polstermöbel</p>
+              <p className="text-[12px] font-semibold text-gray-800 truncate">Sofa Venedig 3-Sitzer</p>
             </div>
-
-            <div className="border-t border-gray-100 pt-2.5 grid grid-cols-2 gap-y-1">
-              <span className="text-[11px] text-gray-400">VP netto</span>
-              <span className="text-[11px] font-semibold text-gray-700 text-right">2.400,00 €</span>
-              <span className="text-[11px] text-gray-400">VP brutto (19%)</span>
-              <span className="text-[11px] font-bold text-gray-900 text-right">2.856,00 €</span>
+            <p className="text-[12px] font-bold text-gray-900 tabular-nums shrink-0">2.856 €</p>
+            <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg shrink-0">
+              <Check className="w-2.5 h-2.5 text-emerald-500" strokeWidth={3} />
+              <span className="text-[10px] font-semibold text-emerald-600">OK</span>
             </div>
           </div>
 
-          {/* Action area – transitions between buttons ↔ success */}
-          <div className="relative" style={{ minHeight: '44px' }}>
-            {/* Buttons (idle) */}
+          {/* Row 2 – Ausstehend → Freigegeben (animated) */}
+          <div
+            className="flex items-center gap-2.5 px-4 py-3 transition-colors duration-500"
+            style={{ background: approved ? 'rgb(240 253 244 / 0.5)' : 'rgb(255 251 235 / 0.4)' }}
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-bold text-amber-400 uppercase tracking-wide mb-0.5">Leuchten</p>
+              <p className="text-[12px] font-semibold text-gray-800 truncate">Hängeleuchte Flos Aim</p>
+            </div>
+            <p className="text-[12px] font-bold text-gray-900 tabular-nums shrink-0">1.190 €</p>
             <div
-              className="flex gap-2 transition-all duration-500 ease-out"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg shrink-0 border transition-all duration-500"
               style={{
-                opacity: approved ? 0 : 1,
-                transform: approved ? 'translateY(-6px) scale(0.97)' : 'translateY(0) scale(1)',
-                pointerEvents: approved ? 'none' : 'auto',
+                background: approved ? 'rgb(240 253 244)' : 'rgb(255 251 235)',
+                borderColor: approved ? 'rgb(167 243 208)' : 'rgb(253 230 138)',
               }}
             >
-              <button className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-emerald-500 text-white text-[12px] font-semibold rounded-xl hover:bg-emerald-600 transition-colors">
-                <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
-                Freigeben
-              </button>
-              <button className="flex-1 py-2.5 bg-gray-100 text-gray-500 text-[12px] font-medium rounded-xl hover:bg-gray-200 transition-colors">
-                Ablehnen
-              </button>
+              {approved ? (
+                <>
+                  <Check className="w-2.5 h-2.5 text-emerald-500" strokeWidth={3} />
+                  <span className="text-[10px] font-semibold text-emerald-600">OK</span>
+                </>
+              ) : (
+                <>
+                  <Clock className="w-2.5 h-2.5 text-amber-500" />
+                  <span className="text-[10px] font-semibold text-amber-600">Warten</span>
+                </>
+              )}
             </div>
+          </div>
 
-            {/* Success state */}
-            <div
-              className="absolute inset-0 flex items-center justify-center gap-2.5 bg-emerald-50 border border-emerald-200 rounded-xl transition-all duration-500 ease-out"
-              style={{
-                opacity: approved ? 1 : 0,
-                transform: approved ? 'translateY(0) scale(1)' : 'translateY(6px) scale(0.97)',
-                pointerEvents: approved ? 'auto' : 'none',
-              }}
-            >
-              <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
-                <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
-              </div>
-              <div>
-                <p className="text-[12px] font-bold text-emerald-700">Freigegeben!</p>
-                <p className="text-[10px] text-emerald-500">Sofa Venedig · 2.856,00 €</p>
-              </div>
+          {/* Row 3 – Alternative */}
+          <div className="flex items-center gap-2.5 px-4 py-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-bold text-violet-400 uppercase tracking-wide mb-0.5">Textilien</p>
+              <p className="text-[12px] font-semibold text-gray-800 truncate">Vorhang Dedar Mumbai</p>
             </div>
+            <p className="text-[12px] font-bold text-gray-900 tabular-nums shrink-0">680 €</p>
+            <div className="flex items-center gap-1 bg-rose-50 border border-rose-100 px-2 py-1 rounded-lg shrink-0">
+              <AlertCircle className="w-2.5 h-2.5 text-rose-400" />
+              <span className="text-[10px] font-semibold text-rose-500">Alt.</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Pricing breakdown footer */}
+        <div className="px-4 py-3 border-t border-gray-100 bg-indigo-50/40">
+          <div className="flex items-center justify-between text-[11px] mb-1.5">
+            <span className="text-gray-400">EP gesamt</span>
+            <span className="font-medium text-gray-600">2.832,00 €</span>
+          </div>
+          <div className="flex items-center justify-between text-[11px] mb-1.5">
+            <span className="text-gray-400">Marge ∅ 40%</span>
+            <span className="font-medium text-emerald-600">+ 1.894,00 €</span>
+          </div>
+          <div className="flex items-center justify-between text-[12px] font-bold border-t border-gray-100 pt-1.5 mt-1.5">
+            <span className="text-gray-700">VP brutto gesamt</span>
+            <span className="text-[#0F1117]">4.726,00 €</span>
           </div>
         </div>
       </div>
@@ -217,12 +243,11 @@ export default function Hero() {
       <AnimatedBG />
 
       <div className="relative z-10 w-full max-w-6xl mx-auto px-5">
-        <div className="flex flex-col lg:flex-row items-center gap-14 lg:gap-20 py-16 lg:min-h-[calc(100vh-64px)]">
+        <div className="flex flex-col lg:flex-row items-center gap-14 lg:gap-16 py-16 lg:min-h-[calc(100vh-64px)]">
 
           {/* ── Left: Text ───────────────────────────── */}
           <div className="flex-1 text-center lg:text-left">
 
-            {/* Badge */}
             <div
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-[13px] font-semibold mb-7 animate-fade-up"
               style={{ animationDelay: '0ms' }}
@@ -231,13 +256,9 @@ export default function Hero() {
               Für Interior Designer & Design Studios
             </div>
 
-            {/* Headline */}
             <h1
               className="font-syne font-bold text-[#0F1117] leading-[1.06] tracking-tight mb-6 animate-fade-up"
-              style={{
-                animationDelay: '100ms',
-                fontSize: 'clamp(38px, 5.5vw, 72px)',
-              }}
+              style={{ animationDelay: '100ms', fontSize: 'clamp(38px, 5.5vw, 72px)' }}
             >
               Deine Projekte.<br />
               Deine Preise.<br />
@@ -245,17 +266,15 @@ export default function Hero() {
               begeistert.
             </h1>
 
-            {/* Subheadline */}
             <p
               className="text-[16px] md:text-[18px] text-gray-500 max-w-xl mb-10 leading-relaxed animate-fade-up lg:mx-0 mx-auto"
               style={{ animationDelay: '200ms' }}
             >
               Produktlisten erstellen, Preise automatisch kalkulieren und
-              Kunden mit einem Link zur Freigabe einladen – kein Login nötig.
+              Kunden mit einem Link zur Freigabe einladen.
               Für Interior Designer die mehr wollen als Excel.
             </p>
 
-            {/* CTAs */}
             <div
               className="flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3 mb-8 animate-fade-up"
               style={{ animationDelay: '300ms' }}
@@ -278,12 +297,11 @@ export default function Hero() {
               </a>
             </div>
 
-            {/* Trust row */}
             <div
               className="flex flex-wrap items-center lg:justify-start justify-center gap-x-6 gap-y-2 animate-fade-up"
               style={{ animationDelay: '400ms' }}
             >
-              {['Kostenlos starten', 'Kein Login für Kunden', 'DSGVO-konform'].map((t) => (
+              {['Kostenlos starten', 'Keine Kreditkarte', 'DSGVO-konform'].map((t) => (
                 <span key={t} className="flex items-center gap-1.5 text-[13px] text-gray-400">
                   <span className="text-emerald-500 font-bold">✓</span>
                   {t}
@@ -292,12 +310,12 @@ export default function Hero() {
             </div>
           </div>
 
-          {/* ── Right: Live Mockup ───────────────────── */}
+          {/* ── Right: Dashboard Mockup ──────────────── */}
           <div
             className="flex-shrink-0 w-full lg:w-auto animate-fade-up"
             style={{ animationDelay: '180ms' }}
           >
-            <FreigabeMockup />
+            <DashboardMockup />
           </div>
         </div>
       </div>
