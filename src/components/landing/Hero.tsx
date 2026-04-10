@@ -86,7 +86,7 @@ function DashboardMockup() {
       {/* Floating chip – auto calculation (top right) */}
       <div
         className="absolute -top-5 -right-3 z-20 flex items-center gap-2 bg-[#6366F1] rounded-xl shadow-xl shadow-indigo-200/60 px-3.5 py-2.5"
-        style={{ animation: 'floatA 8s ease-in-out infinite', animationDelay: '-2s' }}
+        style={{ animation: 'floatA 18s ease-in-out infinite', animationDelay: '-4s' }}
       >
         <Zap className="w-3.5 h-3.5 text-indigo-200 shrink-0" />
         <div>

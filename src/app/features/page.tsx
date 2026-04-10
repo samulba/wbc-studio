@@ -20,8 +20,12 @@ export const metadata: Metadata = {
 const mainFeatures = [
   {
     icon: FolderOpen,
-    color: 'bg-indigo-50 text-[#6366F1]',
-    glow: 'group-hover:shadow-indigo-100',
+    iconBg: 'bg-indigo-50',
+    iconColor: 'text-[#6366F1]',
+    accentBar: 'linear-gradient(to right, #818CF8, #6366F1)',
+    hoverShadow: 'hover:shadow-indigo-100/80',
+    hoverBorder: 'hover:border-indigo-200',
+    hoverBg: 'hover:bg-indigo-50/25',
     tag: 'Kern-Feature',
     title: 'Kunden & Projektstruktur',
     lead: 'Alle Projekte – strukturiert, übersichtlich, an einem Ort.',
@@ -35,8 +39,12 @@ const mainFeatures = [
   },
   {
     icon: Package,
-    color: 'bg-violet-50 text-violet-500',
-    glow: 'group-hover:shadow-violet-100',
+    iconBg: 'bg-violet-50',
+    iconColor: 'text-violet-500',
+    accentBar: 'linear-gradient(to right, #C4B5FD, #8B5CF6)',
+    hoverShadow: 'hover:shadow-violet-100/80',
+    hoverBorder: 'hover:border-violet-200',
+    hoverBg: 'hover:bg-violet-50/25',
     tag: 'Kern-Feature',
     title: 'Produktlisten pro Raum',
     lead: 'Produkte erfassen, kategorisieren und präsentieren – ohne Excel.',
@@ -50,8 +58,12 @@ const mainFeatures = [
   },
   {
     icon: Calculator,
-    color: 'bg-emerald-50 text-emerald-600',
-    glow: 'group-hover:shadow-emerald-100',
+    iconBg: 'bg-emerald-50',
+    iconColor: 'text-emerald-600',
+    accentBar: 'linear-gradient(to right, #6EE7B7, #059669)',
+    hoverShadow: 'hover:shadow-emerald-100/80',
+    hoverBorder: 'hover:border-emerald-200',
+    hoverBg: 'hover:bg-emerald-50/25',
     tag: 'Kern-Feature',
     title: 'Automatische Preiskalkulation',
     lead: 'Einkaufspreis rein, Marge setzen – alles andere berechnet sich selbst.',
@@ -65,8 +77,12 @@ const mainFeatures = [
   },
   {
     icon: Link2,
-    color: 'bg-sky-50 text-sky-500',
-    glow: 'group-hover:shadow-sky-100',
+    iconBg: 'bg-sky-50',
+    iconColor: 'text-sky-500',
+    accentBar: 'linear-gradient(to right, #7DD3FC, #0EA5E9)',
+    hoverShadow: 'hover:shadow-sky-100/80',
+    hoverBorder: 'hover:border-sky-200',
+    hoverBg: 'hover:bg-sky-50/25',
     tag: 'Kern-Feature',
     title: 'Kundenfreigabe per Link',
     lead: 'Kein Account, keine App, keine Erklärung – einfach Link senden.',
@@ -80,8 +96,12 @@ const mainFeatures = [
   },
   {
     icon: Handshake,
-    color: 'bg-amber-50 text-amber-500',
-    glow: 'group-hover:shadow-amber-100',
+    iconBg: 'bg-amber-50',
+    iconColor: 'text-amber-500',
+    accentBar: 'linear-gradient(to right, #FCD34D, #F59E0B)',
+    hoverShadow: 'hover:shadow-amber-100/80',
+    hoverBorder: 'hover:border-amber-200',
+    hoverBg: 'hover:bg-amber-50/25',
     tag: 'Feature',
     title: 'Partnerverwaltung',
     lead: 'Lieferanten und Handwerker mit allen Konditionen an einem Ort.',
@@ -95,8 +115,12 @@ const mainFeatures = [
   },
   {
     icon: Users,
-    color: 'bg-rose-50 text-rose-500',
-    glow: 'group-hover:shadow-rose-100',
+    iconBg: 'bg-rose-50',
+    iconColor: 'text-rose-500',
+    accentBar: 'linear-gradient(to right, #FDA4AF, #F43F5E)',
+    hoverShadow: 'hover:shadow-rose-100/80',
+    hoverBorder: 'hover:border-rose-200',
+    hoverBg: 'hover:bg-rose-50/25',
     tag: 'Feature',
     title: 'Team & Mehrbenutzer',
     lead: 'Mehrere Designer – ein gemeinsames Tool ohne Datei-Chaos.',
@@ -111,9 +135,9 @@ const mainFeatures = [
 ]
 
 const trustPoints = [
-  { icon: Shield, text: 'DSGVO-konform', sub: 'EU-Server Frankfurt' },
-  { icon: Zap,    text: 'Keine Einrichtung', sub: 'Sofort startklar' },
-  { icon: Clock,  text: 'Immer aktuell', sub: 'Automatische Updates' },
+  { icon: Shield, text: 'DSGVO-konform',       sub: 'EU-Server Frankfurt' },
+  { icon: Zap,    text: 'Keine Einrichtung',   sub: 'Sofort startklar'   },
+  { icon: Clock,  text: 'Immer aktuell',        sub: 'Automatische Updates' },
 ]
 
 export default function FeaturesPage() {
@@ -147,7 +171,7 @@ export default function FeaturesPage() {
                 Kostenlos testen <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
-                href="/#preise"
+                href="/preise"
                 className="inline-flex items-center gap-2 px-7 py-3.5 border border-gray-200 hover:border-gray-300 text-gray-700 text-[15px] font-semibold rounded-xl transition-all duration-200 hover:bg-gray-50"
               >
                 Preise ansehen
@@ -173,23 +197,29 @@ export default function FeaturesPage() {
       {/* Feature cards */}
       <section className="py-28 bg-white">
         <div className="max-w-5xl mx-auto px-5">
-          <div className="space-y-6">
+          <div className="space-y-5">
             {mainFeatures.map((f, i) => (
               <AnimateOnScroll key={f.title} delay={i * 60} type={i % 2 === 0 ? 'fade-right' : 'fade-left'}>
                 <div
-                  className={`group rounded-2xl border border-gray-200 p-8 hover:border-transparent hover:shadow-2xl ${f.glow} transition-all duration-300 md:grid md:grid-cols-[1fr_1fr] md:gap-10 items-start`}
+                  className={`group relative rounded-2xl border border-gray-100 bg-white p-8 overflow-hidden shadow-sm hover:shadow-xl ${f.hoverShadow} ${f.hoverBorder} ${f.hoverBg} hover:-translate-y-1.5 transition-all duration-300 cursor-default md:grid md:grid-cols-[1fr_1fr] md:gap-10 items-start`}
                 >
+                  {/* Colored accent bar that appears on hover */}
+                  <div
+                    className="absolute top-0 left-0 right-0 h-[3px] opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    style={{ background: f.accentBar }}
+                  />
+
                   {/* Left: title + lead */}
                   <div>
                     <div className="flex items-center gap-3 mb-5">
-                      <div className={`w-12 h-12 rounded-xl ${f.color} flex items-center justify-center shrink-0`}>
-                        <f.icon className="w-5 h-5" />
+                      <div className={`w-12 h-12 rounded-xl ${f.iconBg} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+                        <f.icon className={`w-5 h-5 ${f.iconColor}`} />
                       </div>
                       <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">
                         {f.tag}
                       </span>
                     </div>
-                    <h2 className="font-syne font-bold text-[24px] text-[#0F1117] mb-3 leading-tight">
+                    <h2 className="font-syne font-bold text-[22px] text-[#0F1117] mb-3 leading-tight">
                       {f.title}
                     </h2>
                     <p className="text-[15px] text-gray-500 leading-relaxed">
@@ -213,7 +243,7 @@ export default function FeaturesPage() {
         </div>
       </section>
 
-      {/* Security/Privacy section */}
+      {/* Security section */}
       <section className="py-20 bg-[#F8F9FA]">
         <div className="max-w-5xl mx-auto px-5 text-center">
           <AnimateOnScroll type="blur-in">

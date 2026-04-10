@@ -13,7 +13,7 @@ function DepthStackIcon() {
 const links: Record<string, { label: string; href: string }[]> = {
   Produkt: [
     { label: 'Features',  href: '/features' },
-    { label: 'Preise',    href: '/#preise'  },
+    { label: 'Preise',    href: '/preise'   },
     { label: 'FAQ',       href: '/#faq'     },
   ],
   Konto: [

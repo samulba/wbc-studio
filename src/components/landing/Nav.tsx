@@ -17,7 +17,7 @@ function DepthStackIcon() {
 const navLinks = [
   { label: 'Features',  href: '/features'  },
   { label: 'Vorteile',  href: '/#warum-wbc' },
-  { label: 'Preise',    href: '/#preise'   },
+  { label: 'Preise',    href: '/preise'    },
   { label: 'FAQ',       href: '/#faq'      },
 ]
 
