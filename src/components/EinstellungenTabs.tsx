@@ -270,36 +270,45 @@ function ListeAbschnitt({
   beschreibung,
   schluessel,
   items,
-  feldLabel,
   platzhalter,
 }: {
   titel: string
   beschreibung?: string
   schluessel: string
   items: string[]
-  feldLabel: string
   platzhalter: string
 }) {
   const boundAdd = addListItem.bind(null, schluessel)
   const [state, action] = useFormState(boundAdd, null)
 
   return (
-    <Abschnitt titel={titel} beschreibung={beschreibung}>
-      <div className="space-y-4">
-        {/* Liste */}
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+        <h3 className="text-sm font-semibold text-gray-900">{titel}</h3>
+        {beschreibung && (
+          <p className="text-xs text-gray-500 mt-0.5">{beschreibung}</p>
+        )}
+      </div>
+
+      <div className="px-6 py-5 space-y-4">
+        {/* Grid der Einträge */}
         {items.length === 0 ? (
           <p className="text-sm text-gray-400">Noch keine Einträge vorhanden.</p>
         ) : (
-          <ul className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
+          <div className="grid grid-cols-3 gap-3">
             {items.map((item) => {
               const deleteAction = deleteListItem.bind(null, schluessel, item)
               return (
-                <li key={item} className="flex items-center justify-between px-4 py-2.5 bg-white hover:bg-gray-50 transition-colors">
-                  <span className="text-sm text-gray-700">{item}</span>
-                  <form action={deleteAction}>
+                <div
+                  key={item}
+                  className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3.5 py-2.5 gap-2"
+                >
+                  <span className="text-sm text-gray-800 truncate font-medium">{item}</span>
+                  <form action={deleteAction} className="shrink-0">
                     <button
                       type="submit"
-                      className="text-xs text-red-400/60 hover:text-red-500 transition-colors px-2 py-1"
+                      className="text-[11px] text-red-400/60 hover:text-red-500 transition-colors whitespace-nowrap"
                       onClick={(e) => {
                         if (!confirm(`„${item}" löschen?`)) e.preventDefault()
                       }}
@@ -307,25 +316,25 @@ function ListeAbschnitt({
                       Entfernen
                     </button>
                   </form>
-                </li>
+                </div>
               )
             })}
-          </ul>
+          </div>
         )}
 
-        {/* Hinzufügen */}
-        <form action={action} className="flex items-center gap-2">
+        {/* Hinzufügen – volle Breite */}
+        <form action={action} className="flex items-center gap-2 pt-1">
           <input
             name="name"
             placeholder={platzhalter}
             required
             className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
           />
-          <SubmitButton label={feldLabel} />
+          <SubmitButton label="Hinzufügen" />
         </form>
         <Meldung state={state} />
       </div>
-    </Abschnitt>
+    </div>
   )
 }
 
@@ -339,13 +348,12 @@ function KategorienTab({
   projektarten: string[]
 }) {
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
       <ListeAbschnitt
         titel="Produktkategorien"
         beschreibung="Kategorien für Produkte in Räumen (z.B. Möbel, Leuchten)"
         schluessel="produktkategorien"
         items={kategorien}
-        feldLabel="Hinzufügen"
         platzhalter="z.B. Spiegel"
       />
       <ListeAbschnitt
@@ -353,7 +361,6 @@ function KategorienTab({
         beschreibung="Typen für neue Räume in Projekten"
         schluessel="raumtypen"
         items={raumtypen}
-        feldLabel="Hinzufügen"
         platzhalter="z.B. Empfang"
       />
       <ListeAbschnitt
@@ -361,7 +368,6 @@ function KategorienTab({
         beschreibung="Klassifizierung von Projekten"
         schluessel="projektarten"
         items={projektarten}
-        feldLabel="Hinzufügen"
         platzhalter="z.B. Umbau"
       />
     </div>

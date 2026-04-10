@@ -3,22 +3,27 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Settings, LogOut } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Users,
+  FolderOpen,
+  Handshake,
+  Settings,
+  LogOut,
+} from 'lucide-react'
 
+// ── Nav-Konfiguration ────────────────────────────────────────
 const navLinks = [
-  { label: 'Übersicht', href: '/dashboard' },
-  { label: 'Kunden',    href: '/dashboard/kunden' },
-  { label: 'Projekte',  href: '/dashboard/projekte' },
-  { label: 'Partner',   href: '/dashboard/partner' },
+  { label: 'Übersicht', href: '/dashboard',         icon: LayoutDashboard },
+  { label: 'Kunden',    href: '/dashboard/kunden',  icon: Users },
+  { label: 'Projekte',  href: '/dashboard/projekte', icon: FolderOpen },
+  { label: 'Partner',   href: '/dashboard/partner', icon: Handshake },
 ]
 
+// ── Avatar-Hilfsfunktionen ───────────────────────────────────
 const avatarFarben = [
-  'bg-indigo-500',
-  'bg-violet-500',
-  'bg-blue-500',
-  'bg-emerald-500',
-  'bg-rose-500',
-  'bg-amber-500',
+  'bg-indigo-500', 'bg-violet-500', 'bg-blue-500',
+  'bg-emerald-500', 'bg-rose-500', 'bg-amber-500',
 ]
 
 function avatarFarbe(s: string) {
@@ -30,6 +35,18 @@ function initials(email: string, name?: string) {
   return email.split('@')[0].slice(0, 2).toUpperCase()
 }
 
+// ── Depth-Stack Icon (3 übereinanderliegende Quadrate) ───────
+function DepthStackIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="5" y="1" width="12" height="9" rx="2" fill="#6366F1" opacity="0.35" />
+      <rect x="2.5" y="3.5" width="12" height="9" rx="2" fill="#6366F1" opacity="0.55" />
+      <rect x="0" y="6" width="12" height="9" rx="2" fill="#6366F1" />
+    </svg>
+  )
+}
+
+// ── Komponente ───────────────────────────────────────────────
 export default function NavSidebar({
   userEmail,
   userName,
@@ -52,81 +69,83 @@ export default function NavSidebar({
   const farbe       = avatarFarbe(userEmail)
 
   return (
-    <aside className="w-60 shrink-0 bg-[#0F1117] flex flex-col h-full">
+    <aside className="w-[224px] shrink-0 bg-[#0F1117] flex flex-col h-full">
 
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-white/[0.06]">
-        <span className="text-sm font-semibold tracking-tight text-white">Studio</span>
+      <div className="flex items-center gap-2.5 px-5 py-[18px] border-b border-white/[0.06]">
+        <DepthStackIcon />
+        <span className="font-syne text-[16px] font-bold text-white tracking-tight leading-none">
+          Studio
+        </span>
       </div>
 
       {/* Hauptnavigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
-        {navLinks.map((link) => {
+      <nav className="flex-1 px-3 pt-4 pb-2 space-y-0.5">
+        {navLinks.map(({ label, href, icon: Icon }) => {
           const aktiv =
-            link.href === '/dashboard'
+            href === '/dashboard'
               ? pathname === '/dashboard'
-              : pathname.startsWith(link.href)
+              : pathname.startsWith(href)
 
           return (
             <Link
-              key={link.href}
-              href={link.href}
-              className={`flex items-center px-3 py-2 rounded-md text-[14px] font-medium transition-colors ${
+              key={href}
+              href={href}
+              className={`flex items-center gap-2.5 px-3 py-[10px] rounded-lg text-[14px] font-medium transition-colors duration-150 ${
                 aktiv
-                  ? 'bg-white/10 text-white'
-                  : 'text-white/50 hover:text-white/80 hover:bg-white/[0.06]'
+                  ? 'bg-[#6366F1] text-white'
+                  : 'text-white/50 hover:text-white hover:bg-white/10'
               }`}
             >
-              {link.label}
+              <Icon className="w-4 h-4 shrink-0" strokeWidth={aktiv ? 2.5 : 2} />
+              {label}
             </Link>
           )
         })}
       </nav>
 
-      {/* Unterer Bereich */}
+      {/* Trennlinie + unterer Bereich */}
       <div className="border-t border-white/[0.06]">
 
-        {/* Profil */}
+        {/* Profil-Zeile */}
         <Link
           href="/dashboard/profil"
-          className="flex items-center gap-3 px-4 py-4 hover:bg-white/[0.04] transition-colors group border-b border-white/[0.06]"
+          className="flex items-center gap-3 px-4 py-3.5 hover:bg-white/[0.04] transition-colors group border-b border-white/[0.06]"
         >
           <div
-            className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${farbe}`}
+            className={`w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0 ${farbe}`}
           >
             {kuerzel}
           </div>
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-white/75 group-hover:text-white/90 transition-colors truncate leading-none">
+            <p className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors truncate leading-none">
               {displayName}
             </p>
-            {userName && (
-              <p className="text-[11px] text-white/35 truncate mt-1 leading-none">
-                {userEmail}
-              </p>
-            )}
+            <p className="text-[11px] text-white/40 truncate mt-1 leading-none">
+              {userEmail}
+            </p>
           </div>
         </Link>
 
         {/* Einstellungen + Abmelden */}
-        <div className="px-3 py-2 space-y-0.5">
+        <div className="px-3 py-2.5 space-y-0.5">
           <Link
             href="/dashboard/einstellungen"
-            className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-[14px] font-medium transition-colors ${
+            className={`flex items-center gap-2.5 px-3 py-[10px] rounded-lg text-[14px] font-medium transition-colors duration-150 ${
               pathname.startsWith('/dashboard/einstellungen')
-                ? 'bg-white/10 text-white'
-                : 'text-white/50 hover:text-white/80 hover:bg-white/[0.06]'
+                ? 'bg-[#6366F1] text-white'
+                : 'text-white/50 hover:text-white hover:bg-white/10'
             }`}
           >
-            <Settings className="w-4 h-4 shrink-0" />
+            <Settings className="w-4 h-4 shrink-0" strokeWidth={2} />
             Einstellungen
           </Link>
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[14px] font-medium text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-[10px] rounded-lg text-[14px] font-medium text-white/50 hover:text-white hover:bg-white/10 transition-colors duration-150"
           >
-            <LogOut className="w-4 h-4 shrink-0" />
+            <LogOut className="w-4 h-4 shrink-0" strokeWidth={2} />
             Abmelden
           </button>
         </div>

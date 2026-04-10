@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
-import { Inter } from 'next/font/google'
+import { Inter, Syne } from 'next/font/google'
 import "./globals.css";
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+})
+
+const syne = Syne({
+  subsets: ['latin'],
+  variable: '--font-syne',
+  weight: ['700'],
 })
 
 export const metadata: Metadata = {
@@ -22,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} ${syne.variable} font-sans antialiased`}>
         {children}
       </body>
     </html>

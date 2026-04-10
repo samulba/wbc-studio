@@ -13,6 +13,9 @@ const config: Config = {
         foreground: "var(--foreground)",
         sidebar: '#0F1117',
       },
+      fontFamily: {
+        syne: ['var(--font-syne)', 'sans-serif'],
+      },
     },
   },
   plugins: [],
