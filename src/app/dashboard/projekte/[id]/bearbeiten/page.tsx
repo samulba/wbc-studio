@@ -36,7 +36,7 @@ export default async function ProjektBearbeitenPage({
   const aktion = projektAktualisieren.bind(null, projekt.id)
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="px-6 py-6 animate-fadeIn">
       <div className="mb-8">
         <Link
           href={`/dashboard/projekte/${projekt.id}`}

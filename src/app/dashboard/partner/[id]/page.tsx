@@ -4,11 +4,7 @@ import { notFound } from 'next/navigation'
 import { partnerSoftDelete } from '@/app/actions/partner'
 
 type ProduktMitRaum = {
-  id: string
-  name: string
-  menge: number
-  einheit: string
-  verkaufspreis: number | null
+  id: string; name: string; menge: number; einheit: string; verkaufspreis: number | null
   raeume: { id: string; name: string; projekte: { id: string; name: string } | null } | null
 }
 
@@ -16,38 +12,33 @@ const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
 const modellLabel: Record<string, string> = {
-  Prozent:     'Prozent vom VP netto',
-  Fix:         'Fixbetrag pro Einheit',
+  Prozent: 'Prozent vom VP netto',
+  Fix: 'Fixbetrag pro Einheit',
   Individuell: 'Individuell',
 }
 
 export default async function PartnerDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
-
   const [{ data: partner }, { data: produkte }] = await Promise.all([
     supabase.from('partner').select('*').eq('id', params.id).is('deleted_at', null).single(),
     supabase
       .from('produkte')
       .select('id, name, menge, einheit, verkaufspreis, raeume!inner(id, name, projekte!inner(id, name))')
-      .eq('partner_id', params.id)
-      .is('deleted_at', null)
+      .eq('partner_id', params.id).is('deleted_at', null)
       .order('created_at', { ascending: false }),
   ])
 
   if (!partner) notFound()
 
   const loeschenAktion = partnerSoftDelete.bind(null, partner.id)
-  const gesamtProduktwert = (produkte ?? []).reduce(
-    (s, p) => s + (p.verkaufspreis ?? 0) * p.menge, 0
-  )
+  const gesamtProduktwert = (produkte ?? []).reduce((s, p) => s + (p.verkaufspreis ?? 0) * p.menge, 0)
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+    <div className="px-6 py-6 animate-fadeIn">
+      <div className="flex items-start justify-between mb-6">
         <div>
-          <Link href="/dashboard/partner" className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-3 inline-block">
-            ← Zurück zu Partner
+          <Link href="/dashboard/partner" className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-1 inline-block">
+            ← Partner
           </Link>
           <h1 className="text-xl font-semibold text-gray-900">{partner.name}</h1>
           {partner.website && (
@@ -59,7 +50,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
         </div>
         <div className="flex items-center gap-2">
           <Link href={`/dashboard/partner/${partner.id}/bearbeiten`}
-            className="px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-lg transition-colors">
+            className="px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-[1.02] rounded-lg transition-all duration-200">
             Bearbeiten
           </Link>
           <form action={loeschenAktion}>
@@ -72,10 +63,9 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Stammdaten + Konditionen */}
         <div className="space-y-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Kontakt</h2>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Kontakt</h2>
             <dl className="space-y-3">
               <InfoZeile label="Ansprechpartner" wert={partner.ansprechpartner} />
               <InfoZeile label="E-Mail" wert={partner.email} link={partner.email ? `mailto:${partner.email}` : undefined} />
@@ -83,8 +73,8 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
             </dl>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-4">Provisionsmodell</h2>
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Provisionsmodell</h2>
             {partner.provisionsmodell ? (
               <dl className="space-y-3">
                 <div>
@@ -93,13 +83,9 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                 </div>
                 {partner.provisions_wert != null && partner.provisionsmodell !== 'Individuell' && (
                   <div>
-                    <dt className="text-xs text-gray-500 mb-0.5">
-                      {partner.provisionsmodell === 'Prozent' ? 'Satz' : 'Betrag'}
-                    </dt>
-                    <dd className="text-sm font-mono font-medium text-gray-900">
-                      {partner.provisionsmodell === 'Prozent'
-                        ? `${partner.provisions_wert} %`
-                        : eur(partner.provisions_wert)}
+                    <dt className="text-xs text-gray-500 mb-0.5">{partner.provisionsmodell === 'Prozent' ? 'Satz' : 'Betrag'}</dt>
+                    <dd className="text-sm font-mono font-semibold text-gray-900">
+                      {partner.provisionsmodell === 'Prozent' ? `${partner.provisions_wert} %` : eur(partner.provisions_wert)}
                     </dd>
                   </div>
                 )}
@@ -110,34 +96,30 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
           </div>
 
           {partner.einkaufskonditionen && (
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-3">Einkaufskonditionen</h2>
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Einkaufskonditionen</h2>
               <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{partner.einkaufskonditionen}</p>
             </div>
           )}
 
           {partner.notizen && (
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-xs font-medium text-gray-500 uppercase tracking-widest mb-3">Notizen</h2>
+            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Notizen</h2>
               <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{partner.notizen}</p>
             </div>
           )}
         </div>
 
-        {/* Produkte */}
         <div className="lg:col-span-2">
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-medium text-gray-900">
+              <h2 className="text-sm font-semibold text-gray-900">
                 Zugeordnete Produkte <span className="text-gray-400 font-normal">({(produkte ?? []).length})</span>
               </h2>
               {gesamtProduktwert > 0 && (
-                <span className="text-xs text-gray-500 font-mono">
-                  VP gesamt: {eur(gesamtProduktwert)}
-                </span>
+                <span className="text-xs text-gray-500 font-mono">VP gesamt: {eur(gesamtProduktwert)}</span>
               )}
             </div>
-
             {(produkte ?? []).length === 0 ? (
               <div className="text-center py-10">
                 <p className="text-sm text-gray-400">Noch keine Produkte diesem Partner zugeordnet.</p>
@@ -145,13 +127,12 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
             ) : (
               <ul className="divide-y divide-gray-100">
                 {((produkte as unknown as ProduktMitRaum[]) ?? []).map((p) => (
-                  <li key={p.id} className="px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                  <li key={p.id} className="px-5 py-3.5 hover:bg-gray-50 transition-colors cursor-pointer">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-gray-900">{p.name}</p>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {p.raeume?.projekte?.name} › {p.raeume?.name}
-                          {' · '}{p.menge} {p.einheit}
+                          {p.raeume?.projekte?.name} › {p.raeume?.name}{' · '}{p.menge} {p.einheit}
                         </p>
                       </div>
                       {p.verkaufspreis != null && (

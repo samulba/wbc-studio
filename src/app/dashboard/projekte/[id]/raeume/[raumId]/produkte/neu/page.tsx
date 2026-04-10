@@ -43,7 +43,7 @@ export default async function NeuesProduktPage({
   const zurueck = `/dashboard/projekte/${params.id}/raeume/${params.raumId}`
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="px-6 py-6 animate-fadeIn">
       <div className="mb-8">
         <nav className="flex items-center gap-1.5 text-xs text-gray-400 mb-3">
           <Link href={`/dashboard/projekte/${params.id}`} className="hover:text-indigo-600 transition-colors">

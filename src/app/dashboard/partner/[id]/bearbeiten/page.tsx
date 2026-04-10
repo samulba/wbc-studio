@@ -14,7 +14,7 @@ export default async function PartnerBearbeitenPage({ params }: { params: { id: 
   const aktion = partnerAktualisieren.bind(null, partner.id)
 
   return (
-    <div className="p-8 max-w-2xl mx-auto">
+    <div className="px-6 py-6 animate-fadeIn">
       <div className="mb-8">
         <Link href={`/dashboard/partner/${partner.id}`} className="text-xs text-gray-400 hover:text-indigo-600 transition-colors mb-3 inline-block">
           ← Zurück zu {partner.name}

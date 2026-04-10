@@ -42,7 +42,7 @@ export default async function ProduktBearbeitenPage({
   const zurueck = `/dashboard/projekte/${params.id}/raeume/${params.raumId}`
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="px-6 py-6 animate-fadeIn">
       <div className="mb-8">
         <Link
           href={zurueck}

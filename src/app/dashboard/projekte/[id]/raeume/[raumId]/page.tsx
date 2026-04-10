@@ -86,7 +86,7 @@ export default async function RaumDetailPage({
   )
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="px-6 py-6 animate-fadeIn">
       {/* Breadcrumb + Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -112,7 +112,7 @@ export default async function RaumDetailPage({
         </div>
         <Link
           href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/neu`}
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap"
         >
           + Produkt hinzufügen
         </Link>
