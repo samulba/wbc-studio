@@ -76,7 +76,6 @@ export default async function KundenPage() {
                       <a
                         href={`mailto:${kunde.email}`}
                         className="hover:text-wbc-gruen transition-colors"
-                        onClick={(e) => e.stopPropagation()}
                       >
                         {kunde.email}
                       </a>
