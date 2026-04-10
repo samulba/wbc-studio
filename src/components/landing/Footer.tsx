@@ -33,7 +33,7 @@ const links: Record<string, { label: string; href: string }[]> = {
 export default function Footer() {
   return (
     <footer className="bg-[#0F1117] text-white">
-      <div className="max-w-6xl mx-auto px-5 pt-16 pb-10">
+      <div className="w-full px-8 pt-16 pb-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">

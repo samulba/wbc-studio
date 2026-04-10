@@ -50,7 +50,7 @@ export default function Nav() {
             : 'bg-white/80 backdrop-blur-sm'
         }`}
       >
-        <div className="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
+        <div className="w-full px-8 h-16 flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <DepthStackIcon />

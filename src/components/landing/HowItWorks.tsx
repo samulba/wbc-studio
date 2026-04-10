@@ -1,23 +1,24 @@
 import AnimateOnScroll from './AnimateOnScroll'
+import { FolderPlus, Package, Share2 } from 'lucide-react'
 
 const steps = [
   {
+    icon: FolderPlus,
     num: '01',
     title: 'Projekt anlegen',
     desc: 'Kunde und Räume anlegen, Budget setzen – in unter 2 Minuten startklar.',
-    emoji: '🗂️',
   },
   {
+    icon: Package,
     num: '02',
     title: 'Produkte erfassen',
     desc: 'Links einfügen, Preise automatisch berechnen lassen, Kategorien vergeben.',
-    emoji: '📦',
   },
   {
+    icon: Share2,
     num: '03',
     title: 'Freigabe senden',
     desc: 'Link an Kunden schicken, Feedback sofort im Tool sehen – ohne E-Mail-Chaos.',
-    emoji: '✅',
   },
 ]
 
@@ -46,10 +47,12 @@ export default function HowItWorks() {
           {steps.map((step, i) => (
             <AnimateOnScroll key={step.num} delay={i * 150} type="fade-up">
               <div className="flex flex-col items-center text-center group">
-                {/* Step circle */}
-                <div className="relative w-16 h-16 rounded-2xl bg-[#6366F1] flex flex-col items-center justify-center mb-6 z-10 shadow-lg shadow-indigo-200/70 group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-indigo-300/60 transition-all duration-300">
-                  <span className="text-xl leading-none mb-0.5">{step.emoji}</span>
-                  <span className="font-syne font-bold text-white/60 text-[9px] tracking-widest">{step.num}</span>
+                {/* Step icon tile */}
+                <div className="relative w-16 h-16 rounded-2xl bg-[#6366F1] flex items-center justify-center mb-6 z-10 shadow-lg shadow-indigo-200/70 group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-indigo-300/60 transition-all duration-300">
+                  <step.icon className="w-6 h-6 text-white" strokeWidth={1.8} />
+                  <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center">
+                    <span className="font-syne font-bold text-[9px] text-[#6366F1]">{step.num}</span>
+                  </span>
                 </div>
 
                 <h3 className="font-syne font-bold text-[20px] text-[#0F1117] mb-3">{step.title}</h3>

@@ -228,7 +228,7 @@ export default function Hero() {
               style={{ animationDelay: '0ms' }}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-              Die einfachere Alternative zu Houzz Pro
+              Für Interior Designer & Design Studios
             </div>
 
             {/* Headline */}
