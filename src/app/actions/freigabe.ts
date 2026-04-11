@@ -1,6 +1,8 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
 import type { ProduktStatus } from '@/lib/supabase/types'
 
 export type FreigabeResult = { fehler: string } | { erfolg: true }
@@ -58,4 +60,12 @@ export async function freigabeStatusAendern(
   if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
 
   return { erfolg: true }
+}
+
+export async function freigabeZuruecksetzenAdmin(produktId: string): Promise<void> {
+  const supabase = await createClient()
+  await supabase
+    .from('produktstatus')
+    .upsert({ produkt_id: produktId, status: 'ausstehend', kommentar: null }, { onConflict: 'produkt_id' })
+  revalidatePath('/dashboard/freigaben')
 }

@@ -91,6 +91,46 @@ export async function addListItem(
   return { erfolg: `„${name}" hinzugefügt.` }
 }
 
+export async function checkKategorieUsage(name: string): Promise<number> {
+  const supabase = await createClient()
+  const { count } = await supabase
+    .from('produkte')
+    .select('*', { count: 'exact', head: true })
+    .eq('kategorie', name)
+    .is('deleted_at', null)
+  return count ?? 0
+}
+
+export async function updateListItem(
+  schluessel: string,
+  altesItem: string,
+  neuesItem: string
+): Promise<EinstellungActionState> {
+  const nameTeil = neuesItem.split('|')[0].trim()
+  if (!nameTeil) return { fehler: 'Name darf nicht leer sein.' }
+
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('einstellungen')
+    .select('wert')
+    .eq('schluessel', schluessel)
+    .single()
+
+  if (!data?.wert) return { fehler: 'Liste nicht gefunden.' }
+
+  const liste = data.wert.split(',').map((s: string) => s.trim()).filter(Boolean)
+  const idx = liste.indexOf(altesItem)
+  if (idx === -1) return { fehler: 'Eintrag nicht gefunden.' }
+
+  liste[idx] = neuesItem.trim()
+  const { error } = await upsertEinstellung(schluessel, liste.join(','))
+  if (error) return { fehler: 'Fehler beim Speichern.' }
+
+  revalidatePath('/dashboard/einstellungen')
+  revalidatePath('/dashboard/kategorien')
+  return { erfolg: 'Gespeichert.' }
+}
+
 export async function deleteListItem(schluessel: string, name: string): Promise<void> {
   const supabase = await createClient()
   const { data } = await supabase

@@ -1,8 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, X } from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
+import { freigabeZuruecksetzenAdmin } from '@/app/actions/freigabe'
 
 // ── Typen ─────────────────────────────────────────────────────
 export type FreigabeEintrag = {
@@ -39,6 +42,12 @@ const statusLabel: Record<string, string> = {
   ausstehend: 'Ausstehend', freigegeben: 'Freigegeben',
   abgelehnt: 'Abgelehnt', ueberarbeitung: 'Überarbeitung',
 }
+const STATUS_FARBEN: Record<string, string> = {
+  freigegeben:    '#10B981',
+  ausstehend:     '#F59E0B',
+  abgelehnt:      '#EF4444',
+  ueberarbeitung: '#6366F1',
+}
 
 function isOffen(status: string) { return status === 'ausstehend' || status === 'ueberarbeitung' }
 
@@ -50,6 +59,163 @@ function matchTab(status: string, tab: Tab) {
 
 function formatDatum(iso: string) {
   return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' })
+}
+
+// ── Mini Donut Chart ──────────────────────────────────────────
+function StatusDonut({ eintraege }: { eintraege: FreigabeEintrag[] }) {
+  const counts: Record<string, number> = {}
+  for (const e of eintraege) {
+    const s = e.produktstatus?.status ?? 'ausstehend'
+    counts[s] = (counts[s] ?? 0) + 1
+  }
+  const data = [
+    { status: 'Freigegeben',   key: 'freigegeben',    count: counts.freigegeben    ?? 0 },
+    { status: 'Ausstehend',    key: 'ausstehend',     count: counts.ausstehend     ?? 0 },
+    { status: 'Abgelehnt',     key: 'abgelehnt',      count: counts.abgelehnt      ?? 0 },
+    { status: 'Überarbeitung', key: 'ueberarbeitung', count: counts.ueberarbeitung ?? 0 },
+  ].filter((d) => d.count > 0)
+
+  if (data.length === 0) return null
+  const gesamt = eintraege.length
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 mb-6 flex items-center gap-6">
+      <div className="relative shrink-0" style={{ width: 110, height: 110 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie data={data} cx="50%" cy="50%" innerRadius={34} outerRadius={50}
+              dataKey="count" paddingAngle={2} startAngle={90} endAngle={-270}>
+              {data.map((entry, i) => (
+                <Cell key={i} fill={STATUS_FARBEN[entry.key] ?? '#9CA3AF'} stroke="none" />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#111827', lineHeight: 1 }}>{gesamt}</div>
+          <div style={{ fontSize: '9px', color: '#9CA3AF', marginTop: '2px' }}>Produkte</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+        {data.map((d) => (
+          <div key={d.key} className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: STATUS_FARBEN[d.key] ?? '#9CA3AF' }} />
+            <span className="text-xs text-gray-600">{d.status}</span>
+            <span className="text-xs font-semibold text-gray-900 ml-1">{d.count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Detail Modal ──────────────────────────────────────────────
+function DetailModal({ eintrag, onClose, onReset, isPending }: {
+  eintrag: FreigabeEintrag
+  onClose: () => void
+  onReset: () => void
+  isPending: boolean
+}) {
+  const status    = eintrag.produktstatus?.status ?? 'ausstehend'
+  const kommentar = eintrag.produktstatus?.kommentar
+  const kuerzel   = eintrag.name.slice(0, 2).toUpperCase()
+  const projekt   = eintrag.raeume?.projekte
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
+      {/* Modal */}
+      <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-4 px-6 py-5 border-b border-gray-100">
+          {eintrag.bild_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={eintrag.bild_url} alt={eintrag.name}
+              className="w-14 h-14 rounded-xl object-cover border border-gray-200 shrink-0" />
+          ) : (
+            <div className="w-14 h-14 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0">
+              <span className="text-sm font-bold text-indigo-400">{kuerzel}</span>
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-gray-900 text-base leading-tight truncate">{eintrag.name}</h3>
+            {projekt && (
+              <p className="text-xs text-gray-500 mt-0.5">
+                <Link href={`/dashboard/projekte/${projekt.id}`}
+                  className="hover:text-indigo-600 transition-colors" onClick={onClose}>
+                  {projekt.name}
+                </Link>
+                {eintrag.raeume?.name && (
+                  <span className="text-gray-400"> › {eintrag.raeume.name}</span>
+                )}
+              </p>
+            )}
+          </div>
+          <button type="button" onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5 space-y-3.5">
+          <InfoZeile label="Status">
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusBadge[status] ?? 'bg-gray-100 text-gray-500'}`}>
+              {statusLabel[status] ?? status}
+            </span>
+          </InfoZeile>
+          {kommentar && (
+            <InfoZeile label="Kommentar">
+              <p className="text-sm text-gray-700 leading-relaxed">{kommentar}</p>
+            </InfoZeile>
+          )}
+          <InfoZeile label="Erstellt am">
+            <span className="text-sm text-gray-700">{formatDatum(eintrag.created_at)}</span>
+          </InfoZeile>
+          {eintrag.kategorie && (
+            <InfoZeile label="Kategorie">
+              <span className="text-sm text-gray-700">{eintrag.kategorie}</span>
+            </InfoZeile>
+          )}
+          <InfoZeile label="Menge">
+            <span className="text-sm text-gray-700">{eintrag.menge} {eintrag.einheit}</span>
+          </InfoZeile>
+          {projekt?.kunden && (
+            <InfoZeile label="Kunde">
+              <Link href={`/dashboard/kunden/${projekt.kunden.id}`}
+                className="text-sm text-gray-700 hover:text-indigo-600 transition-colors" onClick={onClose}>
+                {projekt.kunden.name}
+              </Link>
+            </InfoZeile>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+          {status !== 'ausstehend' ? (
+            <button type="button" onClick={onReset} disabled={isPending}
+              className="text-xs px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg font-medium transition-colors disabled:opacity-50">
+              {isPending ? 'Wird zurückgesetzt…' : 'Freigabe zurücksetzen'}
+            </button>
+          ) : <span />}
+          <button type="button" onClick={onClose}
+            className="text-xs px-4 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg font-medium transition-colors">
+            Schließen
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function InfoZeile({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="text-xs text-gray-400 w-24 shrink-0 pt-0.5">{label}</span>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  )
 }
 
 // ── Gruppierung ────────────────────────────────────────────────
@@ -92,7 +258,10 @@ function gruppiereNachProjekt(eintraege: FreigabeEintrag[]): ProjektGruppe[] {
 
 // ── Komponente ────────────────────────────────────────────────
 export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEintrag[] }) {
-  const [tab, setTab] = useState<Tab>('offen')
+  const [tab, setTab]                   = useState<Tab>('offen')
+  const [selectedEintrag, setSelected]  = useState<FreigabeEintrag | null>(null)
+  const [isPending, startTransition]    = useTransition()
+  const router                          = useRouter()
 
   const offenCount = eintraege.filter((e) => isOffen(e.produktstatus?.status ?? 'ausstehend')).length
 
@@ -110,8 +279,19 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
     { key: 'alle',        label: 'Alle' },
   ]
 
+  function handleReset(produktId: string) {
+    startTransition(async () => {
+      await freigabeZuruecksetzenAdmin(produktId)
+      setSelected(null)
+      router.refresh()
+    })
+  }
+
   return (
     <div>
+      {/* Mini Donut Chart */}
+      <StatusDonut eintraege={eintraege} />
+
       {/* Tabs */}
       <div className="flex items-center gap-0 mb-6 border-b border-gray-200">
         {tabs.map((t) => (
@@ -182,7 +362,9 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
                 const kommentar = e.produktstatus?.kommentar
                 const kuerzel   = e.name.slice(0, 2).toUpperCase()
                 return (
-                  <li key={e.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                  <li key={e.id}
+                    className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition-colors cursor-pointer"
+                    onClick={() => setSelected(e)}>
                     {/* Thumbnail */}
                     {e.bild_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -218,6 +400,16 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
           </div>
         ))}
       </div>
+
+      {/* Detail Modal */}
+      {selectedEintrag && (
+        <DetailModal
+          eintrag={selectedEintrag}
+          onClose={() => setSelected(null)}
+          onReset={() => handleReset(selectedEintrag.id)}
+          isPending={isPending}
+        />
+      )}
     </div>
   )
 }

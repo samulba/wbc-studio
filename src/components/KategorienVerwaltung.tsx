@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { useFormState, useFormStatus } from 'react-dom'
 import {
   type LucideIcon,
@@ -22,25 +22,20 @@ import {
   Package, Box, Archive, Tag, MessageSquare, Truck, Globe, Zap, Shield,
   ChevronDown,
 } from 'lucide-react'
-import { addListItem, deleteListItem, type EinstellungActionState } from '@/app/actions/einstellungen'
+import {
+  addListItem, deleteListItem, checkKategorieUsage, updateListItem,
+  type EinstellungActionState,
+} from '@/app/actions/einstellungen'
 
 // ── Icon-Registrierung ─────────────────────────────────────────
 const ICON_KOMPONENTEN: Record<string, LucideIcon> = {
-  // Möbel & Einrichtung
   Sofa, Armchair, Lamp, Lightbulb, Bed, Table2, Vegan, Wind,
-  // Natur & Außen
   Leaf, Flower, TreePine, Sunrise, Droplets, Mountain, Palmtree,
-  // Gebäude & Räume
   Home, Building, Building2, Hotel, Layers, Grid, DoorOpen, Bath, BedDouble,
-  // Mode & Lifestyle
   Shirt, ShoppingBag, Gem, Heart, Star, Sparkles, Watch, Glasses,
-  // Technik & Klima
   Monitor, Tv, Music, Volume2, Sun, Moon, Cloud, Thermometer, Wifi,
-  // Gastronomie & Wellness
   Coffee, Utensils, Wine, ChefHat, Dumbbell, Waves,
-  // Handwerk & Planung
   Wrench, Hammer, Paintbrush, Scissors, Ruler, Compass, Map, PenLine, Pencil,
-  // Sonstiges
   Package, Box, Archive, Tag, MessageSquare, Truck, Globe, Zap, Shield,
 }
 
@@ -69,7 +64,7 @@ function parseItem(raw: string): { name: string; iconName: string } {
   }
 }
 
-// ── Icon-Picker ────────────────────────────────────────────────
+// ── Icon-Picker (zentriertes Modal) ────────────────────────────
 function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name: string) => void }) {
   const [open, setOpen] = useState(false)
   const SelectedIcon = getIconKomponente(selected)
@@ -88,13 +83,7 @@ function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name:
 
       {open && (
         <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 z-40 bg-black/20"
-            onClick={() => setOpen(false)}
-          />
-
-          {/* Zentriertes Modal */}
+          <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setOpen(false)} />
           <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <p className="text-sm font-semibold text-gray-800">Icon auswählen</p>
@@ -160,11 +149,117 @@ function Meldung({ state }: { state: EinstellungActionState | null }) {
   )
 }
 
+// ── Einzelne Kategorie-Karte ───────────────────────────────────
+function KategorieKarte({ rawItem, schluessel, mitPruefung }: {
+  rawItem: string
+  schluessel: string
+  mitPruefung?: boolean
+}) {
+  const { name, iconName } = parseItem(rawItem)
+  const Icon = getIconKomponente(iconName)
+
+  const [editMode, setEditMode]   = useState(false)
+  const [editName, setEditName]   = useState(name)
+  const [editIcon, setEditIcon]   = useState(iconName)
+  const [fehler, setFehler]       = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function handleDelete() {
+    startTransition(async () => {
+      if (mitPruefung) {
+        const count = await checkKategorieUsage(name)
+        if (count > 0) {
+          setFehler(`${count} Produkt${count !== 1 ? 'e' : ''} verwend${count !== 1 ? 'en' : 'et'} diese Kategorie. Bitte ändere zuerst die Kategorie dieser Produkte.`)
+          return
+        }
+      }
+      setFehler(null)
+      await deleteListItem(schluessel, rawItem)
+    })
+  }
+
+  function handleSave() {
+    if (!editName.trim()) { setFehler('Name darf nicht leer sein.'); return }
+    startTransition(async () => {
+      const neuesItem = `${editName.trim()}|${editIcon}`
+      const result = await updateListItem(schluessel, rawItem, neuesItem)
+      if (result?.fehler) {
+        setFehler(result.fehler)
+      } else {
+        setEditMode(false)
+        setFehler(null)
+      }
+    })
+  }
+
+  function cancelEdit() {
+    setEditMode(false)
+    setFehler(null)
+    setEditName(name)
+    setEditIcon(iconName)
+  }
+
+  if (editMode) {
+    return (
+      <div className="bg-white border border-indigo-200 rounded-xl px-3.5 py-3 space-y-2.5">
+        <div className="flex items-center gap-2">
+          <IconPicker selected={editIcon} onSelect={setEditIcon} />
+          <input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') cancelEdit() }}
+            className="flex-1 px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            autoFocus
+          />
+        </div>
+        {fehler && <p className="text-[11px] text-red-500">{fehler}</p>}
+        <div className="flex items-center gap-2 justify-end">
+          <button type="button" onClick={cancelEdit}
+            className="text-xs px-3 py-1.5 text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg transition-colors">
+            Abbrechen
+          </button>
+          <button type="button" onClick={handleSave} disabled={isPending}
+            className="text-xs px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50">
+            {isPending ? '…' : 'Speichern'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <div className={`flex items-center gap-3 bg-white border rounded-xl px-3.5 py-3 hover:border-gray-300 hover:shadow-sm transition-all ${fehler ? 'border-red-200' : 'border-gray-200'}`}>
+        <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+          <Icon className="w-[18px] h-[18px] text-indigo-500" />
+        </div>
+        <span className="flex-1 text-sm text-gray-800 font-medium truncate">{name}</span>
+        {/* Bearbeiten */}
+        <button type="button" onClick={() => { setEditMode(true); setFehler(null) }}
+          disabled={isPending}
+          title={`„${name}" bearbeiten`}
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-indigo-500 hover:bg-indigo-50 transition-colors shrink-0">
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        {/* Löschen */}
+        <button type="button" onClick={handleDelete} disabled={isPending}
+          title={`„${name}" löschen`}
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
+          <span className="text-[13px] leading-none">✕</span>
+        </button>
+      </div>
+      {fehler && (
+        <p className="text-[11px] text-red-500 mt-1 px-1 leading-tight">{fehler}</p>
+      )}
+    </div>
+  )
+}
+
 // ── Listen Abschnitt ──────────────────────────────────────────
-function ListeAbschnitt({ titel, beschreibung, schluessel, items, platzhalter, mitIcons }: {
+function ListeAbschnitt({ titel, beschreibung, schluessel, items, platzhalter, mitIcons, mitPruefung }: {
   titel: string; beschreibung?: string
   schluessel: string; items: string[]; platzhalter: string
-  mitIcons?: boolean
+  mitIcons?: boolean; mitPruefung?: boolean
 }) {
   const boundAdd = addListItem.bind(null, schluessel)
   const [state, action] = useFormState(boundAdd, null)
@@ -182,28 +277,14 @@ function ListeAbschnitt({ titel, beschreibung, schluessel, items, platzhalter, m
           <p className="text-sm text-gray-400">Noch keine Einträge vorhanden.</p>
         ) : (
           <div className="grid grid-cols-3 gap-3">
-            {items.map((rawItem) => {
-              const { name, iconName } = parseItem(rawItem)
-              const Icon         = getIconKomponente(iconName)
-              const deleteAction = deleteListItem.bind(null, schluessel, rawItem)
-              return (
-                <div key={rawItem}
-                  className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-3.5 py-3 hover:border-gray-300 hover:shadow-sm transition-all">
-                  <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
-                    <Icon className="w-[18px] h-[18px] text-indigo-500" />
-                  </div>
-                  <span className="flex-1 text-sm text-gray-800 font-medium truncate">{name}</span>
-                  <form action={deleteAction} className="shrink-0">
-                    <button type="submit"
-                      className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      title={`„${name}" löschen`}
-                      onClick={(e) => { if (!confirm(`„${name}" löschen?`)) e.preventDefault() }}>
-                      <span className="text-[13px] leading-none">✕</span>
-                    </button>
-                  </form>
-                </div>
-              )
-            })}
+            {items.map((rawItem) => (
+              <KategorieKarte
+                key={rawItem}
+                rawItem={rawItem}
+                schluessel={schluessel}
+                mitPruefung={mitPruefung}
+              />
+            ))}
           </div>
         )}
 
@@ -236,7 +317,7 @@ export default function KategorienVerwaltung({ kategorien, raumtypen, projektart
         titel="Produktkategorien"
         beschreibung="Kategorien für Produkte in Räumen (z.B. Möbel, Leuchten)"
         schluessel="produktkategorien" items={kategorien} platzhalter="z.B. Spiegel"
-        mitIcons
+        mitIcons mitPruefung
       />
       <ListeAbschnitt
         titel="Raumtypen"
