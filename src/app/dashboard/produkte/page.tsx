@@ -5,6 +5,7 @@ import NeuesProduktModal from '@/components/NeuesProduktModal'
 import type { ProduktStatus } from '@/lib/supabase/types'
 import type { KategorieOption } from '@/components/KategorieDropdown'
 import type { ProjektOption, RaumOption } from '@/components/ProduktZuweisenModal'
+import { getMwstSatz } from '@/app/actions/einstellungen'
 
 async function getProdukte(): Promise<ProduktZeile[]> {
   const supabase = await createClient()
@@ -94,10 +95,11 @@ async function getKategorienListe(): Promise<KategorieOption[]> {
 }
 
 export default async function ProdukteSeite() {
-  const [produkte, kategorienListe, { projekte, raeume }] = await Promise.all([
+  const [produkte, kategorienListe, { projekte, raeume }, mwst] = await Promise.all([
     getProdukte(),
     getKategorienListe(),
     getProjekteMitRaeumen(),
+    getMwstSatz(),
   ])
 
   return (
@@ -122,7 +124,7 @@ export default async function ProdukteSeite() {
           <NeuesProduktModal />
         </div>
       ) : (
-        <ProdukteTabelle produkte={produkte} kategorienListe={kategorienListe} projekte={projekte} raeume={raeume} />
+        <ProdukteTabelle produkte={produkte} kategorienListe={kategorienListe} projekte={projekte} raeume={raeume} mwst={mwst} />
       )}
     </div>
   )

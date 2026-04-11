@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getMwstSatz } from '@/app/actions/einstellungen'
 import FreigabeClient from './FreigabeClient'
 import type { FreigabeRaum, FreigabeProdukt, ProduktStatus } from '@/lib/supabase/types'
 
@@ -105,7 +106,7 @@ export default async function FreigabePage({ params }: Props) {
     return <Fehlerseite meldung="Für dieses Projekt wurden noch keine Produkte hinterlegt." />
   }
 
-  const kundeName = projekt.kunden?.name ?? null
+  const [kundeName, mwst] = [projekt.kunden?.name ?? null, await getMwstSatz()]
 
   return (
     <FreigabeClient
@@ -113,6 +114,7 @@ export default async function FreigabePage({ params }: Props) {
       projektName={projekt.name}
       kundeName={kundeName}
       raeume={raeume}
+      mwst={mwst}
     />
   )
 }

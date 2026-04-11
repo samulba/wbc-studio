@@ -3,12 +3,10 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
 import { produktSoftDelete } from '@/app/actions/produkte'
+import { getMwstSatz } from '@/app/actions/einstellungen'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import FilterBar from '@/components/FilterBar'
 import type { ProduktMitDetails } from '@/lib/supabase/types'
-
-// ── Konstanten ────────────────────────────────────────────────
-const MWST = 0.19
 const r2 = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
@@ -80,9 +78,10 @@ export default async function RaumDetailPage({
   params: { id: string; raumId: string }
   searchParams: SearchParams
 }) {
-  const [raum, alleProdukte] = await Promise.all([
+  const [raum, alleProdukte, MWST] = await Promise.all([
     getRaum(params.raumId, params.id),
     getProdukte(params.raumId),
+    getMwstSatz(),
   ])
 
   if (!raum) notFound()

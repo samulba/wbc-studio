@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import ProduktFormular from '@/components/ProduktFormular'
 import { produktAktualisieren } from '@/app/actions/produkte'
+import { getMwstSatz } from '@/app/actions/einstellungen'
 import type { Partner, ProduktMitDetails } from '@/lib/supabase/types'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 
@@ -44,10 +45,11 @@ export default async function ProduktBearbeitenPage({
 }: {
   params: { id: string; raumId: string; produktId: string }
 }) {
-  const [produkt, partner, notizen] = await Promise.all([
+  const [produkt, partner, notizen, mwst] = await Promise.all([
     getProdukt(params.produktId),
     getPartner(),
     getProduktNotizen(params.produktId),
+    getMwstSatz(),
   ])
 
   if (!produkt) notFound()
@@ -74,6 +76,7 @@ export default async function ProduktBearbeitenPage({
           partner={partner}
           initialData={produkt}
           abbrechen={zurueck}
+          mwst={mwst}
         />
       </div>
 

@@ -10,6 +10,18 @@ export async function getEinstellungen(): Promise<Record<string, string>> {
   return Object.fromEntries(data.map((r) => [r.schluessel, r.wert]))
 }
 
+/** MwSt.-Satz als Dezimalzahl (z.B. 0.19 für 19%). Fallback: 0.19. */
+export async function getMwstSatz(): Promise<number> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('einstellungen')
+    .select('wert')
+    .eq('schluessel', 'mwst_satz')
+    .single()
+  const pct = parseFloat(data?.wert ?? '19')
+  return isNaN(pct) ? 0.19 : pct / 100
+}
+
 export type EinstellungActionState = { fehler?: string; erfolg?: string } | null
 
 async function upsertEinstellung(schluessel: string, wert: string) {

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import ProduktFormular from '@/components/ProduktFormular'
 import { produktAnlegen } from '@/app/actions/produkte'
+import { getMwstSatz } from '@/app/actions/einstellungen'
 import type { Partner } from '@/lib/supabase/types'
 
 async function getPartner(): Promise<Pick<Partner, 'id' | 'name'>[]> {
@@ -31,9 +32,10 @@ export default async function NeuesProduktPage({
 }: {
   params: { id: string; raumId: string }
 }) {
-  const [raum, partner] = await Promise.all([
+  const [raum, partner, mwst] = await Promise.all([
     getRaum(params.raumId),
     getPartner(),
+    getMwstSatz(),
   ])
 
   if (!raum) notFound()
@@ -64,6 +66,7 @@ export default async function NeuesProduktPage({
           aktion={aktion}
           partner={partner}
           abbrechen={zurueck}
+          mwst={mwst}
         />
       </div>
     </div>

@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
+import { getMwstSatz } from '@/app/actions/einstellungen'
 import { NextResponse } from 'next/server'
-
-const MWST = 0.19
 const r2 = (n: number) => Math.round(n * 100) / 100
 
 const STATUSLABEL: Record<string, string> = {
@@ -28,7 +27,7 @@ export async function GET(
   _req: Request,
   { params }: { params: { id: string } }
 ) {
-  const supabase = await createClient()
+  const [supabase, MWST] = await Promise.all([createClient(), getMwstSatz()])
 
   const { data: projekt } = await supabase
     .from('projekte')

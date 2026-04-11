@@ -6,8 +6,8 @@ import { Check, X, RefreshCw, ExternalLink, ChevronDown } from 'lucide-react'
 import { freigabeStatusAendern } from '@/app/actions/freigabe'
 import type { FreigabeRaum, FreigabeProdukt, ProduktStatus } from '@/lib/supabase/types'
 
-// ── Konstanten ────────────────────────────────────────────────
-const MWST = 0.19
+// ── Konstante (Fallback) ──────────────────────────────────────
+const MWST_DEFAULT = 0.19
 const r2  = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
@@ -25,6 +25,7 @@ interface Props {
   projektName: string
   kundeName: string | null
   raeume: FreigabeRaum[]
+  mwst?: number
 }
 
 // ── DepthStack-Logo ────────────────────────────────────────────
@@ -39,7 +40,7 @@ function Logo() {
 }
 
 // ── Hauptkomponente ───────────────────────────────────────────
-export default function FreigabeClient({ token, projektName, kundeName, raeume }: Props) {
+export default function FreigabeClient({ token, projektName, kundeName, raeume, mwst = MWST_DEFAULT }: Props) {
   const [state, setState] = useState<Record<string, ProduktState>>(() => {
     const init: Record<string, ProduktState> = {}
     for (const raum of raeume) {
@@ -180,6 +181,7 @@ export default function FreigabeClient({ token, projektName, kundeName, raeume }
                     produkt={p}
                     produktState={state[p.id]}
                     isPending={isPending}
+                    mwst={mwst}
                     onFreigeben={() => speichereStatus(p.id, 'freigegeben')}
                     onAktionWaehlen={(a) => setAktion(p.id, a)}
                     onKommentarChange={(t) => setKommentarEingabe(p.id, t)}
@@ -217,6 +219,7 @@ interface ProduktKarteProps {
   produkt: FreigabeProdukt
   produktState: ProduktState
   isPending: boolean
+  mwst: number
   onFreigeben: () => void
   onAktionWaehlen: (a: 'ablehnen' | 'alternative') => void
   onKommentarChange: (t: string) => void
@@ -225,13 +228,13 @@ interface ProduktKarteProps {
 }
 
 function ProduktKarte({
-  produkt, produktState, isPending,
+  produkt, produktState, isPending, mwst,
   onFreigeben, onAktionWaehlen, onKommentarChange, onSpeichern, onAbbrechen,
 }: ProduktKarteProps) {
   const { status, aktiveAktion, kommentarEingabe, kommentar } = produktState
   const [detailOffen, setDetailOffen] = useState(false)
 
-  const vpBrutto      = r2((produkt.verkaufspreis ?? 0) * (1 + MWST))
+  const vpBrutto      = r2((produkt.verkaufspreis ?? 0) * (1 + mwst))
   const gesamtBrutto  = r2(vpBrutto * produkt.menge)
 
   const statusCfg = {

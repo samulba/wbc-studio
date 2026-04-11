@@ -123,7 +123,7 @@ export type ProduktZeile = {
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
-const MWST = 0.19
+const MWST_DEFAULT = 0.19
 
 const STATUS_CFG: Record<ProduktStatus, { label: string; cls: string }> = {
   ausstehend:     { label: 'Ausstehend',    cls: 'bg-amber-100 text-amber-700' },
@@ -159,11 +159,13 @@ export default function ProdukteTabelle({
   kategorienListe,
   projekte = [],
   raeume = [],
+  mwst = MWST_DEFAULT,
 }: {
   produkte: ProduktZeile[]
   kategorienListe?: KategorieOption[]
   projekte?: ProjektOption[]
   raeume?: RaumOption[]
+  mwst?: number
 }) {
   const [ansicht, setAnsicht]             = useState<Ansicht>('tabelle')
   const [suche, setSuche]                 = useState('')
@@ -323,7 +325,7 @@ export default function ProdukteTabelle({
             <div className="col-span-4 text-center py-16 text-sm text-gray-400">Keine Produkte gefunden.</div>
           ) : (
             gefiltert.map((p) => {
-              const vpBrutto = p.verkaufspreis != null ? p.verkaufspreis * (1 + MWST) : null
+              const vpBrutto = p.verkaufspreis != null ? p.verkaufspreis * (1 + mwst) : null
               const cfg = STATUS_CFG[p.status]
               const isBibliothek = !p.projektId
               return (
@@ -438,7 +440,7 @@ export default function ProdukteTabelle({
                   </tr>
                 ) : (
                   gefiltert.map((p) => {
-                    const vpBrutto = p.verkaufspreis != null ? p.verkaufspreis * (1 + MWST) : null
+                    const vpBrutto = p.verkaufspreis != null ? p.verkaufspreis * (1 + mwst) : null
                     const cfg = STATUS_CFG[p.status]
                     return (
                       <tr key={p.id} className="hover:bg-gray-50/60 transition-colors cursor-pointer group">

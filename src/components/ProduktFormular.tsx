@@ -7,8 +7,8 @@ import { Upload, Loader2, X, Zap } from 'lucide-react'
 import type { ProduktActionState } from '@/app/actions/produkte'
 import type { Partner, ProduktMitDetails } from '@/lib/supabase/types'
 
-// ── Konstanten ────────────────────────────────────────────────
-const MWST = 0.19
+// ── Konstante (Fallback) ──────────────────────────────────────
+const MWST_DEFAULT = 0.19
 const EINHEITEN = ['Stk', 'Paar', 'm', 'm²', 'Lfd. m', 'Set', 'Pauschal']
 const KATEGORIEN = [
   'Beleuchtung', 'Möbel', 'Textilien', 'Dekoration',
@@ -46,10 +46,11 @@ interface Props {
   partner: Pick<Partner, 'id' | 'name'>[]
   initialData?: ProduktMitDetails
   abbrechen: string
+  mwst?: number
 }
 
 // ── Komponente ────────────────────────────────────────────────
-export default function ProduktFormular({ aktion, partner, initialData, abbrechen }: Props) {
+export default function ProduktFormular({ aktion, partner, initialData, abbrechen, mwst = MWST_DEFAULT }: Props) {
   const [state, formAction] = useFormState(aktion, null)
 
   const [ep, setEp] = useState<number>(initialData?.einkaufspreis ?? 0)
@@ -83,7 +84,7 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
     if (bildInputRef.current) bildInputRef.current.value = ''
   }, [])
 
-  const vpBrutto    = r2(vpNetto * (1 + MWST))
+  const vpBrutto    = r2(vpNetto * (1 + mwst))
   const provisionEur = r2(vpNetto * (provision / 100))
   const gesamtNetto  = r2(vpNetto * menge)
   const gesamtBrutto = r2(vpBrutto * menge)
@@ -288,7 +289,7 @@ export default function ProduktFormular({ aktion, partner, initialData, abbreche
 
         {/* VP brutto (readonly, live) */}
         <div>
-          <label className={lbl}>Verkaufspreis brutto (€) <span className="text-gray-400 normal-case font-normal">19% MwSt.</span></label>
+          <label className={lbl}>Verkaufspreis brutto (€) <span className="text-gray-400 normal-case font-normal">{Math.round(mwst * 100)}% MwSt.</span></label>
           <input
             type="text"
             readOnly
