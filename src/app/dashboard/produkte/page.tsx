@@ -4,6 +4,7 @@ import ProdukteTabelle, { type ProduktZeile } from '@/components/ProdukteTabelle
 import NeuesProduktModal from '@/components/NeuesProduktModal'
 import type { ProduktStatus } from '@/lib/supabase/types'
 import type { KategorieOption } from '@/components/KategorieDropdown'
+import type { ProjektOption, RaumOption } from '@/components/ProduktZuweisenModal'
 
 async function getProdukte(): Promise<ProduktZeile[]> {
   const supabase = await createClient()
@@ -61,6 +62,18 @@ async function getProdukte(): Promise<ProduktZeile[]> {
   })
 }
 
+async function getProjekteMitRaeumen(): Promise<{ projekte: ProjektOption[]; raeume: RaumOption[] }> {
+  const supabase = await createClient()
+  const [{ data: projData }, { data: raumData }] = await Promise.all([
+    supabase.from('projekte').select('id, name').is('deleted_at', null).order('name'),
+    supabase.from('raeume').select('id, name, projekt_id').is('deleted_at', null).order('name'),
+  ])
+  return {
+    projekte: (projData ?? []) as ProjektOption[],
+    raeume:   (raumData ?? []) as RaumOption[],
+  }
+}
+
 async function getKategorienListe(): Promise<KategorieOption[]> {
   const supabase = await createClient()
   const { data } = await supabase
@@ -81,7 +94,11 @@ async function getKategorienListe(): Promise<KategorieOption[]> {
 }
 
 export default async function ProdukteSeite() {
-  const [produkte, kategorienListe] = await Promise.all([getProdukte(), getKategorienListe()])
+  const [produkte, kategorienListe, { projekte, raeume }] = await Promise.all([
+    getProdukte(),
+    getKategorienListe(),
+    getProjekteMitRaeumen(),
+  ])
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
@@ -105,7 +122,7 @@ export default async function ProdukteSeite() {
           <NeuesProduktModal />
         </div>
       ) : (
-        <ProdukteTabelle produkte={produkte} kategorienListe={kategorienListe} />
+        <ProdukteTabelle produkte={produkte} kategorienListe={kategorienListe} projekte={projekte} raeume={raeume} />
       )}
     </div>
   )

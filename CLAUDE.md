@@ -29,6 +29,7 @@ Indigo (#6366F1) aktiv. Sidebar: bg-[#0F1117], Syne-Font. Desktop-first, ruhig/r
 - S12: Notizen (Migration 015), Logo-Upload (Migration 016), Projektdetail-Stats, FreigabeLinkKarte.
 - S13: Login-Seite Redesign (DepthStack-Icon, Syne, gepunkteter Hintergrund, Icon-Inputs, Loader-Animation).
 - S14: Kundenfreigabe mobil – großes Produktbild, Touch-Buttons (py-3.5, flex-col→row), Mini-Donut im Header, einklappbare Beschreibung, Preis-Grid.
+- S15: Bibliotheksprodukt zuweisen – ProduktZuweisenModal (Projekt+Raum-Dropdown), Button in Grid+Tabelle, Action produktZuRaumZuweisen.
 
 ## Anweisung
 Am Ende jeder Session den Session-Log mit einem kurzen Eintrag aktualisieren.

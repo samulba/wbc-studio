@@ -189,6 +189,20 @@ export async function produktFuerPartnerAnlegen(
   return null
 }
 
+export async function produktZuRaumZuweisen(
+  produktId: string,
+  raumId: string
+): Promise<ProduktActionState> {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('produkte')
+    .update({ raum_id: raumId })
+    .eq('id', produktId)
+  if (error) return { fehler: 'Fehler beim Zuweisen. Bitte erneut versuchen.' }
+  revalidatePath('/dashboard/produkte')
+  return null
+}
+
 export async function produktStatusAendern(
   produktId: string,
   raumId: string,

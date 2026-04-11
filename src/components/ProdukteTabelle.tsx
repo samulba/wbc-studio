@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import ProduktZuweisenModal, { type ProjektOption, type RaumOption } from '@/components/ProduktZuweisenModal'
 import {
   type LucideIcon,
   ExternalLink, ChevronUp, ChevronDown, Search, X,
@@ -156,9 +157,13 @@ function Thumbnail({ src, alt }: { src: string | null; alt: string }) {
 export default function ProdukteTabelle({
   produkte,
   kategorienListe,
+  projekte = [],
+  raeume = [],
 }: {
   produkte: ProduktZeile[]
   kategorienListe?: KategorieOption[]
+  projekte?: ProjektOption[]
+  raeume?: RaumOption[]
 }) {
   const [ansicht, setAnsicht]             = useState<Ansicht>('tabelle')
   const [suche, setSuche]                 = useState('')
@@ -180,7 +185,7 @@ export default function ProdukteTabelle({
   }
 
   // ── Filter-Optionen ───────────────────────────────────────
-  const projekte = useMemo(() => Array.from(new Set(produkte.map((p) => p.projektName).filter(Boolean) as string[])).sort(), [produkte])
+  const projektNamen = useMemo(() => Array.from(new Set(produkte.map((p) => p.projektName).filter(Boolean) as string[])).sort(), [produkte])
   // Kategorien aus Einstellungen (mit Icons) bevorzugen, sonst aus Produktdaten ableiten
   const kategorienOptionen = useMemo<KategorieOption[]>(() => {
     if (kategorienListe && kategorienListe.length > 0) return kategorienListe
@@ -256,7 +261,7 @@ export default function ProdukteTabelle({
           className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
           <option value="">Alle Projekte</option>
           <option value="__bibliothek__">Nur Bibliothek</option>
-          {projekte.map((p) => <option key={p} value={p}>{p}</option>)}
+          {projektNamen.map((p) => <option key={p} value={p}>{p}</option>)}
         </select>
 
         {/* Kategorie-Filter */}
@@ -320,55 +325,70 @@ export default function ProdukteTabelle({
             gefiltert.map((p) => {
               const vpBrutto = p.verkaufspreis != null ? p.verkaufspreis * (1 + MWST) : null
               const cfg = STATUS_CFG[p.status]
+              const isBibliothek = !p.projektId
               return (
-                <Link
+                <div
                   key={p.id}
-                  href={produktLink(p)}
-                  className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-md transition-all"
+                  className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-indigo-300 hover:shadow-md transition-all flex flex-col"
                 >
-                  {/* Bild */}
-                  <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
-                    {p.bild_url ? (
-                      <Image
-                        src={p.bild_url} alt={p.name}
-                        width={200} height={200}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        unoptimized
+                  {/* Klickbarer Bereich → Produkt öffnen */}
+                  <Link href={produktLink(p)} className="flex-1 flex flex-col">
+                    {/* Bild */}
+                    <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
+                      {p.bild_url ? (
+                        <Image
+                          src={p.bild_url} alt={p.name}
+                          width={200} height={200}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          unoptimized
+                        />
+                      ) : (
+                        <Package className="w-10 h-10 text-gray-200" />
+                      )}
+                    </div>
+
+                    <div className="p-3 space-y-2 flex-1">
+                      <p className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors line-clamp-2 leading-snug">
+                        {p.name}
+                      </p>
+
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {p.kategorie && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-medium">
+                            {p.kategorie}
+                          </span>
+                        )}
+                        {isBibliothek && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium">
+                            Bibliothek
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                        <span className="text-xs font-mono font-semibold text-gray-700">
+                          {vpBrutto != null ? eur(vpBrutto) : '—'}
+                          {vpBrutto != null && <span className="text-gray-400 font-normal"> brutto</span>}
+                        </span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${cfg.cls}`}>
+                          {cfg.label}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+
+                  {/* Zuweisen-Button für Bibliotheksprodukte */}
+                  {isBibliothek && projekte.length > 0 && (
+                    <div className="px-3 pb-3 pt-1">
+                      <ProduktZuweisenModal
+                        produktId={p.id}
+                        produktName={p.name}
+                        projekte={projekte}
+                        raeume={raeume}
                       />
-                    ) : (
-                      <Package className="w-10 h-10 text-gray-200" />
-                    )}
-                  </div>
-
-                  <div className="p-3 space-y-2">
-                    <p className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors line-clamp-2 leading-snug">
-                      {p.name}
-                    </p>
-
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {p.kategorie && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-medium">
-                          {p.kategorie}
-                        </span>
-                      )}
-                      {!p.projektId && (
-                        <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium">
-                          Bibliothek
-                        </span>
-                      )}
                     </div>
-
-                    <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-                      <span className="text-xs font-mono font-semibold text-gray-700">
-                        {vpBrutto != null ? eur(vpBrutto) : '—'}
-                        {vpBrutto != null && <span className="text-gray-400 font-normal"> brutto</span>}
-                      </span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${cfg.cls}`}>
-                        {cfg.label}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
+                  )}
+                </div>
               )
             })
           )}
@@ -458,7 +478,7 @@ export default function ProdukteTabelle({
                         </td>
 
                         {/* Projekt → Raum */}
-                        <td className="px-4 py-3 max-w-[170px]">
+                        <td className="px-4 py-3 max-w-[200px]">
                           {p.projektId ? (
                             <>
                               <Link href={`/dashboard/projekte/${p.projektId}`}
@@ -469,9 +489,19 @@ export default function ProdukteTabelle({
                               <span className="text-xs text-gray-400 truncate block">→ {p.raumName}</span>
                             </>
                           ) : (
-                            <span className="inline-block px-2 py-0.5 text-[11px] bg-gray-100 text-gray-500 rounded-full font-medium whitespace-nowrap">
-                              Bibliothek
-                            </span>
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              <span className="inline-block px-2 py-0.5 text-[11px] bg-gray-100 text-gray-500 rounded-full font-medium whitespace-nowrap">
+                                Bibliothek
+                              </span>
+                              {projekte.length > 0 && (
+                                <ProduktZuweisenModal
+                                  produktId={p.id}
+                                  produktName={p.name}
+                                  projekte={projekte}
+                                  raeume={raeume}
+                                />
+                              )}
+                            </div>
                           )}
                         </td>
 
