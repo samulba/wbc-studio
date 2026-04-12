@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area,
+  ResponsiveContainer, Cell, PieChart, Pie, Label, AreaChart, Area,
 } from 'recharts'
 import Link from 'next/link'
 import { BarChart2, PieChart as PieIcon, TrendingUp } from 'lucide-react'
@@ -190,6 +190,35 @@ export function BalkenChart({ data }: { data: ProjektKostenData[] }) {
   )
 }
 
+// ── CustomLabel: Zahl in der Donut-Mitte ─────────────────────
+function DonutMitte({ gesamt, viewBox }: { gesamt: number; viewBox?: { cx?: number; cy?: number } }) {
+  const cx = viewBox?.cx ?? 0
+  const cy = viewBox?.cy ?? 0
+  return (
+    <g>
+      <text
+        x={cx} y={cy}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontSize={22}
+        fontWeight="bold"
+        fill="#111827"
+      >
+        {gesamt}
+      </text>
+      <text
+        x={cx} y={cy + 18}
+        textAnchor="middle"
+        dominantBaseline="hanging"
+        fontSize={10}
+        fill="#9CA3AF"
+      >
+        Produkte
+      </text>
+    </g>
+  )
+}
+
 // ── Chart 2: Freigabe-Status Donut ────────────────────────────
 function useDonutHoehe() {
   const [hoehe, setHoehe] = useState(320)
@@ -226,12 +255,7 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
         />
       ) : (
         <div className="flex-1 min-h-0 flex items-center justify-center px-4 py-3">
-          <div className="relative w-full" style={{ height: donutHoehe }}>
-            {/* Mittige Zahl – exakt auf cx=50% / cy=42% ausgerichtet */}
-            <div style={{ position: 'absolute', top: '42%', left: '50%', transform: 'translate(-50%, -50%)', pointerEvents: 'none', textAlign: 'center' }}>
-              <div style={{ fontSize: '22px', fontWeight: 700, color: '#111827', lineHeight: 1 }}>{gesamt}</div>
-              <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '4px' }}>Produkte</div>
-            </div>
+          <div className="w-full" style={{ height: donutHoehe }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -249,6 +273,10 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
                   {data.map((entry, index) => (
                     <Cell key={index} fill={entry.farbe} stroke="none" />
                   ))}
+                  <Label
+                    position="center"
+                    content={<DonutMitte gesamt={gesamt} />}
+                  />
                 </Pie>
                 <Tooltip content={(props) => (
                   <DonutTooltip
