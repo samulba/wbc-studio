@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import NavSidebar from '@/components/NavSidebar'
 import MobileGuard from '@/components/MobileGuard'
+import { RolleProvider } from '@/lib/RolleContext'
+import { meineRolleAbrufen } from '@/app/actions/team'
 
 export default async function DashboardLayout({
   children,
@@ -15,7 +17,7 @@ export default async function DashboardLayout({
 
   const userName = (user.user_metadata?.full_name as string | undefined) || undefined
 
-  const [{ count: freigabenCount }, { count: anfragenCount }] = await Promise.all([
+  const [{ count: freigabenCount }, { count: anfragenCount }, rolle] = await Promise.all([
     supabase
       .from('produktstatus')
       .select('*', { count: 'exact', head: true })
@@ -25,14 +27,17 @@ export default async function DashboardLayout({
       .select('*', { count: 'exact', head: true })
       .eq('status', 'offen')
       .not('kunde_name', 'is', null),
+    meineRolleAbrufen(),
   ])
 
   return (
     <MobileGuard>
+      <RolleProvider rolle={rolle}>
       <div className="flex h-screen bg-gray-50">
         <NavSidebar
           userEmail={user.email ?? ''}
           userName={userName}
+          userRolle={rolle}
           offeneFreigaben={freigabenCount ?? 0}
           offeneAnfragen={anfragenCount ?? 0}
         />
@@ -40,6 +45,7 @@ export default async function DashboardLayout({
           {children}
         </main>
       </div>
+      </RolleProvider>
     </MobileGuard>
   )
 }

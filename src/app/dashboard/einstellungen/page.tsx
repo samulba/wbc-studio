@@ -1,18 +1,7 @@
 import { getEinstellungen } from '@/app/actions/einstellungen'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { teamMitgliederAbrufen, meineRolleAbrufen } from '@/app/actions/team'
 import EinstellungenTabs from '@/components/EinstellungenTabs'
-
-async function getTeamMitglieder() {
-  try {
-    const supabase = createAdminClient()
-    const { data, error } = await supabase.auth.admin.listUsers()
-    if (error) return []
-    return data.users
-  } catch {
-    return []
-  }
-}
 
 export default async function EinstellungenPage({
   searchParams,
@@ -23,10 +12,11 @@ export default async function EinstellungenPage({
   const tab = tabParam ?? 'allgemein'
 
   const supabase = await createClient()
-  const [{ data: { user } }, einstellungen, team] = await Promise.all([
+  const [{ data: { user } }, einstellungen, team, userRolle] = await Promise.all([
     supabase.auth.getUser(),
     getEinstellungen(),
-    getTeamMitglieder(),
+    teamMitgliederAbrufen(),
+    meineRolleAbrufen(),
   ])
 
   return (
@@ -36,6 +26,7 @@ export default async function EinstellungenPage({
         aktuellerTab={tab}
         einstellungen={einstellungen}
         team={team}
+        userRolle={userRolle}
         userEmail={user?.email ?? ''}
         lastSignIn={user?.last_sign_in_at ?? null}
       />

@@ -148,6 +148,22 @@ export interface FreigabeToken {
   created_at: string
 }
 
+// ── Team ──────────────────────────────────────────────────────
+export type Rolle = 'admin' | 'editor' | 'viewer'
+export type TeamStatus = 'ausstehend' | 'aktiv' | 'deaktiviert'
+
+export interface TeamMitglied {
+  id: string
+  user_id: string | null
+  eingeladen_von: string | null
+  email: string
+  rolle: Rolle
+  status: TeamStatus
+  einladungs_token: string | null
+  created_at: string
+  updated_at: string
+}
+
 export type OnboardingStatus = 'offen' | 'abgeschlossen' | 'abgelehnt'
 
 export interface OnboardingAnfrage {

@@ -15,6 +15,8 @@ import {
   LogOut,
   ClipboardList,
 } from 'lucide-react'
+import type { Rolle } from '@/lib/supabase/types'
+import { ROLLEN_CONFIG } from '@/lib/permissions'
 
 // ── Avatar-Hilfsfunktionen ───────────────────────────────────
 const avatarFarben = [
@@ -46,11 +48,13 @@ function DepthStackIcon() {
 export default function NavSidebar({
   userEmail,
   userName,
+  userRolle = 'admin',
   offeneFreigaben = 0,
   offeneAnfragen = 0,
 }: {
   userEmail: string
   userName?: string
+  userRolle?: Rolle
   offeneFreigaben?: number
   offeneAnfragen?: number
 }) {
@@ -153,9 +157,11 @@ export default function NavSidebar({
               <p className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors truncate leading-none">
                 {displayName}
               </p>
-              <p className="text-[11px] text-white/40 truncate mt-1 leading-none">
-                {userEmail}
-              </p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="text-[10px] font-semibold text-white/30 uppercase tracking-wide leading-none">
+                  {ROLLEN_CONFIG[userRolle]?.label ?? userRolle}
+                </span>
+              </div>
             </div>
           </Link>
           <button
