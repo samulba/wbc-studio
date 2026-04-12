@@ -1,7 +1,6 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 export async function getEinstellungen(): Promise<Record<string, string>> {
@@ -26,7 +25,7 @@ export async function getMwstSatz(): Promise<number> {
 export type EinstellungActionState = { fehler?: string; erfolg?: string } | null
 
 async function upsertEinstellung(schluessel: string, wert: string) {
-  const supabase = createAdminClient()
+  const supabase = await createClient()
   return supabase.from('einstellungen').upsert(
     { schluessel, wert, updated_at: new Date().toISOString() },
     { onConflict: 'schluessel' }
@@ -77,7 +76,7 @@ export async function addListItem(
   const icon = (formData.get('icon') as string)?.trim()
   if (!name) return { fehler: 'Name darf nicht leer sein.' }
 
-  const supabase = createAdminClient()
+  const supabase = await createClient()
   const { data } = await supabase
     .from('einstellungen')
     .select('wert')
@@ -122,7 +121,7 @@ export async function updateListItem(
   const nameTeil = neuesItem.split('|')[0].trim()
   if (!nameTeil) return { fehler: 'Name darf nicht leer sein.' }
 
-  const supabase = createAdminClient()
+  const supabase = await createClient()
   const { data } = await supabase
     .from('einstellungen')
     .select('wert')
@@ -150,7 +149,7 @@ export async function updateListItem(
 }
 
 export async function deleteListItem(schluessel: string, name: string): Promise<void> {
-  const supabase = createAdminClient()
+  const supabase = await createClient()
   const { data } = await supabase
     .from('einstellungen')
     .select('wert')
