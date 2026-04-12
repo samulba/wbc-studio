@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, Cell, PieChart, Pie, Label, AreaChart, Area,
+  ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area,
 } from 'recharts'
 import Link from 'next/link'
 import { BarChart2, PieChart as PieIcon, TrendingUp } from 'lucide-react'
@@ -173,12 +173,12 @@ export function BalkenChart({ data }: { data: ProjektKostenData[] }) {
                 iconSize={8}
                 wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }}
               />
-              <Bar dataKey="budget" name="Budget" fill="#445c49" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="budget" name="Budget" fill="#94c1a4" radius={[3, 3, 0, 0]} />
               <Bar dataKey="istKosten" name="Ist-Kosten" radius={[3, 3, 0, 0]}>
                 {data.map((entry, index) => (
                   <Cell
                     key={index}
-                    fill={entry.istKosten > entry.budget ? '#EF4444' : '#10B981'}
+                    fill={entry.istKosten > entry.budget ? '#823509' : '#445c49'}
                   />
                 ))}
               </Bar>
@@ -190,34 +190,6 @@ export function BalkenChart({ data }: { data: ProjektKostenData[] }) {
   )
 }
 
-// ── CustomLabel: Zahl in der Donut-Mitte ─────────────────────
-function DonutMitte({ gesamt, viewBox }: { gesamt: number; viewBox?: { cx?: number; cy?: number } }) {
-  const cx = viewBox?.cx ?? 0
-  const cy = viewBox?.cy ?? 0
-  return (
-    <g>
-      <text
-        x={cx} y={cy}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fontSize={22}
-        fontWeight="bold"
-        fill="#111827"
-      >
-        {gesamt}
-      </text>
-      <text
-        x={cx} y={cy + 18}
-        textAnchor="middle"
-        dominantBaseline="hanging"
-        fontSize={10}
-        fill="#9CA3AF"
-      >
-        Produkte
-      </text>
-    </g>
-  )
-}
 
 // ── Chart 2: Freigabe-Status Donut ────────────────────────────
 function useDonutHoehe() {
@@ -254,14 +226,15 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
           ctaHref="/dashboard/projekte"
         />
       ) : (
-        <div className="flex-1 min-h-0 flex items-center justify-center px-4 py-3">
-          <div className="w-full" style={{ height: donutHoehe }}>
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center px-4 py-3 gap-3">
+          {/* Donut mit CSS-Overlay für zuverlässige Zentrierung */}
+          <div className="relative w-full" style={{ height: donutHoehe }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={data}
                   cx="50%"
-                  cy="42%"
+                  cy="50%"
                   innerRadius="45%"
                   outerRadius="68%"
                   dataKey="count"
@@ -273,10 +246,6 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
                   {data.map((entry, index) => (
                     <Cell key={index} fill={entry.farbe} stroke="none" />
                   ))}
-                  <Label
-                    position="center"
-                    content={<DonutMitte gesamt={gesamt} />}
-                  />
                 </Pie>
                 <Tooltip content={(props) => (
                   <DonutTooltip
@@ -285,9 +254,22 @@ export function DonutChart({ data, gesamt }: { data: StatusData[]; gesamt: numbe
                     gesamt={gesamt}
                   />
                 )} />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px', paddingTop: '6px' }} />
               </PieChart>
             </ResponsiveContainer>
+            {/* Zahl exakt zentriert per CSS */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+              <p className="text-[22px] font-bold text-gray-900 leading-none">{gesamt}</p>
+              <p className="text-[10px] text-gray-400 mt-1">Produkte</p>
+            </div>
+          </div>
+          {/* Legende manuell unter dem Chart */}
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pb-1">
+            {data.map((d) => (
+              <span key={d.status} className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.farbe }} />
+                {d.status}
+              </span>
+            ))}
           </div>
         </div>
       )}

@@ -5,22 +5,23 @@ import { useFormState, useFormStatus } from 'react-dom'
 import {
   type LucideIcon,
   // Möbel & Einrichtung
-  Sofa, Armchair, Lamp, Lightbulb, Bed, Table2, Vegan, Wind,
-  // Natur & Außen
-  Leaf, Flower, TreePine, Sunrise, Droplets, Mountain, Palmtree,
+  Sofa, Armchair, Bed, BedDouble, Table2, DoorOpen, Bath, Lamp, Wrench,
+  // Licht
+  Lightbulb, Sun, Moon, Sparkles, Zap, Sunrise, Cloud,
+  // Pflanzen & Natur
+  Leaf, TreePine, Flower, Sprout, Vegan, Mountain, Palmtree, Droplets,
+  // Textilien & Lifestyle
+  Shirt, Scissors, Palette, ShoppingBag, Glasses, Watch, Gem,
+  // Technik
+  Monitor, Tv, Smartphone, Wifi, Volume2, Music, Speaker,
+  // Wellness
+  Heart, Dumbbell, Waves, Wind, Thermometer, Coffee, Droplet,
   // Gebäude & Räume
-  Home, Building, Building2, Hotel, Layers, Grid, DoorOpen, Bath, BedDouble,
-  // Mode & Lifestyle
-  Shirt, ShoppingBag, Gem, Heart, Star, Sparkles, Watch, Glasses,
-  // Technik & Klima
-  Monitor, Tv, Music, Volume2, Sun, Moon, Cloud, Thermometer, Wifi,
-  // Gastronomie & Wellness
-  Coffee, Utensils, Wine, ChefHat, Dumbbell, Waves,
-  // Handwerk & Planung
-  Wrench, Hammer, Paintbrush, Scissors, Ruler, Compass, Map, PenLine, Pencil,
+  Home, Building, Building2, Hotel, Store, Warehouse, Layers, Grid,
   // Sonstiges
-  Package, Box, Archive, Tag, MessageSquare, Truck, Globe, Zap, Shield,
-  ChevronDown,
+  Package, Box, Archive, Tag, Star, Globe, Truck, Shield,
+  MessageSquare, Compass, Map, Ruler, Hammer, Paintbrush, PenLine, Pencil,
+  ChefHat, Utensils, Wine,
 } from 'lucide-react'
 import {
   addListItem, deleteListItem, checkKategorieUsage, updateListItem,
@@ -29,25 +30,27 @@ import {
 
 // ── Icon-Registrierung ─────────────────────────────────────────
 const ICON_KOMPONENTEN: Record<string, LucideIcon> = {
-  Sofa, Armchair, Lamp, Lightbulb, Bed, Table2, Vegan, Wind,
-  Leaf, Flower, TreePine, Sunrise, Droplets, Mountain, Palmtree,
-  Home, Building, Building2, Hotel, Layers, Grid, DoorOpen, Bath, BedDouble,
-  Shirt, ShoppingBag, Gem, Heart, Star, Sparkles, Watch, Glasses,
-  Monitor, Tv, Music, Volume2, Sun, Moon, Cloud, Thermometer, Wifi,
-  Coffee, Utensils, Wine, ChefHat, Dumbbell, Waves,
-  Wrench, Hammer, Paintbrush, Scissors, Ruler, Compass, Map, PenLine, Pencil,
-  Package, Box, Archive, Tag, MessageSquare, Truck, Globe, Zap, Shield,
+  Sofa, Armchair, Bed, BedDouble, Table2, DoorOpen, Bath, Lamp, Wrench,
+  Lightbulb, Sun, Moon, Sparkles, Zap, Sunrise, Cloud,
+  Leaf, TreePine, Flower, Sprout, Vegan, Mountain, Palmtree, Droplets,
+  Shirt, Scissors, Palette, ShoppingBag, Glasses, Watch, Gem,
+  Monitor, Tv, Smartphone, Wifi, Volume2, Music, Speaker,
+  Heart, Dumbbell, Waves, Wind, Thermometer, Coffee, Droplet,
+  Home, Building, Building2, Hotel, Store, Warehouse, Layers, Grid,
+  Package, Box, Archive, Tag, Star, Globe, Truck, Shield,
+  MessageSquare, Compass, Map, Ruler, Hammer, Paintbrush, PenLine, Pencil,
+  ChefHat, Utensils, Wine,
 }
 
 const ICON_GRUPPEN: { label: string; icons: string[] }[] = [
-  { label: 'Möbel & Einrichtung', icons: ['Sofa', 'Armchair', 'Lamp', 'Lightbulb', 'Bed', 'Table2', 'Wind'] },
-  { label: 'Natur & Außen',       icons: ['Leaf', 'Flower', 'TreePine', 'Sunrise', 'Droplets', 'Mountain', 'Palmtree'] },
-  { label: 'Gebäude & Räume',     icons: ['Home', 'Building', 'Building2', 'Hotel', 'Layers', 'Grid', 'DoorOpen', 'Bath', 'BedDouble'] },
-  { label: 'Mode & Lifestyle',    icons: ['Shirt', 'ShoppingBag', 'Gem', 'Heart', 'Star', 'Sparkles', 'Watch', 'Glasses'] },
-  { label: 'Technik & Klima',     icons: ['Monitor', 'Tv', 'Music', 'Volume2', 'Sun', 'Moon', 'Cloud', 'Thermometer', 'Wifi'] },
-  { label: 'Gastronomie & Wellness', icons: ['Coffee', 'Utensils', 'Wine', 'ChefHat', 'Dumbbell', 'Waves'] },
-  { label: 'Handwerk & Planung',  icons: ['Wrench', 'Hammer', 'Paintbrush', 'Scissors', 'Ruler', 'Compass', 'Map', 'PenLine', 'Pencil'] },
-  { label: 'Sonstiges',           icons: ['Package', 'Box', 'Archive', 'Tag', 'MessageSquare', 'Truck', 'Globe', 'Zap', 'Shield'] },
+  { label: 'Möbel & Einrichtung', icons: ['Sofa', 'Armchair', 'Bed', 'BedDouble', 'Table2', 'DoorOpen', 'Bath', 'Lamp', 'Wrench'] },
+  { label: 'Licht',               icons: ['Lightbulb', 'Sun', 'Moon', 'Sparkles', 'Zap', 'Sunrise', 'Cloud'] },
+  { label: 'Pflanzen & Natur',    icons: ['Leaf', 'TreePine', 'Flower', 'Sprout', 'Vegan', 'Mountain', 'Palmtree', 'Droplets'] },
+  { label: 'Textilien',           icons: ['Shirt', 'Scissors', 'Palette', 'ShoppingBag', 'Glasses', 'Watch', 'Gem'] },
+  { label: 'Technik',             icons: ['Monitor', 'Tv', 'Smartphone', 'Wifi', 'Volume2', 'Music', 'Speaker'] },
+  { label: 'Wellness',            icons: ['Heart', 'Dumbbell', 'Waves', 'Wind', 'Thermometer', 'Coffee', 'Droplet'] },
+  { label: 'Gebäude & Räume',     icons: ['Home', 'Building', 'Building2', 'Hotel', 'Store', 'Warehouse', 'Layers', 'Grid'] },
+  { label: 'Sonstiges',           icons: ['Package', 'Box', 'Archive', 'Tag', 'Star', 'Globe', 'Truck', 'Shield', 'MessageSquare', 'Compass', 'Map', 'Ruler', 'Hammer', 'Paintbrush', 'PenLine', 'Pencil', 'ChefHat', 'Utensils', 'Wine'] },
 ]
 
 function getIconKomponente(iconName: string): LucideIcon {
@@ -64,41 +67,50 @@ function parseItem(raw: string): { name: string; iconName: string } {
   }
 }
 
-// ── Icon-Picker (zentriertes Modal) ────────────────────────────
+// ── Icon-Picker Modal ──────────────────────────────────────────
 function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name: string) => void }) {
   const [open, setOpen] = useState(false)
   const SelectedIcon = getIconKomponente(selected)
 
   return (
     <>
+      {/* Kompakter Trigger – nur Icon, kein Text */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg bg-white hover:border-wellbeing-green-light hover:bg-wellbeing-cream/40 transition-colors text-sm text-gray-700"
+        title={`Icon: ${selected}`}
+        className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-lg bg-white hover:border-wellbeing-green-light hover:bg-wellbeing-cream/40 transition-colors shrink-0"
       >
         <SelectedIcon className="w-4 h-4 text-wellbeing-green" />
-        <span className="text-xs text-gray-500">{selected}</span>
-        <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
       </button>
 
       {open && (
         <>
+          {/* Backdrop */}
           <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setOpen(false)} />
-          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden">
+
+          {/* Modal – zentriert, 8 Icons pro Reihe */}
+          <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden">
+            {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <p className="text-sm font-semibold text-gray-800">Icon auswählen</p>
-              <button type="button" onClick={() => setOpen(false)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors text-sm"
+              >
                 ✕
               </button>
             </div>
-            <div className="max-h-80 overflow-y-auto px-4 py-3 space-y-4">
+
+            {/* Icon-Grid */}
+            <div className="max-h-[420px] overflow-y-auto px-4 py-3 space-y-4">
               {ICON_GRUPPEN.map((gruppe) => (
                 <div key={gruppe.label}>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2 px-0.5">
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">
                     {gruppe.label}
                   </p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-8 gap-1">
                     {gruppe.icons.map((iconName) => {
                       const Icon = getIconKomponente(iconName)
                       const aktiv = selected === iconName
@@ -108,13 +120,13 @@ function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name:
                           type="button"
                           title={iconName}
                           onClick={() => { onSelect(iconName); setOpen(false) }}
-                          className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${
+                          className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all ${
                             aktiv
-                              ? 'bg-wellbeing-green text-white ring-2 ring-wellbeing-green-light'
-                              : 'bg-gray-100 text-gray-600 hover:bg-wellbeing-cream hover:text-wellbeing-green'
+                              ? 'bg-wellbeing-green text-white ring-2 ring-wellbeing-green ring-offset-1'
+                              : 'text-gray-500 hover:bg-wellbeing-green-light/20 hover:text-wellbeing-green'
                           }`}
                         >
-                          <Icon className="w-4 h-4" />
+                          <Icon className="w-[18px] h-[18px]" />
                         </button>
                       )
                     })}
@@ -234,14 +246,12 @@ function KategorieKarte({ rawItem, schluessel, mitPruefung }: {
           <Icon className="w-[18px] h-[18px] text-wellbeing-green" />
         </div>
         <span className="flex-1 text-sm text-gray-800 font-medium truncate">{name}</span>
-        {/* Bearbeiten */}
         <button type="button" onClick={() => { setEditMode(true); setFehler(null) }}
           disabled={isPending}
           title={`„${name}" bearbeiten`}
           className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-wellbeing-green hover:bg-wellbeing-cream transition-colors shrink-0">
           <Pencil className="w-3.5 h-3.5" />
         </button>
-        {/* Löschen */}
         <button type="button" onClick={handleDelete} disabled={isPending}
           title={`„${name}" löschen`}
           className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
