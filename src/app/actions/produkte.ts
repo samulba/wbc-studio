@@ -203,6 +203,20 @@ export async function produktZuRaumZuweisen(
   return null
 }
 
+export async function updateProduktPositionen(
+  raumId: string,
+  projektId: string,
+  positionen: { id: string; reihenfolge: number }[]
+): Promise<void> {
+  const supabase = await createClient()
+  await Promise.all(
+    positionen.map(({ id, reihenfolge }) =>
+      supabase.from('produkte').update({ reihenfolge }).eq('id', id)
+    )
+  )
+  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+}
+
 export async function produktStatusAendern(
   produktId: string,
   raumId: string,
