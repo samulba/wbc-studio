@@ -33,7 +33,7 @@ export type FreigabeEintrag = {
   produktstatus: { status: string; kommentar: string | null } | null
 }
 
-type Tab = 'offen' | 'freigegeben' | 'abgelehnt' | 'alle'
+type Tab = 'offen' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung' | 'alle'
 
 const statusBadge: Record<string, string> = {
   ausstehend:     'bg-gray-100 text-gray-500',
@@ -51,6 +51,7 @@ function isOffen(status: string) { return status === 'ausstehend' || status === 
 function matchTab(status: string, tab: Tab) {
   if (tab === 'alle') return true
   if (tab === 'offen') return isOffen(status)
+  if (tab === 'ueberarbeitung') return status === 'ueberarbeitung'
   return status === tab
 }
 
@@ -84,12 +85,12 @@ const LISTE_CFG = [
   { key: 'ueberarbeitung', label: 'Überarbeitung', icon: RotateCcw,    farbe: '#6366F1', bg: 'bg-indigo-50',   ring: 'ring-indigo-400',  text: 'text-indigo-700'  },
 ]
 
-// Mapping Tile-Key → Tab-Wert (ausstehend + ueberarbeitung = 'offen')
+// Mapping Tile-Key → Tab-Wert (1:1, jeder Status hat seinen eigenen Filter)
 const TILE_TAB: Record<string, Tab> = {
   freigegeben:    'freigegeben',
   ausstehend:     'offen',
   abgelehnt:      'abgelehnt',
-  ueberarbeitung: 'offen',
+  ueberarbeitung: 'ueberarbeitung',
 }
 
 function FreigabeChart({
@@ -385,10 +386,11 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
   const gruppen = gruppiereNachProjekt(gefiltert)
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: 'offen',       label: 'Offen' },
-    { key: 'freigegeben', label: 'Freigegeben' },
-    { key: 'abgelehnt',   label: 'Abgelehnt' },
-    { key: 'alle',        label: 'Alle' },
+    { key: 'offen',          label: 'Offen' },
+    { key: 'freigegeben',    label: 'Freigegeben' },
+    { key: 'abgelehnt',      label: 'Abgelehnt' },
+    { key: 'ueberarbeitung', label: 'Überarbeitung' },
+    { key: 'alle',           label: 'Alle' },
   ]
 
   function handleReset(produktId: string) {
