@@ -14,7 +14,7 @@ import { naechsteEventsAbrufen } from '@/app/actions/timeline'
 import {
   ChevronRight, Download, CheckCircle2, Clock, XCircle, Banknote,
   Archive, CalendarDays, Flag, Truck, Layers, User, Phone, Mail,
-  AlertTriangle, Wrench, FileText,
+  AlertTriangle, Wrench, FileText, ReceiptText,
 } from 'lucide-react'
 import ProjektAktionenButtons from '@/components/ProjektAktionenButtons'
 import SortableRaumListe, { type RaumStat } from '@/components/SortableRaumListe'
@@ -296,6 +296,13 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
               >
                 <FileText className="w-3.5 h-3.5" />
                 Verträge
+              </Link>
+              <Link
+                href={`/dashboard/projekte/${projekt.id}/angebote`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-lg transition-all"
+              >
+                <ReceiptText className="w-3.5 h-3.5" />
+                Angebote
               </Link>
               <a
                 href={`/api/projekte/${projekt.id}/export`}

@@ -422,6 +422,43 @@ export interface Branding {
   updated_at: string
 }
 
+// ── Angebotsmodul (Migration 044) ────────────────────────────
+export type AngebotStatus = 'entwurf' | 'gesendet' | 'angenommen' | 'abgelehnt' | 'abgelaufen'
+
+export interface AngebotPosition {
+  id: string
+  name: string
+  beschreibung: string | null
+  menge: number
+  einheit: string
+  einzelpreis: number
+  gesamtpreis: number
+}
+
+export interface Angebot {
+  id: string
+  organisation_id: string
+  projekt_id: string | null
+  kunde_id: string
+  nummer: string
+  titel: string
+  einleitung: string | null
+  positionen: AngebotPosition[]
+  netto_summe: number | null
+  mwst_satz: number
+  mwst_betrag: number | null
+  brutto_summe: number | null
+  rabatt_prozent: number | null
+  rabatt_betrag: number | null
+  status: AngebotStatus
+  gueltig_bis: string | null
+  pdf_url: string | null
+  anmerkungen: string | null
+  agb_text: string | null
+  created_at: string
+  updated_at: string
+}
+
 // ── Vertragssystem (Migration 043) ───────────────────────────
 export type VertragsVorlageKategorie = 'projektvertrag' | 'rahmenvertrag' | 'angebot' | 'sonstiges'
 export type VertragStatus =
