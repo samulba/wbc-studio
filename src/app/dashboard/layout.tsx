@@ -17,7 +17,7 @@ export default async function DashboardLayout({
 
   const userName = (user.user_metadata?.full_name as string | undefined) || undefined
 
-  const [{ count: freigabenCount }, { count: anfragenCount }, rolle] = await Promise.all([
+  const [freigabenRes, anfragenRes, rolleRes] = await Promise.allSettled([
     supabase
       .from('produktstatus')
       .select('*', { count: 'exact', head: true })
@@ -29,6 +29,10 @@ export default async function DashboardLayout({
       .not('kunde_name', 'is', null),
     meineRolleAbrufen(),
   ])
+
+  const freigabenCount = freigabenRes.status === 'fulfilled' ? (freigabenRes.value.count ?? 0) : 0
+  const anfragenCount  = anfragenRes.status  === 'fulfilled' ? (anfragenRes.value.count  ?? 0) : 0
+  const rolle          = rolleRes.status     === 'fulfilled' ? rolleRes.value : ('viewer' as import('@/lib/supabase/types').Rolle)
 
   return (
     <MobileGuard>

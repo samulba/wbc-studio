@@ -15,46 +15,50 @@ export type TeamActionState = { fehler?: string; erfolg?: string; einladungsLink
  * Gibt 'admin' zurück wenn noch keine Mitglieder existieren (Bootstrap-Fall).
  */
 export async function meineRolleAbrufen(): Promise<Rolle> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return 'viewer'
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return 'viewer'
 
-  const admin = createAdminClient()
+    const admin = createAdminClient()
 
-  // Bootstrap: noch keine Einträge → erster Nutzer ist Admin
-  const { count } = await admin
-    .from('team_mitglieder')
-    .select('*', { count: 'exact', head: true })
-
-  if (!count || count === 0) return 'admin'
-
-  // Aktiven Eintrag via user_id
-  const { data } = await admin
-    .from('team_mitglieder')
-    .select('rolle')
-    .eq('user_id', user.id)
-    .eq('status', 'aktiv')
-    .maybeSingle()
-
-  if (data) return data.rolle as Rolle
-
-  // Ausstehende Einladung via E-Mail → auto-aktivieren
-  const { data: pending } = await admin
-    .from('team_mitglieder')
-    .select('id, rolle')
-    .eq('email', user.email ?? '')
-    .eq('status', 'ausstehend')
-    .maybeSingle()
-
-  if (pending) {
-    await admin
+    // Bootstrap: noch keine Einträge → erster Nutzer ist Admin
+    const { count } = await admin
       .from('team_mitglieder')
-      .update({ user_id: user.id, status: 'aktiv', einladungs_token: null })
-      .eq('id', pending.id)
-    return pending.rolle as Rolle
-  }
+      .select('*', { count: 'exact', head: true })
 
-  return 'viewer'
+    if (!count || count === 0) return 'admin'
+
+    // Aktiven Eintrag via user_id
+    const { data } = await admin
+      .from('team_mitglieder')
+      .select('rolle')
+      .eq('user_id', user.id)
+      .eq('status', 'aktiv')
+      .maybeSingle()
+
+    if (data) return data.rolle as Rolle
+
+    // Ausstehende Einladung via E-Mail → auto-aktivieren
+    const { data: pending } = await admin
+      .from('team_mitglieder')
+      .select('id, rolle')
+      .eq('email', user.email ?? '')
+      .eq('status', 'ausstehend')
+      .maybeSingle()
+
+    if (pending) {
+      await admin
+        .from('team_mitglieder')
+        .update({ user_id: user.id, status: 'aktiv', einladungs_token: null })
+        .eq('id', pending.id)
+      return pending.rolle as Rolle
+    }
+
+    return 'viewer'
+  } catch {
+    return 'viewer'
+  }
 }
 
 /** Alle Team-Mitglieder (nur für Admins). */

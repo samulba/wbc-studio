@@ -28,8 +28,33 @@ export async function createClient() {
 
 /**
  * Gibt die organisation_id des aktuell eingeloggten Users zurück.
- * Liest aus team_mitglieder WHERE user_id = auth.uid() AND status = 'aktiv'.
+ * Gibt null zurück wenn kein User eingeloggt ist oder keine Org gefunden wird.
+ * Wirft NIEMALS — sicher für SSR-Kontext.
+ */
+export async function getOrganisationIdOrNull(): Promise<string | null> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+
+    const { data } = await supabase
+      .from('team_mitglieder')
+      .select('organisation_id')
+      .eq('user_id', user.id)
+      .eq('status', 'aktiv')
+      .limit(1)
+      .maybeSingle()
+
+    return (data?.organisation_id as string | null) ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Gibt die organisation_id des aktuell eingeloggten Users zurück.
  * Wirft einen Error wenn kein User eingeloggt ist oder keine Org gefunden wird.
+ * Nur in Mutations verwenden (nicht in SSR-Reads).
  */
 export async function getOrganisationId(): Promise<string> {
   const supabase = await createClient()
@@ -43,7 +68,7 @@ export async function getOrganisationId(): Promise<string> {
     .eq('user_id', user.id)
     .eq('status', 'aktiv')
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (error || !data?.organisation_id) {
     throw new Error('Keine Organisation gefunden. Bitte wenden Sie sich an einen Administrator.')
