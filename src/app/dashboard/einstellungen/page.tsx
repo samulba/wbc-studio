@@ -1,6 +1,7 @@
 import { getEinstellungen } from '@/app/actions/einstellungen'
 import { createClient } from '@/lib/supabase/server'
 import { teamMitgliederAbrufen, meineRolleAbrufen } from '@/app/actions/team'
+import { brandingAbrufen } from '@/app/actions/branding'
 import EinstellungenTabs from '@/components/EinstellungenTabs'
 
 export default async function EinstellungenPage({
@@ -9,14 +10,15 @@ export default async function EinstellungenPage({
   searchParams: Promise<{ tab?: string }>
 }) {
   const { tab: tabParam } = await searchParams
-  const tab = tabParam ?? 'allgemein'
+  const tab = tabParam ?? 'profil'
 
   const supabase = await createClient()
-  const [{ data: { user } }, einstellungen, team, userRolle] = await Promise.all([
+  const [{ data: { user } }, einstellungen, team, userRolle, branding] = await Promise.all([
     supabase.auth.getUser(),
     getEinstellungen(),
     teamMitgliederAbrufen(),
     meineRolleAbrufen(),
+    brandingAbrufen(),
   ])
 
   return (
@@ -28,7 +30,9 @@ export default async function EinstellungenPage({
         team={team}
         userRolle={userRolle}
         userEmail={user?.email ?? ''}
+        userId={user?.id ?? ''}
         lastSignIn={user?.last_sign_in_at ?? null}
+        branding={branding}
       />
     </div>
   )

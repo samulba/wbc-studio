@@ -1,11 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { useFormState, useFormStatus } from 'react-dom'
 import { useTransition } from 'react'
 import {
   saveAllgemein,
-  saveFreigabe,
   saveFreigabeLinks,
   saveBenachrichtigungen,
   type EinstellungActionState,
@@ -19,43 +17,30 @@ import {
   type TeamActionState,
 } from '@/app/actions/team'
 import { updatePasswort, type ProfilActionState } from '@/app/actions/profil'
-import type { TeamMitglied, Rolle } from '@/lib/supabase/types'
+import type { TeamMitglied, Rolle, Branding } from '@/lib/supabase/types'
 import { ROLLEN_CONFIG } from '@/lib/permissions'
+import HandbuchClient from '@/app/dashboard/einstellungen/handbuch/HandbuchClient'
+import BrandingEditor from '@/components/BrandingEditor'
 
 // ── Konstanten ────────────────────────────────────────────────
 
 const TABS = [
-  { key: 'allgemein',          label: 'Allgemein' },
+  { key: 'profil',             label: 'Profil' },
+  { key: 'workspace',          label: 'Workspace' },
+  { key: 'branding',           label: 'Branding' },
   { key: 'team',               label: 'Team' },
-  { key: 'sicherheit',         label: 'Sicherheit' },
+  { key: 'freigaben',          label: 'Freigaben' },
   { key: 'benachrichtigungen', label: 'Benachrichtigungen' },
-  { key: 'freigabe',           label: 'Freigabe & Links' },
   { key: 'abrechnung',         label: 'Abrechnung' },
-  { key: 'branding',           label: 'Branding', href: '/dashboard/einstellungen/branding' },
-  { key: 'handbuch',           label: 'Handbuch', href: '/dashboard/einstellungen/handbuch' },
+  { key: 'handbuch',           label: 'Handbuch' },
 ]
 
 const ZEITZONEN = [
-  'Europe/Berlin',
-  'Europe/Vienna',
-  'Europe/Zurich',
-  'Europe/London',
-  'Europe/Paris',
-  'Europe/Amsterdam',
-  'Europe/Madrid',
-  'Europe/Rome',
-  'Europe/Warsaw',
-  'Europe/Stockholm',
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'America/Sao_Paulo',
-  'Asia/Dubai',
-  'Asia/Tokyo',
-  'Asia/Shanghai',
-  'Asia/Singapore',
-  'Australia/Sydney',
+  'Europe/Berlin', 'Europe/Vienna', 'Europe/Zurich', 'Europe/London',
+  'Europe/Paris', 'Europe/Amsterdam', 'Europe/Madrid', 'Europe/Rome',
+  'Europe/Warsaw', 'Europe/Stockholm', 'America/New_York', 'America/Chicago',
+  'America/Denver', 'America/Los_Angeles', 'America/Sao_Paulo',
+  'Asia/Dubai', 'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Singapore', 'Australia/Sydney',
 ]
 
 // ── Gemeinsame UI-Helfer ──────────────────────────────────────
@@ -83,38 +68,19 @@ function Meldung({ state }: { state: AnyState }) {
 }
 
 function Feld({
-  label,
-  name,
-  defaultValue,
-  type = 'text',
-  required,
-  min,
-  max,
-  step,
-  hint,
+  label, name, defaultValue, type = 'text',
+  required, min, max, step, hint,
 }: {
-  label: string
-  name: string
-  defaultValue?: string
-  type?: string
-  required?: boolean
-  min?: string
-  max?: string
-  step?: string
-  hint?: string
+  label: string; name: string; defaultValue?: string; type?: string
+  required?: boolean; min?: string; max?: string; step?: string; hint?: string
 }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       {hint && <p className="text-xs text-gray-400 mb-1.5">{hint}</p>}
       <input
-        name={name}
-        type={type}
-        defaultValue={defaultValue}
-        required={required}
-        min={min}
-        max={max}
-        step={step}
+        name={name} type={type} defaultValue={defaultValue}
+        required={required} min={min} max={max} step={step}
         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light"
       />
     </div>
@@ -122,85 +88,135 @@ function Feld({
 }
 
 function AuswahlFeld({
-  label,
-  name,
-  defaultValue,
-  optionen,
-  hint,
+  label, name, defaultValue, optionen, hint,
 }: {
-  label: string
-  name: string
-  defaultValue?: string
-  optionen: { wert: string; label: string }[]
-  hint?: string
+  label: string; name: string; defaultValue?: string
+  optionen: { wert: string; label: string }[]; hint?: string
 }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       {hint && <p className="text-xs text-gray-400 mb-1.5">{hint}</p>}
       <select
-        name={name}
-        defaultValue={defaultValue}
+        name={name} defaultValue={defaultValue}
         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light bg-white"
       >
-        {optionen.map((o) => (
-          <option key={o.wert} value={o.wert}>
-            {o.label}
-          </option>
-        ))}
+        {optionen.map((o) => <option key={o.wert} value={o.wert}>{o.label}</option>)}
       </select>
     </div>
   )
 }
 
 function Abschnitt({
-  titel,
-  beschreibung,
-  children,
+  titel, beschreibung, children,
 }: {
-  titel: string
-  beschreibung?: string
-  children: React.ReactNode
+  titel: string; beschreibung?: string; children: React.ReactNode
 }) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
         <h3 className="text-sm font-semibold text-gray-900">{titel}</h3>
-        {beschreibung && (
-          <p className="text-xs text-gray-500 mt-0.5">{beschreibung}</p>
-        )}
+        {beschreibung && <p className="text-xs text-gray-500 mt-0.5">{beschreibung}</p>}
       </div>
       <div className="px-6 py-5">{children}</div>
     </div>
   )
 }
 
-// ── Tab: Allgemein ────────────────────────────────────────────
+// ── Tab: Profil ───────────────────────────────────────────────
 
-function AllgemeinTab({ einstellungen }: { einstellungen: Record<string, string> }) {
+function ProfilTab({
+  userEmail,
+  lastSignIn,
+}: {
+  userEmail: string
+  lastSignIn: string | null
+}) {
+  const [passwortState, passwortAction] = useFormState(updatePasswort, null)
+
+  const kuerzel = userEmail ? userEmail.slice(0, 2).toUpperCase() : 'ME'
+  const letzteAnmeldung = lastSignIn
+    ? new Date(lastSignIn).toLocaleString('de-DE', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    : 'Unbekannt'
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      {/* Konto-Info */}
+      <Abschnitt titel="Mein Konto" beschreibung="Persönliche Anmeldedaten">
+        <div className="flex items-center gap-4 pb-4 mb-4 border-b border-gray-100">
+          <div className="w-14 h-14 rounded-full bg-wellbeing-green flex items-center justify-center text-xl font-bold text-white shrink-0">
+            {kuerzel}
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900">{userEmail}</p>
+            <p className="text-xs text-gray-400 mt-0.5">Administrator</p>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">E-Mail-Adresse</label>
+            <p className="text-sm text-gray-700 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">{userEmail}</p>
+            <p className="text-[11px] text-gray-400 mt-1">E-Mail-Änderung erfordert Bestätigung per E-Mail.</p>
+          </div>
+        </div>
+      </Abschnitt>
+
+      {/* Passwort */}
+      <Abschnitt titel="Passwort ändern" beschreibung="Mindestens 6 Zeichen">
+        <form action={passwortAction} className="space-y-4">
+          <Feld label="Neues Passwort" name="passwort" type="password" required />
+          <Feld label="Passwort bestätigen" name="bestaetigung" type="password" required />
+          <div className="flex items-center gap-3 pt-1">
+            <SubmitButton label="Passwort ändern" />
+            <Meldung state={passwortState} />
+          </div>
+        </form>
+      </Abschnitt>
+
+      {/* Aktive Sessions */}
+      <Abschnitt titel="Aktive Sessions" beschreibung="Aktuell angemeldete Geräte">
+        <div className="border border-gray-100 rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-white">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Aktuelle Sitzung</p>
+              <p className="text-xs text-gray-400 mt-0.5">{userEmail}</p>
+            </div>
+            <div className="text-right">
+              <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium">
+                Aktiv
+              </span>
+              <p className="text-xs text-gray-400 mt-1">Zuletzt: {letzteAnmeldung}</p>
+            </div>
+          </div>
+        </div>
+        <p className="text-xs text-gray-400 mt-3">
+          Weitere Session-Verwaltung wird in einer zukünftigen Version verfügbar sein.
+        </p>
+      </Abschnitt>
+    </div>
+  )
+}
+
+// ── Tab: Workspace ────────────────────────────────────────────
+
+function WorkspaceTab({ einstellungen }: { einstellungen: Record<string, string> }) {
   const [state, action] = useFormState(saveAllgemein, null)
   const e = einstellungen
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <Abschnitt
-        titel="Anwendung"
-        beschreibung="Grundlegende Einstellungen Ihrer Instanz"
-      >
+      <Abschnitt titel="Anwendung" beschreibung="Grundlegende Einstellungen Ihrer Instanz">
         <form action={action} className="space-y-5">
           <Feld
-            label="App-Name"
-            name="app_name"
-            defaultValue={e.app_name ?? 'Studio'}
-            required
+            label="App-Name" name="app_name" defaultValue={e.app_name ?? 'Studio'} required
             hint="Wird in der Seitenleiste und auf Freigabelinks angezeigt."
           />
-
           <div className="grid grid-cols-2 gap-4">
             <AuswahlFeld
-              label="Standardwährung"
-              name="standardwaehrung"
-              defaultValue={e.standardwaehrung ?? 'EUR'}
+              label="Standardwährung" name="standardwaehrung" defaultValue={e.standardwaehrung ?? 'EUR'}
               optionen={[
                 { wert: 'EUR', label: 'Euro (EUR)' },
                 { wert: 'CHF', label: 'Schweizer Franken (CHF)' },
@@ -208,40 +224,26 @@ function AllgemeinTab({ einstellungen }: { einstellungen: Record<string, string>
               ]}
             />
             <Feld
-              label="MwSt.-Satz (%)"
-              name="mwst_satz"
-              type="number"
-              defaultValue={e.mwst_satz ?? '19'}
-              required
-              min="0"
-              max="100"
-              step="0.01"
+              label="MwSt.-Satz (%)" name="mwst_satz" type="number"
+              defaultValue={e.mwst_satz ?? '19'} required min="0" max="100" step="0.01"
             />
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <AuswahlFeld
-              label="Sprache"
-              name="sprache"
-              defaultValue={e.sprache ?? 'Deutsch'}
+              label="Sprache" name="sprache" defaultValue={e.sprache ?? 'Deutsch'}
               optionen={[
                 { wert: 'Deutsch', label: 'Deutsch' },
                 { wert: 'English', label: 'English' },
               ]}
             />
             <AuswahlFeld
-              label="Zeitzone"
-              name="zeitzone"
-              defaultValue={e.zeitzone ?? 'Europe/Berlin'}
+              label="Zeitzone" name="zeitzone" defaultValue={e.zeitzone ?? 'Europe/Berlin'}
               optionen={ZEITZONEN.map((z) => ({ wert: z, label: z }))}
             />
           </div>
-
           <div className="grid grid-cols-2 gap-4">
             <AuswahlFeld
-              label="Datumsformat"
-              name="datumsformat"
-              defaultValue={e.datumsformat ?? 'DD.MM.YYYY'}
+              label="Datumsformat" name="datumsformat" defaultValue={e.datumsformat ?? 'DD.MM.YYYY'}
               optionen={[
                 { wert: 'DD.MM.YYYY', label: 'DD.MM.YYYY (31.12.2025)' },
                 { wert: 'MM/DD/YYYY', label: 'MM/DD/YYYY (12/31/2025)' },
@@ -249,27 +251,58 @@ function AllgemeinTab({ einstellungen }: { einstellungen: Record<string, string>
               ]}
             />
             <Feld
-              label="Budget-Warnschwelle (%)"
-              name="budget_warnschwelle"
-              type="number"
-              defaultValue={e.budget_warnschwelle ?? '80'}
-              min="1"
-              max="100"
+              label="Budget-Warnschwelle (%)" name="budget_warnschwelle" type="number"
+              defaultValue={e.budget_warnschwelle ?? '80'} min="1" max="100"
               hint="Ab wann eine Budget-Warnung angezeigt wird."
             />
           </div>
-
           <div className="flex items-center gap-3 pt-2 border-t border-gray-100">
             <SubmitButton label="Einstellungen speichern" />
             <Meldung state={state} />
           </div>
         </form>
       </Abschnitt>
+
+      {/* Platzhalter: DSGVO / Account */}
+      <Abschnitt titel="Daten & Konto" beschreibung="Datenschutz und Kontoverwaltung">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <p className="text-sm font-medium text-gray-800">DSGVO-Export</p>
+              <p className="text-xs text-gray-500 mt-0.5">Alle Ihre Daten als ZIP herunterladen</p>
+            </div>
+            <button disabled className="px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg text-gray-400 cursor-not-allowed">
+              Bald verfügbar
+            </button>
+          </div>
+          <div className="h-px bg-gray-100" />
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <p className="text-sm font-medium text-red-600">Konto löschen</p>
+              <p className="text-xs text-gray-500 mt-0.5">Alle Daten unwiderruflich entfernen</p>
+            </div>
+            <button disabled className="px-3 py-1.5 text-xs font-medium border border-red-200 rounded-lg text-red-400 cursor-not-allowed">
+              Bald verfügbar
+            </button>
+          </div>
+        </div>
+      </Abschnitt>
     </div>
   )
 }
 
+// ── Tab: Branding ─────────────────────────────────────────────
 
+function BrandingTab({ branding }: { branding: Branding | null }) {
+  return (
+    <div>
+      <div className="mb-5">
+        <p className="text-sm text-gray-500">Farben, Logo und Erscheinungsbild für Kundenansichten</p>
+      </div>
+      <BrandingEditor branding={branding} />
+    </div>
+  )
+}
 
 // ── Tab: Team ─────────────────────────────────────────────────
 
@@ -277,7 +310,14 @@ const AVATAR_FARBEN = ['bg-wellbeing-green', 'bg-violet-500', 'bg-blue-500', 'bg
 function avatarFarbe(email: string) { return AVATAR_FARBEN[email.charCodeAt(0) % AVATAR_FARBEN.length] }
 function avatarKuerzel(email: string) { return email.slice(0, 2).toUpperCase() }
 
-function TeamTab({ team, userRolle }: { team: TeamMitglied[]; userRolle: Rolle }) {
+function TeamTab({
+  team, userRolle, userId, userEmail,
+}: {
+  team: TeamMitglied[]
+  userRolle: Rolle
+  userId: string
+  userEmail: string
+}) {
   const [einladeState, einladeAction] = useFormState(mitgliedEinladen, null)
   const [, startTransition] = useTransition()
   const istAdmin = userRolle === 'admin'
@@ -290,61 +330,90 @@ function TeamTab({ team, userRolle }: { team: TeamMitglied[]; userRolle: Rolle }
   const ausstehend = team.filter((m) => m.status === 'ausstehend')
   const deaktiviert = team.filter((m) => m.status === 'deaktiviert')
 
+  // Prüfen ob aktueller User in der aktiven Liste ist
+  const currentUserInList = aktive.some((m) => m.user_id === userId || m.email === userEmail)
+
   return (
     <div className="space-y-6 max-w-3xl">
 
       {/* ── Aktive Mitglieder ─── */}
       <Abschnitt
-        titel={`Aktive Mitglieder (${aktive.length})`}
+        titel={`Aktive Mitglieder (${aktive.length + (currentUserInList ? 0 : 1)})`}
         beschreibung="Alle Nutzer mit aktivem Zugang"
       >
-        {aktive.length === 0 ? (
-          <p className="text-sm text-gray-400">Noch keine aktiven Mitglieder.</p>
-        ) : (
-          <ul className="divide-y divide-gray-100 -mx-6 -mb-5">
-            {aktive.map((m) => {
-              const rollenInfo = ROLLEN_CONFIG[m.rolle]
-              const entfernenAction = mitgliedEntfernen.bind(null, m.id)
-              return (
-                <li key={m.id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${avatarFarbe(m.email)}`}>
-                      {avatarKuerzel(m.email)}
-                    </div>
-                    <p className="text-sm font-medium text-gray-900 truncate">{m.email}</p>
+        <ul className="divide-y divide-gray-100 -mx-6 -mb-5">
+          {/* Aktueller User (Du) — immer an erster Stelle */}
+          {!currentUserInList && (
+            <li className="flex items-center justify-between px-6 py-4 bg-wellbeing-green/3 gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${avatarFarbe(userEmail)}`}>
+                  {avatarKuerzel(userEmail)}
+                </div>
+                <p className="text-sm font-medium text-gray-900 truncate">{userEmail}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-wellbeing-green/10 text-wellbeing-green">
+                  Du
+                </span>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
+                  Admin
+                </span>
+              </div>
+            </li>
+          )}
+
+          {/* Alle aktiven Mitglieder aus DB */}
+          {aktive.map((m) => {
+            const istCurrentUser = m.user_id === userId || m.email === userEmail
+            const rollenInfo = ROLLEN_CONFIG[m.rolle]
+            const entfernenAction = mitgliedEntfernen.bind(null, m.id)
+            return (
+              <li
+                key={m.id}
+                className={`flex items-center justify-between px-6 py-4 hover:bg-gray-50 gap-3 ${istCurrentUser ? 'bg-wellbeing-green/[0.03]' : ''}`}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${avatarFarbe(m.email)}`}>
+                    {avatarKuerzel(m.email)}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${rollenInfo.badgeCls}`}>
-                      {rollenInfo.label}
+                  <p className="text-sm font-medium text-gray-900 truncate">{m.email}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {istCurrentUser && (
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-wellbeing-green/10 text-wellbeing-green">
+                      Du
                     </span>
-                    {istAdmin && (
-                      <>
-                        <select
-                          defaultValue={m.rolle}
-                          onChange={(e) => handleRolleAendern(m.id, e.target.value as Rolle)}
-                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-wellbeing-green-light"
+                  )}
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${rollenInfo.badgeCls}`}>
+                    {rollenInfo.label}
+                  </span>
+                  {istAdmin && !istCurrentUser && (
+                    <>
+                      <select
+                        defaultValue={m.rolle}
+                        onChange={(e) => handleRolleAendern(m.id, e.target.value as Rolle)}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-wellbeing-green-light"
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="editor">Editor</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                      <form action={entfernenAction}>
+                        <button
+                          type="submit"
+                          className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                          onClick={(e) => { if (!confirm(`${m.email} deaktivieren?`)) e.preventDefault() }}
                         >
-                          <option value="admin">Admin</option>
-                          <option value="editor">Editor</option>
-                          <option value="viewer">Viewer</option>
-                        </select>
-                        <form action={entfernenAction}>
-                          <button
-                            type="submit"
-                            className="text-xs text-red-400 hover:text-red-600 transition-colors"
-                            onClick={(e) => { if (!confirm(`${m.email} deaktivieren?`)) e.preventDefault() }}
-                          >
-                            Entfernen
-                          </button>
-                        </form>
-                      </>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        )}
+                          Entfernen
+                        </button>
+                      </form>
+                    </>
+                  )}
+                </div>
+              </li>
+            )
+          })}
+        </ul>
       </Abschnitt>
 
       {/* ── Ausstehende Einladungen ─── */}
@@ -442,8 +511,7 @@ function TeamTab({ team, userRolle }: { team: TeamMitglied[]; userRolle: Rolle }
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Rolle</label>
                 <select
-                  name="rolle"
-                  defaultValue="viewer"
+                  name="rolle" defaultValue="viewer"
                   className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light bg-white"
                 >
                   <option value="viewer">Viewer</option>
@@ -479,7 +547,8 @@ function TeamTab({ team, userRolle }: { team: TeamMitglied[]; userRolle: Rolle }
   )
 }
 
-// ── Link-Kopieren-Button ───────────────────────────────────────
+// ── Link-Kopieren-Button ──────────────────────────────────────
+
 function LinkKopierenButton({ pfad, voll }: { pfad: string; voll?: boolean }) {
   return (
     <button
@@ -497,119 +566,66 @@ function LinkKopierenButton({ pfad, voll }: { pfad: string; voll?: boolean }) {
   )
 }
 
-// ── Tab: Sicherheit ───────────────────────────────────────────
+// ── Tab: Freigaben ────────────────────────────────────────────
 
-function SicherheitTab({
-  userEmail,
-  lastSignIn,
-  einstellungen,
-}: {
-  userEmail: string
-  lastSignIn: string | null
-  einstellungen: Record<string, string>
-}) {
-  const [passwortState, passwortAction] = useFormState(updatePasswort, null)
-  const [freigabeState, freigabeAction] = useFormState(saveFreigabe, null)
-
-  const letzteAnmeldung = lastSignIn
-    ? new Date(lastSignIn).toLocaleString('de-DE', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-      })
-    : 'Unbekannt'
+function FreigabenTab({ einstellungen }: { einstellungen: Record<string, string> }) {
+  const [state, action] = useFormState(saveFreigabeLinks, null)
 
   return (
     <div className="space-y-6 max-w-2xl">
-      {/* Passwort */}
-      <Abschnitt
-        titel="Passwort ändern"
-        beschreibung="Mindestens 6 Zeichen"
-      >
-        <form action={passwortAction} className="space-y-4">
-          <Feld label="Neues Passwort" name="passwort" type="password" required />
-          <Feld label="Passwort bestätigen" name="bestaetigung" type="password" required />
-          <div className="flex items-center gap-3 pt-1">
-            <SubmitButton label="Passwort ändern" />
-            <Meldung state={passwortState} />
-          </div>
-        </form>
-      </Abschnitt>
-
-      {/* Aktive Sessions */}
-      <Abschnitt
-        titel="Aktive Sessions"
-        beschreibung="Aktuell angemeldete Geräte und Sitzungen"
-      >
-        <div className="border border-gray-100 rounded-lg overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 bg-white">
-            <div>
-              <p className="text-sm font-medium text-gray-900">Aktuelle Sitzung</p>
-              <p className="text-xs text-gray-400 mt-0.5">{userEmail}</p>
-            </div>
-            <div className="text-right">
-              <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium">
-                Aktiv
-              </span>
-              <p className="text-xs text-gray-400 mt-1">Zuletzt: {letzteAnmeldung}</p>
-            </div>
-          </div>
+      <form action={action} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+          <h3 className="text-sm font-semibold text-gray-900">Freigabelink-Einstellungen</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Gilt für neu erstellte Freigabelinks</p>
         </div>
-        <p className="text-xs text-gray-400 mt-3">
-          Weitere Session-Verwaltung (z.B. alle Sitzungen beenden) wird in einer zukünftigen Version verfügbar sein.
-        </p>
-      </Abschnitt>
+        <div className="px-6 py-5 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Standard-Ablaufzeit</label>
+              <select name="freigabe_ablaufzeit" defaultValue={einstellungen.freigabe_ablaufzeit ?? '30'}
+                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition">
+                <option value="7">7 Tage</option>
+                <option value="14">14 Tage</option>
+                <option value="30">30 Tage</option>
+                <option value="0">Kein Ablauf</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">PIN-Länge</label>
+              <select name="freigabe_pin_laenge" defaultValue={einstellungen.freigabe_pin_laenge ?? '4'}
+                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition">
+                <option value="4">4-stellig</option>
+                <option value="6">6-stellig</option>
+              </select>
+            </div>
+          </div>
 
-      {/* Freigabelink-Einstellungen */}
-      <Abschnitt
-        titel="Freigabelink-Einstellungen"
-        beschreibung="Standardverhalten für öffentliche Freigabelinks"
-      >
-        <form action={freigabeAction} className="space-y-5">
-          <Feld
-            label="Standard-Ablaufzeit (Tage)"
-            name="freigabe_ablaufzeit"
-            type="number"
-            defaultValue={einstellungen.freigabe_ablaufzeit ?? '30'}
-            min="1"
-            max="365"
-            hint="Nach wie vielen Tagen ein Freigabelink standardmässig abläuft."
-          />
+          {[
+            { label: 'PIN-Schutz standard aktivieren', name: 'freigabe_pin_schutz', checked: einstellungen.freigabe_pin_schutz === 'true' },
+            { label: 'Logo auf Freigabe zeigen',       name: 'freigabe_logo_zeigen', checked: einstellungen.freigabe_logo_zeigen === 'true' },
+          ].map((t) => (
+            <div key={t.name} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+              <p className="text-sm font-medium text-gray-800">{t.label}</p>
+              <input type="hidden" name={t.name} value="false" />
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" name={t.name} value="true" defaultChecked={t.checked} className="sr-only peer" />
+                <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-wellbeing-green peer-focus:ring-2 peer-focus:ring-wellbeing-green-light after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
+              </label>
+            </div>
+          ))}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">PIN-Schutz</label>
-            <p className="text-xs text-gray-400 mb-3">
-              Freigabelinks werden mit einem PIN-Code gesichert, den Sie dem Kunden separat mitteilen.
-            </p>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="freigabe_pin_schutz"
-                  value="false"
-                  defaultChecked={einstellungen.freigabe_pin_schutz !== 'true'}
-                  className="accent-wellbeing-green"
-                />
-                <span className="text-sm text-gray-700">Deaktiviert</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="freigabe_pin_schutz"
-                  value="true"
-                  defaultChecked={einstellungen.freigabe_pin_schutz === 'true'}
-                  className="accent-wellbeing-green"
-                />
-                <span className="text-sm text-gray-700">Aktiviert</span>
-              </label>
-            </div>
+            <label className="block text-xs font-medium text-gray-700 mb-1.5">Intro-Text für Kunden</label>
+            <textarea name="freigabe_intro_text" rows={3} defaultValue={einstellungen.freigabe_intro_text ?? ''}
+              placeholder="z.B. Bitte prüfen Sie die folgenden Produkte und geben Sie diese frei oder lehnen Sie sie ab."
+              className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition resize-none" />
           </div>
 
-          <div className="flex items-center gap-3 pt-1">
-            <SubmitButton label="Einstellungen speichern" />
-            <Meldung state={freigabeState} />
-          </div>
-        </form>
-      </Abschnitt>
+          <button type="submit" className="px-4 py-2 text-sm font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg transition-colors">Speichern</button>
+          {state?.fehler && <p className="text-xs text-red-500">{state.fehler}</p>}
+          {state?.erfolg && <p className="text-xs text-emerald-600">{state.erfolg}</p>}
+        </div>
+      </form>
     </div>
   )
 }
@@ -624,7 +640,6 @@ function BenachrichtigungenTab({ einstellungen }: { einstellungen: Record<string
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">
         Diese Einstellungen werden in einer zukünftigen Version aktiviert. Änderungen werden bereits gespeichert.
       </div>
-
       <form action={action} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
           <h3 className="text-sm font-semibold text-gray-900">E-Mail-Benachrichtigungen</h3>
@@ -662,80 +677,12 @@ function BenachrichtigungenTab({ einstellungen }: { einstellungen: Record<string
   )
 }
 
-// ── Tab: Freigabe & Links ─────────────────────────────────────
-
-function FreigabeLinksTab({ einstellungen }: { einstellungen: Record<string, string> }) {
-  const [state, action] = useFormState(saveFreigabeLinks, null)
-
-  return (
-    <div className="space-y-6 max-w-2xl">
-      <form action={action} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-          <h3 className="text-sm font-semibold text-gray-900">Freigabelink-Einstellungen</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Gilt für neu erstellte Freigabelinks</p>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">Standard-Ablaufzeit</label>
-              <select name="freigabe_ablaufzeit" defaultValue={einstellungen.freigabe_ablaufzeit ?? '30'}
-                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition">
-                <option value="7">7 Tage</option>
-                <option value="14">14 Tage</option>
-                <option value="30">30 Tage</option>
-                <option value="0">Kein Ablauf</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">PIN-Länge</label>
-              <select name="freigabe_pin_laenge" defaultValue={einstellungen.freigabe_pin_laenge ?? '4'}
-                className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition">
-                <option value="4">4-stellig</option>
-                <option value="6">6-stellig</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Toggles */}
-          {[
-            { label: 'PIN-Schutz standard aktivieren', name: 'freigabe_pin_schutz', checked: einstellungen.freigabe_pin_schutz === 'true' },
-            { label: 'Logo auf Freigabe zeigen',       name: 'freigabe_logo_zeigen', checked: einstellungen.freigabe_logo_zeigen === 'true' },
-          ].map((t) => (
-            <div key={t.name} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-              <p className="text-sm font-medium text-gray-800">{t.label}</p>
-              <input type="hidden" name={t.name} value="false" />
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" name={t.name} value="true" defaultChecked={t.checked} className="sr-only peer" />
-                <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-wellbeing-green peer-focus:ring-2 peer-focus:ring-wellbeing-green-light after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:w-4 after:h-4 after:bg-white after:rounded-full after:transition-all peer-checked:after:translate-x-4" />
-              </label>
-            </div>
-          ))}
-
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1.5">Intro-Text für Kunden</label>
-            <textarea name="freigabe_intro_text" rows={3} defaultValue={einstellungen.freigabe_intro_text ?? ''}
-              placeholder="z.B. Bitte prüfen Sie die folgenden Produkte und geben Sie diese frei oder lehnen Sie sie ab."
-              className="w-full px-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition resize-none" />
-          </div>
-
-          <button type="submit" className="px-4 py-2 text-sm font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg transition-colors">Speichern</button>
-          {state?.fehler && <p className="text-xs text-red-500">{state.fehler}</p>}
-          {state?.erfolg && <p className="text-xs text-emerald-600">{state.erfolg}</p>}
-        </div>
-      </form>
-    </div>
-  )
-}
-
 // ── Tab: Abrechnung ───────────────────────────────────────────
 
 function AbrechnungTab() {
   return (
     <div className="space-y-6 max-w-2xl">
-      <Abschnitt
-        titel="Aktueller Plan"
-        beschreibung="Übersicht Ihres Abonnements"
-      >
+      <Abschnitt titel="Aktueller Plan" beschreibung="Übersicht Ihres Abonnements">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-lg font-semibold text-gray-900">Free</p>
@@ -748,11 +695,7 @@ function AbrechnungTab() {
           </span>
         </div>
       </Abschnitt>
-
-      <Abschnitt
-        titel="Upgrade"
-        beschreibung="Erweiterte Funktionen für wachsende Teams"
-      >
+      <Abschnitt titel="Upgrade" beschreibung="Erweiterte Funktionen für wachsende Teams">
         <div className="space-y-4">
           {[
             { name: 'Pro', preis: '29 EUR / Monat', features: 'Unbegrenzte Teammitglieder, PDF-Export, Prioritäts-Support' },
@@ -765,10 +708,7 @@ function AbrechnungTab() {
               </div>
               <div className="text-right shrink-0 ml-4">
                 <p className="text-sm font-mono text-gray-700">{plan.preis}</p>
-                <button
-                  disabled
-                  className="mt-1.5 text-xs px-3 py-1.5 bg-gray-200 text-gray-400 rounded-lg cursor-not-allowed font-medium"
-                >
+                <button disabled className="mt-1.5 text-xs px-3 py-1.5 bg-gray-200 text-gray-400 rounded-lg cursor-not-allowed font-medium">
                   Bald verfügbar
                 </button>
               </div>
@@ -776,6 +716,16 @@ function AbrechnungTab() {
           ))}
         </div>
       </Abschnitt>
+    </div>
+  )
+}
+
+// ── Tab: Handbuch ─────────────────────────────────────────────
+
+function HandbuchTab() {
+  return (
+    <div className="h-[calc(100vh-220px)] overflow-hidden -mx-6 -mb-6">
+      <HandbuchClient />
     </div>
   )
 }
@@ -788,44 +738,57 @@ export default function EinstellungenTabs({
   team,
   userRolle,
   userEmail,
+  userId,
   lastSignIn,
+  branding,
 }: {
   aktuellerTab: string
   einstellungen: Record<string, string>
   team: TeamMitglied[]
   userRolle: Rolle
   userEmail: string
+  userId: string
   lastSignIn: string | null
+  branding: Branding | null
 }) {
   const istAdmin = userRolle === 'admin'
-  const sichtbareTabs = TABS.filter((t) => (t.key !== 'team' && t.key !== 'branding') || istAdmin)
+  const adminOnlyKeys = new Set(['team', 'branding'])
+  const sichtbareTabs = TABS.filter((t) => !adminOnlyKeys.has(t.key) || istAdmin)
 
   return (
     <div>
       {/* Tab-Leiste */}
-      <div className="flex gap-0 mb-8 border-b border-gray-200">
+      <div className="flex gap-0 mb-8 border-b border-gray-200 overflow-x-auto">
         {sichtbareTabs.map((t) => (
-          <Link
+          <a
             key={t.key}
-            href={'href' in t && t.href ? t.href : `/dashboard/einstellungen?tab=${t.key}`}
-            className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            href={`/dashboard/einstellungen?tab=${t.key}`}
+            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
               aktuellerTab === t.key
                 ? 'border-wellbeing-green text-wellbeing-green'
                 : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
             }`}
           >
             {t.label}
-          </Link>
+          </a>
         ))}
       </div>
 
       {/* Inhalt */}
-      {aktuellerTab === 'allgemein'          && <AllgemeinTab einstellungen={einstellungen} />}
-      {aktuellerTab === 'team' && istAdmin   && <TeamTab team={team} userRolle={userRolle} />}
-      {aktuellerTab === 'sicherheit'         && <SicherheitTab userEmail={userEmail} lastSignIn={lastSignIn} einstellungen={einstellungen} />}
+      {aktuellerTab === 'profil'             && <ProfilTab userEmail={userEmail} lastSignIn={lastSignIn} />}
+      {aktuellerTab === 'workspace'          && <WorkspaceTab einstellungen={einstellungen} />}
+      {aktuellerTab === 'branding' && istAdmin && <BrandingTab branding={branding} />}
+      {aktuellerTab === 'team'     && istAdmin && <TeamTab team={team} userRolle={userRolle} userId={userId} userEmail={userEmail} />}
+      {aktuellerTab === 'freigaben'          && <FreigabenTab einstellungen={einstellungen} />}
       {aktuellerTab === 'benachrichtigungen' && <BenachrichtigungenTab einstellungen={einstellungen} />}
-      {aktuellerTab === 'freigabe'           && <FreigabeLinksTab einstellungen={einstellungen} />}
       {aktuellerTab === 'abrechnung'         && <AbrechnungTab />}
+      {aktuellerTab === 'handbuch'           && <HandbuchTab />}
+
+      {/* Fallback: alte Tab-Keys weiterleiten */}
+      {(aktuellerTab === 'allgemein' || aktuellerTab === 'sicherheit') && (
+        <WorkspaceTab einstellungen={einstellungen} />
+      )}
+      {aktuellerTab === 'freigabe' && <FreigabenTab einstellungen={einstellungen} />}
     </div>
   )
 }
