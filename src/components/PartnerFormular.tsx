@@ -215,7 +215,7 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
         {modell === 'Individuell' && (
           <div className="flex items-end">
             <p className="text-xs text-gray-500 pb-2.5">
-              Details unter „Konditionen" anlegen.
+              Details unter &bdquo;Konditionen&ldquo; anlegen.
             </p>
           </div>
         )}

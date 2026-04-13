@@ -23,7 +23,7 @@ import KonfiguratorLinkKarte from '@/components/KonfiguratorLinkKarte'
 import ZeiterfassungBlock from '@/components/ZeiterfassungBlock'
 import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import { getZeiterfassung, getZeitSumme } from '@/app/actions/zeiterfassung'
-import type { ProjektMitKunde, Raum, Zeiterfassung } from '@/lib/supabase/types'
+import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
 import type { TimelineEvent } from '@/lib/supabase/types'
 import type { DateiItem } from '@/components/DateiUpload'
 
