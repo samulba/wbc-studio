@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import type { OnboardingStatus, OnboardingVorlage, OnboardingFrage } from '@/lib/supabase/types'
+import type { OnboardingStatus, OnboardingVorlage, OnboardingFrage, OnboardingSektion } from '@/lib/supabase/types'
 
 export interface OnboardingDaten {
   kunde_name: string | null
@@ -210,12 +210,13 @@ export async function vorlageZuTokenLaden(token: string): Promise<OnboardingVorl
 export async function vorlageErstellen(
   name: string,
   beschreibung: string,
-  fragen: OnboardingFrage[]
+  fragen: OnboardingFrage[],
+  sektionen: OnboardingSektion[] = []
 ): Promise<OnboardingVorlage> {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('onboarding_vorlagen')
-    .insert({ name, beschreibung: beschreibung || null, fragen, ist_standard: false })
+    .insert({ name, beschreibung: beschreibung || null, fragen, sektionen, ist_standard: false })
     .select('*')
     .single()
   if (error || !data) throw new Error('Fehler beim Erstellen der Vorlage')
@@ -228,12 +229,13 @@ export async function vorlageSpeichern(
   id: string,
   name: string,
   beschreibung: string,
-  fragen: OnboardingFrage[]
+  fragen: OnboardingFrage[],
+  sektionen: OnboardingSektion[] = []
 ): Promise<void> {
   const supabase = await createClient()
   await supabase
     .from('onboarding_vorlagen')
-    .update({ name, beschreibung: beschreibung || null, fragen, updated_at: new Date().toISOString() })
+    .update({ name, beschreibung: beschreibung || null, fragen, sektionen, updated_at: new Date().toISOString() })
     .eq('id', id)
   revalidatePath('/dashboard/onboarding/vorlagen')
 }

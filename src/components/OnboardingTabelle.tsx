@@ -413,9 +413,52 @@ export default function OnboardingTabelle({
         {/* ── Liste ──────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {anfragen.length === 0 ? (
-            <div className="text-center py-20 text-gray-400">
-              <p className="text-sm">Noch keine Onboarding-Links vorhanden.</p>
-              <p className="text-xs mt-1">Erstelle einen Link und schicke ihn an neue Kunden.</p>
+            <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+              {/* Illustration */}
+              <div className="relative mb-6">
+                <div className="w-20 h-20 rounded-2xl bg-wellbeing-green/10 flex items-center justify-center">
+                  <Plus className="w-8 h-8 text-wellbeing-green/40" />
+                </div>
+                <div className="absolute -top-2 -right-2 w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
+                  <Check className="w-4 h-4 text-emerald-500" />
+                </div>
+                <div className="absolute -bottom-2 -left-2 w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center">
+                  <User className="w-4 h-4 text-amber-500" />
+                </div>
+              </div>
+
+              <h3 className="text-sm font-semibold text-gray-800 mb-1">Noch keine Onboarding-Links</h3>
+              <p className="text-xs text-gray-400 max-w-xs mb-6">
+                Erstelle einen personalisierten Link und schicke ihn an neue Kunden – sie können ihre Wünsche direkt online einreichen.
+              </p>
+
+              <button
+                onClick={() => setModalOffen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-wellbeing-green hover:bg-wellbeing-green-dark rounded-xl transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Ersten Link erstellen
+              </button>
+
+              {/* Vorlage-Hinweis */}
+              {vorlagen.length > 0 && (
+                <div className="mt-8 w-full max-w-sm">
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">Verfügbare Vorlagen</p>
+                  <div className="space-y-2">
+                    {vorlagen.slice(0, 3).map((v) => (
+                      <div key={v.id} className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                        <div className="w-8 h-8 rounded-lg bg-wellbeing-green/10 flex items-center justify-center shrink-0">
+                          <ChevronRight className="w-4 h-4 text-wellbeing-green" />
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <p className="text-xs font-medium text-gray-800 truncate">{v.name}</p>
+                          <p className="text-[10px] text-gray-400">{v.fragen.length} Fragen</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-2">

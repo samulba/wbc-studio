@@ -181,7 +181,15 @@ export interface TeamMitglied {
 
 export type OnboardingStatus = 'offen' | 'abgeschlossen' | 'abgelehnt'
 
-export type OnboardingFrageTyp = 'text' | 'textarea' | 'zahl' | 'auswahl' | 'mehrfachauswahl' | 'datum'
+export type OnboardingFrageTyp =
+  | 'text' | 'textarea' | 'email' | 'telefon' | 'url'
+  | 'zahl' | 'datum' | 'bewertung' | 'skala'
+  | 'auswahl' | 'mehrfachauswahl' | 'ja_nein'
+
+export interface OnboardingSektion {
+  id: string
+  name: string
+}
 
 export interface OnboardingFrage {
   id: string
@@ -190,6 +198,8 @@ export interface OnboardingFrage {
   optionen?: string[]
   pflichtfeld: boolean
   placeholder?: string
+  sektion_id?: string
+  bild_url?: string
 }
 
 export interface OnboardingVorlage {
@@ -197,6 +207,7 @@ export interface OnboardingVorlage {
   name: string
   beschreibung: string | null
   fragen: OnboardingFrage[]
+  sektionen?: OnboardingSektion[]
   ist_standard: boolean
   created_at: string
   updated_at: string
