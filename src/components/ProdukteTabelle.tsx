@@ -7,7 +7,7 @@ import ProduktZuweisenModal, { type ProjektOption, type RaumOption } from '@/com
 import {
   type LucideIcon,
   ExternalLink, ChevronUp, ChevronDown, Search, X,
-  LayoutList, LayoutGrid, Package,
+  LayoutList, LayoutGrid, Grid3X3, Package,
   Sofa, Armchair, Lamp, Lightbulb, Bed, Table2, Vegan, Wind,
   Leaf, Flower, TreePine, Sunrise, Droplets, Mountain, Palmtree,
   Home, Building, Building2, Hotel, Layers, Grid, DoorOpen, Bath, BedDouble,
@@ -17,7 +17,6 @@ import {
   Wrench, Hammer, Paintbrush, Scissors, Ruler, Compass, Map, PenLine, Pencil,
   Box, Archive, Tag, MessageSquare, Truck, Globe, Zap, Shield,
 } from 'lucide-react'
-import type { ProduktStatus } from '@/lib/supabase/types'
 
 export type KategorieOption = { name: string; icon: string }
 
@@ -116,25 +115,16 @@ export type ProduktZeile = {
   projektId: string | null
   projektName: string | null
   kundeName: string | null
-  status: ProduktStatus
 }
 
-// ── Helpers ───────────────────────────────────────────────────
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n)
 
 const MWST_DEFAULT = 0.19
 
-const STATUS_CFG: Record<ProduktStatus, { label: string; cls: string }> = {
-  ausstehend:     { label: 'Ausstehend',    cls: 'bg-amber-100 text-amber-700' },
-  freigegeben:    { label: 'Freigegeben',   cls: 'bg-emerald-100 text-emerald-700' },
-  abgelehnt:      { label: 'Abgelehnt',     cls: 'bg-red-100 text-red-600' },
-  ueberarbeitung: { label: 'Überarbeitung', cls: 'bg-blue-100 text-blue-700' },
-}
-
-type SortKey = 'name' | 'verkaufspreis' | 'status' | 'projekt'
+type SortKey = 'name' | 'verkaufspreis' | 'partner'
 type SortDir = 'asc' | 'desc'
-type Ansicht = 'tabelle' | 'grid'
+type Ansicht = 'tabelle' | 'grid' | 'kompakt'
 
 function Thumbnail({ src, alt }: { src: string | null; alt: string }) {
   if (src) {
@@ -167,18 +157,17 @@ export default function ProdukteTabelle({
   raeume?: RaumOption[]
   mwst?: number
 }) {
-  const [ansicht, setAnsicht]             = useState<Ansicht>('tabelle')
-  const [suche, setSuche]                 = useState('')
-  const [filterProjekt, setFilterProjekt] = useState('')
+  const [ansicht, setAnsicht]                 = useState<Ansicht>('tabelle')
+  const [suche, setSuche]                     = useState('')
+  const [filterPartner, setFilterPartner]     = useState('')
   const [filterKategorie, setFilterKategorie] = useState('')
-  const [filterStatus, setFilterStatus]   = useState('')
-  const [sortKey, setSortKey]             = useState<SortKey>('name')
-  const [sortDir, setSortDir]             = useState<SortDir>('asc')
+  const [sortKey, setSortKey]                 = useState<SortKey>('name')
+  const [sortDir, setSortDir]                 = useState<SortDir>('asc')
 
   // localStorage für Ansicht
   useEffect(() => {
     const gespeichert = localStorage.getItem('produkte-ansicht') as Ansicht | null
-    if (gespeichert) setAnsicht(gespeichert)
+    if (gespeichert && ['tabelle', 'grid', 'kompakt'].includes(gespeichert)) setAnsicht(gespeichert)
   }, [])
 
   function setAnsichtGespeichert(a: Ansicht) {
@@ -186,9 +175,20 @@ export default function ProdukteTabelle({
     localStorage.setItem('produkte-ansicht', a)
   }
 
-  // ── Filter-Optionen ───────────────────────────────────────
-  const projektNamen = useMemo(() => Array.from(new Set(produkte.map((p) => p.projektName).filter(Boolean) as string[])).sort(), [produkte])
-  // Kategorien aus Einstellungen (mit Icons) bevorzugen, sonst aus Produktdaten ableiten
+  // ── Partner-Optionen aus Produktdaten ableiten ─────────────
+  const partnerOptionen = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const p of produkte) {
+      if (p.partnerId && p.partnerName) map[p.partnerId] = p.partnerName
+    }
+    return Object.entries(map)
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [produkte])
+
+  const hatSonstige = useMemo(() => produkte.some((p) => !p.partnerId), [produkte])
+
+  // ── Kategorien ─────────────────────────────────────────────
   const kategorienOptionen = useMemo<KategorieOption[]>(() => {
     if (kategorienListe && kategorienListe.length > 0) return kategorienListe
     return Array.from(new Set(produkte.map((p) => p.kategorie).filter(Boolean) as string[]))
@@ -204,25 +204,29 @@ export default function ProdukteTabelle({
       const q = suche.toLowerCase()
       liste = liste.filter((p) =>
         p.name.toLowerCase().includes(q) ||
-        (p.projektName ?? '').toLowerCase().includes(q) ||
-        (p.raumName ?? '').toLowerCase().includes(q) ||
         (p.kategorie ?? '').toLowerCase().includes(q) ||
-        (p.partnerName ?? '').toLowerCase().includes(q)
+        (p.partnerName ?? '').toLowerCase().includes(q) ||
+        (p.projektName ?? '').toLowerCase().includes(q) ||
+        (p.raumName ?? '').toLowerCase().includes(q)
       )
     }
-    if (filterProjekt)   liste = liste.filter((p) => p.projektName === filterProjekt)
-    if (filterKategorie) liste = liste.filter((p) => p.kategorie   === filterKategorie)
-    if (filterStatus)    liste = liste.filter((p) => p.status       === filterStatus)
+
+    if (filterPartner === '__kein_partner__') {
+      liste = liste.filter((p) => !p.partnerId)
+    } else if (filterPartner) {
+      liste = liste.filter((p) => p.partnerId === filterPartner)
+    }
+
+    if (filterKategorie) liste = liste.filter((p) => p.kategorie === filterKategorie)
 
     return [...liste].sort((a, b) => {
       let v = 0
       if (sortKey === 'name')          v = a.name.localeCompare(b.name)
       if (sortKey === 'verkaufspreis') v = (a.verkaufspreis ?? 0) - (b.verkaufspreis ?? 0)
-      if (sortKey === 'status')        v = a.status.localeCompare(b.status)
-      if (sortKey === 'projekt')       v = (a.projektName ?? '').localeCompare(b.projektName ?? '')
+      if (sortKey === 'partner')       v = (a.partnerName ?? '').localeCompare(b.partnerName ?? '')
       return sortDir === 'asc' ? v : -v
     })
-  }, [produkte, suche, filterProjekt, filterKategorie, filterStatus, sortKey, sortDir])
+  }, [produkte, suche, filterPartner, filterKategorie, sortKey, sortDir])
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
@@ -236,7 +240,8 @@ export default function ProdukteTabelle({
       : <ChevronDown className="w-3 h-3 text-wellbeing-green" />
   }
 
-  const activeFilters = [filterProjekt, filterKategorie, filterStatus].filter(Boolean).length
+  const activeFilters = [filterPartner, filterKategorie].filter(Boolean).length
+
   const produktLink = (p: ProduktZeile) =>
     p.projektId && p.raumId
       ? `/dashboard/projekte/${p.projektId}/raeume/${p.raumId}/produkte/${p.id}/bearbeiten`
@@ -253,17 +258,22 @@ export default function ProdukteTabelle({
           <input
             value={suche}
             onChange={(e) => setSuche(e.target.value)}
-            placeholder="Produkt, Projekt, Raum, Kategorie…"
+            placeholder="Produkt, Kategorie, Partner…"
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light"
           />
         </div>
 
-        {/* Projekt-Filter */}
-        <select value={filterProjekt} onChange={(e) => setFilterProjekt(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light">
-          <option value="">Alle Projekte</option>
-          <option value="__bibliothek__">Nur Bibliothek</option>
-          {projektNamen.map((p) => <option key={p} value={p}>{p}</option>)}
+        {/* Partner-Filter */}
+        <select
+          value={filterPartner}
+          onChange={(e) => setFilterPartner(e.target.value)}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light"
+        >
+          <option value="">Alle Partner</option>
+          {partnerOptionen.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+          {hatSonstige && <option value="__kein_partner__">Sonstige (kein Partner)</option>}
         </select>
 
         {/* Kategorie-Filter */}
@@ -273,20 +283,10 @@ export default function ProdukteTabelle({
           onChange={setFilterKategorie}
         />
 
-        {/* Status-Filter */}
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light">
-          <option value="">Alle Status</option>
-          <option value="ausstehend">Ausstehend</option>
-          <option value="freigegeben">Freigegeben</option>
-          <option value="abgelehnt">Abgelehnt</option>
-          <option value="ueberarbeitung">Überarbeitung</option>
-        </select>
-
         {/* Filter zurücksetzen */}
         {(activeFilters > 0 || suche) && (
           <button
-            onClick={() => { setFilterProjekt(''); setFilterKategorie(''); setFilterStatus(''); setSuche('') }}
+            onClick={() => { setFilterPartner(''); setFilterKategorie(''); setSuche('') }}
             className="flex items-center gap-1 px-3 py-2 text-xs text-gray-500 hover:text-red-500 border border-gray-200 rounded-lg bg-white transition-colors"
           >
             <X className="w-3.5 h-3.5" />
@@ -315,6 +315,13 @@ export default function ProdukteTabelle({
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
+          <button
+            onClick={() => setAnsichtGespeichert('kompakt')}
+            className={`px-3 py-2 transition-colors ${ansicht === 'kompakt' ? 'bg-wellbeing-green text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+            title="Kompaktansicht"
+          >
+            <Grid3X3 className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -326,14 +333,12 @@ export default function ProdukteTabelle({
           ) : (
             gefiltert.map((p) => {
               const vpBrutto = p.verkaufspreis != null ? p.verkaufspreis * (1 + mwst) : null
-              const cfg = STATUS_CFG[p.status]
               const isBibliothek = !p.projektId
               return (
                 <div
                   key={p.id}
                   className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-wellbeing-green-light hover:shadow-md transition-all flex flex-col"
                 >
-                  {/* Klickbarer Bereich → Produkt öffnen */}
                   <Link href={produktLink(p)} className="flex-1 flex flex-col">
                     {/* Bild */}
                     <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
@@ -349,31 +354,25 @@ export default function ProdukteTabelle({
                       )}
                     </div>
 
-                    <div className="p-3 space-y-2 flex-1">
+                    <div className="p-3 space-y-1.5 flex-1">
                       <p className="text-sm font-semibold text-gray-900 group-hover:text-wellbeing-green-dark transition-colors line-clamp-2 leading-snug">
                         {p.name}
                       </p>
 
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {p.kategorie && (
-                          <span className="text-[10px] px-1.5 py-0.5 bg-wellbeing-cream text-wellbeing-green rounded-full font-medium">
-                            {p.kategorie}
-                          </span>
-                        )}
-                        {isBibliothek && (
-                          <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-500 rounded-full font-medium">
-                            Bibliothek
-                          </span>
-                        )}
-                      </div>
+                      {p.kategorie && (
+                        <span className="inline-block text-[10px] px-1.5 py-0.5 bg-wellbeing-cream text-wellbeing-green rounded-full font-medium">
+                          {p.kategorie}
+                        </span>
+                      )}
 
-                      <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                      <p className="text-[11px] text-gray-400 truncate">
+                        {p.partnerName ?? <span className="text-gray-300">Kein Partner</span>}
+                      </p>
+
+                      <div className="pt-1.5 border-t border-gray-100">
                         <span className="text-xs font-mono font-semibold text-gray-700">
                           {vpBrutto != null ? eur(vpBrutto) : '—'}
                           {vpBrutto != null && <span className="text-gray-400 font-normal"> brutto</span>}
-                        </span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${cfg.cls}`}>
-                          {cfg.label}
                         </span>
                       </div>
                     </div>
@@ -397,6 +396,50 @@ export default function ProdukteTabelle({
         </div>
       )}
 
+      {/* ── Kompakt-Ansicht ────────────────────────────────── */}
+      {ansicht === 'kompakt' && (
+        <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2.5">
+          {gefiltert.length === 0 ? (
+            <div className="col-span-8 text-center py-16 text-sm text-gray-400">Keine Produkte gefunden.</div>
+          ) : (
+            gefiltert.map((p) => {
+              const vpBrutto = p.verkaufspreis != null ? p.verkaufspreis * (1 + mwst) : null
+              const tooltip = [p.kategorie, p.partnerName].filter(Boolean).join(' · ')
+              return (
+                <Link
+                  key={p.id}
+                  href={produktLink(p)}
+                  title={tooltip || p.name}
+                  className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-wellbeing-green-light hover:shadow-md transition-all flex flex-col"
+                >
+                  <div className="aspect-square bg-gray-50 flex items-center justify-center overflow-hidden">
+                    {p.bild_url ? (
+                      <Image
+                        src={p.bild_url} alt={p.name}
+                        width={160} height={160}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        unoptimized
+                      />
+                    ) : (
+                      <Package className="w-6 h-6 text-gray-200" />
+                    )}
+                  </div>
+
+                  <div className="px-2 py-1.5">
+                    <p className="text-[11px] font-semibold text-gray-800 truncate leading-tight group-hover:text-wellbeing-green-dark transition-colors">
+                      {p.name}
+                    </p>
+                    <p className="text-[10px] text-gray-400 font-mono mt-0.5 tabular-nums">
+                      {vpBrutto != null ? eur(vpBrutto) : '—'}
+                    </p>
+                  </div>
+                </Link>
+              )
+            })
+          )}
+        </div>
+      )}
+
       {/* ── Tabellen-Ansicht ────────────────────────────────── */}
       {ansicht === 'tabelle' && (
         <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
@@ -411,12 +454,12 @@ export default function ProdukteTabelle({
                     </button>
                   </th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500 text-xs">Kategorie</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 text-xs">Projekt → Raum</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500 text-xs">
-                    <button onClick={() => toggleSort('projekt')} className="flex items-center gap-1 hover:text-gray-700">
-                      Projekt → Raum <SortIcon col="projekt" />
+                    <button onClick={() => toggleSort('partner')} className="flex items-center gap-1 hover:text-gray-700">
+                      Partner <SortIcon col="partner" />
                     </button>
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 text-xs">Partner</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-500 text-xs">Menge</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-500 text-xs">
                     <button onClick={() => toggleSort('verkaufspreis')} className="flex items-center gap-1 hover:text-gray-700 ml-auto">
@@ -424,24 +467,18 @@ export default function ProdukteTabelle({
                     </button>
                   </th>
                   <th className="text-right px-4 py-3 font-medium text-gray-500 text-xs">VP brutto</th>
-                  <th className="text-right px-4 py-3 font-medium text-gray-500 text-xs">
-                    <button onClick={() => toggleSort('status')} className="flex items-center gap-1 hover:text-gray-700 ml-auto">
-                      Status <SortIcon col="status" />
-                    </button>
-                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {gefiltert.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-14 text-center text-sm text-gray-400">
+                    <td colSpan={8} className="px-4 py-14 text-center text-sm text-gray-400">
                       Keine Produkte gefunden.
                     </td>
                   </tr>
                 ) : (
                   gefiltert.map((p) => {
                     const vpBrutto = p.verkaufspreis != null ? p.verkaufspreis * (1 + mwst) : null
-                    const cfg = STATUS_CFG[p.status]
                     return (
                       <tr key={p.id} className="hover:bg-gray-50/60 transition-colors cursor-pointer group">
                         {/* Thumbnail */}
@@ -449,7 +486,7 @@ export default function ProdukteTabelle({
                           <Thumbnail src={p.bild_url} alt={p.name} />
                         </td>
 
-                        {/* Name + Link */}
+                        {/* Name */}
                         <td className="px-4 py-3 max-w-[200px]">
                           <div className="flex items-start gap-1.5">
                             <Link
@@ -534,13 +571,6 @@ export default function ProdukteTabelle({
                         <td className="px-4 py-3 text-right text-xs font-mono text-gray-500 whitespace-nowrap">
                           {vpBrutto != null ? eur(vpBrutto) : <span className="text-gray-300">—</span>}
                         </td>
-
-                        {/* Status */}
-                        <td className="px-4 py-3 text-right">
-                          <span className={`inline-block px-2 py-0.5 text-[11px] rounded-full font-medium whitespace-nowrap ${cfg.cls}`}>
-                            {cfg.label}
-                          </span>
-                        </td>
                       </tr>
                     )
                   })
@@ -553,4 +583,3 @@ export default function ProdukteTabelle({
     </div>
   )
 }
-

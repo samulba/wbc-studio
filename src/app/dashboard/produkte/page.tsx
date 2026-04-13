@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server'
 import { Package } from 'lucide-react'
 import ProdukteTabelle, { type ProduktZeile } from '@/components/ProdukteTabelle'
 import NeuesProduktModal from '@/components/NeuesProduktModal'
-import type { ProduktStatus } from '@/lib/supabase/types'
 import type { KategorieOption } from '@/components/KategorieDropdown'
 import type { ProjektOption, RaumOption } from '@/components/ProduktZuweisenModal'
 import { getMwstSatz } from '@/app/actions/einstellungen'
@@ -16,7 +15,6 @@ async function getProdukte(): Promise<ProduktZeile[]> {
     { data: projektData },
     { data: kundenData },
     { data: partnerData },
-    { data: statusData },
   ] = await Promise.all([
     supabase
       .from('produkte')
@@ -27,14 +25,12 @@ async function getProdukte(): Promise<ProduktZeile[]> {
     supabase.from('projekte').select('id, name, kunde_id').is('deleted_at', null),
     supabase.from('kunden').select('id, name').is('deleted_at', null),
     supabase.from('partner').select('id, name').is('deleted_at', null),
-    supabase.from('produktstatus').select('produkt_id, status'),
   ])
 
   const raumMap    = Object.fromEntries((raumData    ?? []).map((r) => [r.id, r]))
   const projektMap = Object.fromEntries((projektData ?? []).map((p) => [p.id, p]))
   const kundeMap   = Object.fromEntries((kundenData  ?? []).map((k) => [k.id, k]))
   const partnerMap = Object.fromEntries((partnerData ?? []).map((p) => [p.id, p]))
-  const statusMap  = Object.fromEntries((statusData  ?? []).map((s) => [s.produkt_id, s.status as ProduktStatus]))
 
   return (prodData ?? []).map((p) => {
     const raum    = p.raum_id ? raumMap[p.raum_id] : null
@@ -58,7 +54,6 @@ async function getProdukte(): Promise<ProduktZeile[]> {
       projektId:     projekt?.id ?? null,
       projektName:   projekt?.name ?? null,
       kundeName:     kunde?.name ?? null,
-      status:        statusMap[p.id] ?? 'ausstehend',
     }
   })
 }
@@ -79,11 +74,11 @@ async function getKategorienListe(): Promise<KategorieOption[]> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('einstellungen')
-    .select('wert')
-    .eq('schluessel', 'produktkategorien')
+    .select('value')
+    .eq('key', 'produktkategorien')
     .single()
-  if (!data?.wert) return []
-  return (data.wert as string)
+  if (!data?.value) return []
+  return (data.value as string)
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
@@ -107,7 +102,7 @@ export default async function ProdukteSeite() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Produkte</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{produkte.length} Einträge über alle Projekte</p>
+          <p className="text-sm text-gray-500 mt-0.5">{produkte.length} Produkte in der Bibliothek</p>
         </div>
         <NeuesProduktModal />
       </div>
