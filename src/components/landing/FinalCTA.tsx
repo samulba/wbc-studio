@@ -1,9 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import AnimateOnScroll from './AnimateOnScroll'
-import Link from 'next/link'
+import DemoModal from './DemoModal'
 
 export default function FinalCTA() {
+  const [demoOpen, setDemoOpen] = useState(false)
+
   return (
     <section className="bg-[#445c49] py-32 relative overflow-hidden">
       {/* Glow orb center */}
@@ -55,16 +58,16 @@ export default function FinalCTA() {
 
         <AnimateOnScroll delay={150} type="fade-up">
           <p className="text-white/50 text-[18px] mb-10 leading-relaxed">
-            Starte kostenlos – keine Kreditkarte, keine Jahresbindung.
+            Fordere eine persönliche Demo an – wir zeigen dir alles in 20 Minuten.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-[#445c49] hover:bg-[#445c49] text-white text-[15px] font-bold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-wellbeing-green/30 hover:-translate-y-1 w-full sm:w-auto justify-center"
+            <button
+              onClick={() => setDemoOpen(true)}
+              className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[#445c49] text-[15px] font-bold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-black/20 hover:-translate-y-1 w-full sm:w-auto justify-center"
             >
-              Jetzt kostenlos starten →
-            </Link>
+              Demo anfragen →
+            </button>
             <a
               href="#preise"
               onClick={(e) => { e.preventDefault(); document.querySelector('#preise')?.scrollIntoView({ behavior: 'smooth' }) }}
@@ -76,7 +79,7 @@ export default function FinalCTA() {
 
           {/* Trust signals */}
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mt-10">
-            {['Kostenlos starten', 'Kein Login für Kunden', 'DSGVO-konform · EU-Server'].map((t) => (
+            {['Kostenfrei in der Beta', 'Kein Login für Kunden', 'DSGVO-konform · EU-Server'].map((t) => (
               <span key={t} className="flex items-center gap-1.5 text-[12px] text-white/30">
                 <span className="text-emerald-400 font-bold">✓</span>
                 {t}
@@ -85,6 +88,8 @@ export default function FinalCTA() {
           </div>
         </AnimateOnScroll>
       </div>
+
+      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </section>
   )
 }

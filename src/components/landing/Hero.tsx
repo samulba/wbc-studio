@@ -1,8 +1,8 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Check, Clock, AlertCircle, Zap } from 'lucide-react'
+import DemoModal from './DemoModal'
 
 // ── Animated Background ──────────────────────────────────────────
 function AnimatedBG() {
@@ -238,6 +238,8 @@ function DashboardMockup() {
 
 // ── Hero ──────────────────────────────────────────────────────────
 export default function Hero() {
+  const [demoOpen, setDemoOpen] = useState(false)
+
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden bg-white pt-16">
       <AnimatedBG />
@@ -279,12 +281,12 @@ export default function Hero() {
               className="flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3 mb-8 animate-fade-up"
               style={{ animationDelay: '300ms' }}
             >
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#445c49] hover:bg-[#445c49] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-xl hover:shadow-wellbeing-green-light/60 hover:-translate-y-1 w-full sm:w-auto justify-center"
+              <button
+                onClick={() => setDemoOpen(true)}
+                className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-xl hover:shadow-wellbeing-green-light/60 hover:-translate-y-1 w-full sm:w-auto justify-center"
               >
-                Kostenlos starten →
-              </Link>
+                Demo anfragen →
+              </button>
               <a
                 href="#features"
                 onClick={(e) => {
@@ -301,7 +303,7 @@ export default function Hero() {
               className="flex flex-wrap items-center lg:justify-start justify-center gap-x-6 gap-y-2 animate-fade-up"
               style={{ animationDelay: '400ms' }}
             >
-              {['Kostenlos starten', 'Keine Kreditkarte', 'DSGVO-konform'].map((t) => (
+              {['Kostenfrei in der Beta', 'Keine Kreditkarte', 'DSGVO-konform'].map((t) => (
                 <span key={t} className="flex items-center gap-1.5 text-[13px] text-gray-400">
                   <span className="text-emerald-500 font-bold">✓</span>
                   {t}
@@ -319,6 +321,8 @@ export default function Hero() {
           </div>
         </div>
       </div>
+
+      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </section>
   )
 }

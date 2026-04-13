@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
 import Image from 'next/image'
+import DemoModal from './DemoModal'
 
 const navLinks = [
   { label: 'Features',  href: '/features'  },
@@ -22,6 +23,7 @@ function smoothScroll(href: string) {
 export default function Nav() {
   const [scrolled,   setScrolled]   = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [demoOpen,   setDemoOpen]   = useState(false)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16)
@@ -40,14 +42,14 @@ export default function Nav() {
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
             ? 'bg-white/98 backdrop-blur-md border-b border-gray-100 shadow-sm shadow-gray-100/60'
-            : 'bg-white border-b border-gray-100/60'
+            : 'bg-white/95 backdrop-blur-sm border-b border-gray-200/70 shadow-sm shadow-gray-100/40'
         }`}
       >
         <div className="w-full px-8 h-[68px] flex items-center justify-between gap-8">
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-            <Image src="/logo-gross.png" alt="Wellbeing Spaces" width={36} height={36} className="w-[36px] h-[36px] object-contain" />
+            <Image src="/logo-mittel.png" alt="Wellbeing Spaces" width={32} height={32} className="w-[32px] h-[32px] object-contain" />
             <span className="font-syne text-[17px] font-bold text-[#445c49] tracking-tight leading-none group-hover:text-[#445c49] transition-colors duration-200">
               Wellbeing Spaces
             </span>
@@ -80,13 +82,13 @@ export default function Nav() {
             >
               Anmelden
             </Link>
-            <Link
-              href="/login"
+            <button
+              onClick={() => setDemoOpen(true)}
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[14px] font-semibold rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-wellbeing-green/40 hover:-translate-y-0.5 active:scale-95"
             >
-              Kostenlos starten
+              Demo anfragen
               <span className="text-wellbeing-green-light">→</span>
-            </Link>
+            </button>
           </div>
 
           {/* Hamburger */}
@@ -135,15 +137,16 @@ export default function Nav() {
           >
             Anmelden
           </Link>
-          <Link
-            href="/login"
-            onClick={() => setMobileOpen(false)}
-            className="w-full flex items-center justify-center gap-1.5 py-3.5 bg-[#445c49] hover:bg-[#445c49] text-white text-[15px] font-semibold rounded-xl transition-colors"
+          <button
+            onClick={() => { setMobileOpen(false); setDemoOpen(true) }}
+            className="w-full flex items-center justify-center gap-1.5 py-3.5 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[15px] font-semibold rounded-xl transition-colors"
           >
-            Kostenlos starten →
-          </Link>
+            Demo anfragen →
+          </button>
         </div>
       </div>
+
+      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </>
   )
 }
