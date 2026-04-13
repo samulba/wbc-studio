@@ -83,7 +83,7 @@ export default function WhyWBC() {
         </AnimateOnScroll>
 
         {/* Advantage cards grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-14">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-14">
           {advantages.map((adv, i) => (
             <AnimateOnScroll key={adv.label} delay={i * 80} type="fade-up">
               <div
@@ -103,7 +103,7 @@ export default function WhyWBC() {
                 {/* Big value */}
                 <div className="mb-1">
                   <span className={`font-syne font-bold leading-none ${
-                    adv.highlight ? 'text-white text-[40px]' : 'text-white/80 text-[36px]'
+                    adv.highlight ? 'text-white text-[28px] sm:text-[40px]' : 'text-white/80 text-[26px] sm:text-[36px]'
                   }`}>
                     {adv.big}
                   </span>

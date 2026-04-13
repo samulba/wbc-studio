@@ -9,7 +9,7 @@ function AnimatedBG() {
   const orbs = [
     { w: 520, h: 520, top: '-10%', right: '-6%',  color: 'bg-wellbeing-green-light', blur: 'blur-[90px]',  delay: '0s',  dur: '12s', op: 0.38 },
     { w: 360, h: 360, top: '45%',  right: '8%',   color: 'bg-wellbeing-cream', blur: 'blur-[70px]',  delay: '-4s', dur: '16s', op: 0.28 },
-    { w: 260, h: 260, top: '15%',  left:  '15%',  color: 'bg-blue-100',   blur: 'blur-[60px]',  delay: '-8s', dur: '10s', op: 0.18 },
+    { w: 260, h: 260, top: '15%',  left:  '15%',  color: 'bg-[#c8dbc9]', blur: 'blur-[60px]',  delay: '-8s', dur: '10s', op: 0.18 },
     { w: 200, h: 200, top: '65%',  left:  '5%',   color: 'bg-wellbeing-cream', blur: 'blur-[50px]',  delay: '-6s', dur: '14s', op: 0.14 },
   ]
 
@@ -205,7 +205,7 @@ function DashboardMockup() {
           {/* Row 3 – Alternative */}
           <div className="flex items-center gap-2.5 px-4 py-3">
             <div className="flex-1 min-w-0">
-              <p className="text-[9px] font-bold text-violet-400 uppercase tracking-wide mb-0.5">Textilien</p>
+              <p className="text-[9px] font-bold text-[#94c1a4] uppercase tracking-wide mb-0.5">Textilien</p>
               <p className="text-[12px] font-semibold text-gray-800 truncate">Vorhang Dedar Mumbai</p>
             </div>
             <p className="text-[12px] font-bold text-gray-900 tabular-nums shrink-0">680 €</p>
@@ -314,7 +314,7 @@ export default function Hero() {
 
           {/* ── Right: Dashboard Mockup ──────────────── */}
           <div
-            className="flex-shrink-0 w-full lg:w-auto animate-fade-up"
+            className="flex-shrink-0 w-full lg:w-auto animate-fade-up pt-6 lg:pt-0 mt-2 lg:mt-0"
             style={{ animationDelay: '180ms' }}
           >
             <DashboardMockup />

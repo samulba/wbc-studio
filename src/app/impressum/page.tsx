@@ -128,22 +128,63 @@ export default function ImpressumPage() {
             <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
               Entwicklung & Design
             </h2>
-            <p className="text-[14px]">
+            <p className="text-[14px] text-gray-500 mb-5">
               Diese Software wurde konzipiert und entwickelt in Zusammenarbeit mit:
             </p>
-            <div className="mt-3 bg-gray-50 border border-gray-100 rounded-xl p-5 text-[14px] space-y-1">
-              <p className="font-semibold text-gray-800">VicinusMedia</p>
-              <p className="text-gray-500">Webdesign & Webapps München</p>
-              <p>
-                <a
-                  href="https://www.vicinusmedia.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#445c49] hover:underline"
-                >
-                  www.vicinusmedia.com
-                </a>
-              </p>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              {/* Left card – VicinusMedia info */}
+              <div className="relative rounded-2xl overflow-hidden border border-[#445c49]/15 hover:border-[#445c49]/35 hover:shadow-lg hover:shadow-[#445c49]/8 hover:-translate-y-0.5 transition-all duration-300 group">
+                {/* Accent left border */}
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#445c49] rounded-l-2xl" />
+                {/* Gradient background */}
+                <div className="pl-5 pr-6 py-6 bg-gradient-to-br from-slate-50 to-[#445c49]/5">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#445c49]/10 flex items-center justify-center shrink-0">
+                      <span className="text-[18px]">🚀</span>
+                    </div>
+                    <p className="font-syne font-bold text-[17px] text-gray-900">VicinusMedia</p>
+                  </div>
+                  <p className="text-[13px] text-gray-500 mb-4 leading-snug">
+                    Webdesign & Webapps München
+                  </p>
+                  <a
+                    href="https://www.vicinusmedia.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[13px] font-semibold rounded-xl transition-all duration-200 hover:shadow-md"
+                  >
+                    <span>🌐</span>
+                    www.vicinusmedia.com →
+                  </a>
+                </div>
+              </div>
+
+              {/* Right card – CTA */}
+              <a
+                href="https://www.vicinusmedia.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="relative rounded-2xl overflow-hidden border border-dashed border-[#445c49]/20 hover:border-[#445c49]/40 hover:shadow-lg hover:shadow-[#445c49]/8 hover:-translate-y-0.5 transition-all duration-300 block group"
+              >
+                <div className="p-6 bg-gradient-to-br from-[#445c49]/3 to-[#445c49]/8 h-full flex flex-col justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.15em] mb-2">
+                      Interesse?
+                    </p>
+                    <p className="font-syne font-bold text-[16px] text-gray-800 leading-snug mb-3">
+                      Eigene Web-App oder Website?
+                    </p>
+                    <p className="text-[13px] text-gray-500 leading-relaxed">
+                      VicinusMedia entwickelt maßgeschneiderte digitale Lösungen für Unternehmen in München und bundesweit.
+                    </p>
+                  </div>
+                  <div className="mt-5 flex items-center gap-1.5 text-[13px] font-semibold text-[#445c49] group-hover:gap-2.5 transition-all duration-200">
+                    Jetzt anfragen
+                    <span>→</span>
+                  </div>
+                </div>
+              </a>
             </div>
           </section>
 
