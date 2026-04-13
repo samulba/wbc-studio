@@ -81,7 +81,7 @@ export default function Pricing() {
               {/* CTA */}
               <button
                 onClick={() => setDemoOpen(true)}
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-[#445c49]/30 hover:-translate-y-0.5"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-[#445c49]/30 hover:-translate-y-0.5"
               >
                 Demo anfragen →
               </button>

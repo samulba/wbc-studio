@@ -37,7 +37,7 @@ export default function HowItWorks() {
           </div>
         </AnimateOnScroll>
 
-        <div className="relative grid md:grid-cols-3 gap-12 md:gap-6">
+        <div className="relative grid md:grid-cols-3 gap-6 md:gap-6">
           {/* Connector line */}
           <div
             className="hidden md:block absolute top-8 left-[calc(16.67%+36px)] right-[calc(16.67%+36px)] h-px bg-gradient-to-r from-wellbeing-cream via-wellbeing-green-light to-wellbeing-cream"
@@ -46,17 +46,19 @@ export default function HowItWorks() {
 
           {steps.map((step, i) => (
             <AnimateOnScroll key={step.num} delay={i * 150} type="fade-up">
-              <div className="flex flex-col items-center text-center group">
+              <div className="flex md:flex-col items-start md:items-center text-left md:text-center group bg-white md:bg-transparent rounded-2xl md:rounded-none border border-gray-100 md:border-0 shadow-sm md:shadow-none p-5 md:p-0 gap-5 md:gap-0">
                 {/* Step icon tile */}
-                <div className="relative w-16 h-16 rounded-2xl bg-[#445c49] flex items-center justify-center mb-6 z-10 shadow-lg shadow-wellbeing-green-light/70 group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-wellbeing-green-light/60 transition-all duration-300">
-                  <step.icon className="w-6 h-6 text-white" strokeWidth={1.8} />
+                <div className="relative w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-[#445c49] flex items-center justify-center md:mb-6 z-10 shadow-lg shadow-wellbeing-green-light/70 group-hover:scale-105 group-hover:shadow-xl group-hover:shadow-wellbeing-green-light/60 transition-all duration-300 shrink-0">
+                  <step.icon className="w-5 h-5 md:w-6 md:h-6 text-white" strokeWidth={1.8} />
                   <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white border border-gray-100 shadow-sm flex items-center justify-center">
                     <span className="font-syne font-bold text-[9px] text-[#445c49]">{step.num}</span>
                   </span>
                 </div>
 
-                <h3 className="font-syne font-bold text-[20px] text-[#445c49] mb-3">{step.title}</h3>
-                <p className="text-[14px] text-gray-500 leading-relaxed max-w-[220px]">{step.desc}</p>
+                <div>
+                  <h3 className="font-syne font-bold text-[18px] md:text-[20px] text-[#445c49] mb-1.5 md:mb-3">{step.title}</h3>
+                  <p className="text-[13px] md:text-[14px] text-gray-500 leading-relaxed md:max-w-[220px]">{step.desc}</p>
+                </div>
               </div>
             </AnimateOnScroll>
           ))}

@@ -49,7 +49,7 @@ function Slider({
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="absolute inset-0 w-full opacity-0 cursor-pointer h-5"
+          className="absolute inset-0 w-full opacity-0 cursor-pointer h-5 touch-pan-x"
           aria-label={label}
         />
         <div
@@ -161,7 +161,7 @@ export default function PricingCalculator() {
                   {/* VP brutto – highlighted */}
                   <div className="p-4 bg-[#445c49]/15 border border-[#445c49]/25 rounded-xl">
                     <p className="text-[11px] text-wellbeing-green-light/70 mb-1.5">Verkaufspreis brutto (inkl. 19% MwSt.)</p>
-                    <p className="font-syne font-bold text-[34px] text-[#A5B4FC] leading-none transition-all duration-300">
+                    <p className="font-syne font-bold text-[34px] text-wellbeing-green-light leading-none transition-all duration-300">
                       {fmt(vpBrutto)}
                     </p>
                   </div>

@@ -124,7 +124,7 @@ export default function WhyWBC() {
 
         {/* Price comparison strip */}
         <AnimateOnScroll delay={500} type="fade-up">
-          <div className="flex flex-wrap justify-center items-center gap-3 md:gap-5 border-t border-white/[0.06] pt-10">
+          <div className="flex flex-col sm:flex-row flex-wrap justify-center items-center gap-3 md:gap-5 border-t border-white/[0.06] pt-10">
             <span className="text-white/25 text-[13px]">vs. Mitbewerber:</span>
 
             {[

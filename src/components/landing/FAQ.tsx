@@ -46,7 +46,7 @@ export default function FAQ() {
           </div>
         </AnimateOnScroll>
 
-        <div className="space-y-3">
+        <div className="space-y-2 sm:space-y-3">
           {faqs.map((faq, i) => (
             <AnimateOnScroll key={i} delay={i * 50}>
               <details className="group bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 transition-colors">

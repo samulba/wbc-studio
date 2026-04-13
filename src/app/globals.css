@@ -38,7 +38,7 @@ body {
     animation: fadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
   .gradient-text {
-    background: linear-gradient(135deg, #445c49 0%, #8B5CF6 50%, #445c49 100%);
+    background: linear-gradient(135deg, #2d3e31 0%, #94c1a4 45%, #445c49 100%);
     background-size: 200% 100%;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -117,6 +117,13 @@ body {
               transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .blur-in.visible { opacity: 1; filter: blur(0); transform: translateY(0); }
+
+/* ── Mobile: prevent iOS zoom on input focus ───────────────── */
+@layer base {
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
 
 /* ── Custom Select ─────────────────────────────────────────── */
 @layer components {

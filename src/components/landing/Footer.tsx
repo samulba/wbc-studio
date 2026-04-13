@@ -41,7 +41,7 @@ export default function Footer() {
         {/* Giant watermark */}
         <div
           className="absolute bottom-4 left-1/2 -translate-x-1/2 font-syne font-bold leading-none select-none pointer-events-none whitespace-nowrap text-white/[0.025]"
-          style={{ fontSize: 'clamp(80px, 14vw, 200px)' }}
+          style={{ fontSize: 'clamp(36px, 10vw, 200px)' }}
           aria-hidden
         >
           WELLBEING SPACES

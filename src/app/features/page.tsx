@@ -22,7 +22,7 @@ const mainFeatures = [
     icon: FolderOpen,
     iconBg: 'bg-wellbeing-cream',
     iconColor: 'text-[#445c49]',
-    accentBar: 'linear-gradient(to right, #818CF8, #445c49)',
+    accentBar: 'linear-gradient(to right, #94c1a4, #445c49)',
     hoverShadow: 'hover:shadow-wellbeing-cream/80',
     hoverBorder: 'hover:border-wellbeing-green-light',
     hoverBg: 'hover:bg-wellbeing-cream/25',
@@ -39,12 +39,12 @@ const mainFeatures = [
   },
   {
     icon: Package,
-    iconBg: 'bg-violet-50',
-    iconColor: 'text-violet-500',
-    accentBar: 'linear-gradient(to right, #C4B5FD, #8B5CF6)',
-    hoverShadow: 'hover:shadow-violet-100/80',
-    hoverBorder: 'hover:border-violet-200',
-    hoverBg: 'hover:bg-violet-50/25',
+    iconBg: 'bg-wellbeing-cream',
+    iconColor: 'text-[#445c49]',
+    accentBar: 'linear-gradient(to right, #94c1a4, #2d3e31)',
+    hoverShadow: 'hover:shadow-wellbeing-cream/80',
+    hoverBorder: 'hover:border-wellbeing-green-light',
+    hoverBg: 'hover:bg-wellbeing-cream/25',
     tag: 'Kern-Feature',
     title: 'Produktlisten pro Raum',
     lead: 'Produkte erfassen, kategorisieren und präsentieren – ohne Excel.',
@@ -77,12 +77,12 @@ const mainFeatures = [
   },
   {
     icon: Link2,
-    iconBg: 'bg-sky-50',
-    iconColor: 'text-sky-500',
-    accentBar: 'linear-gradient(to right, #7DD3FC, #0EA5E9)',
-    hoverShadow: 'hover:shadow-sky-100/80',
-    hoverBorder: 'hover:border-sky-200',
-    hoverBg: 'hover:bg-sky-50/25',
+    iconBg: 'bg-wellbeing-cream',
+    iconColor: 'text-[#445c49]',
+    accentBar: 'linear-gradient(to right, #94c1a4, #445c49)',
+    hoverShadow: 'hover:shadow-wellbeing-cream/80',
+    hoverBorder: 'hover:border-wellbeing-green-light',
+    hoverBg: 'hover:bg-wellbeing-cream/25',
     tag: 'Kern-Feature',
     title: 'Kundenfreigabe per Link',
     lead: 'Kein Account, keine App, keine Erklärung – einfach Link senden.',
@@ -165,16 +165,16 @@ export default function FeaturesPage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
-                href="/login"
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#445c49] hover:bg-[#445c49] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-xl hover:shadow-wellbeing-green-light/60 hover:-translate-y-1"
+                href="/#preise"
+                className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-xl hover:shadow-wellbeing-green-light/60 hover:-translate-y-1"
               >
-                Kostenlos testen <ArrowRight className="w-4 h-4" />
+                Demo anfragen <ArrowRight className="w-4 h-4" />
               </Link>
               <Link
-                href="/preise"
+                href="/#warum-wbc"
                 className="inline-flex items-center gap-2 px-7 py-3.5 border border-gray-200 hover:border-gray-300 text-gray-700 text-[15px] font-semibold rounded-xl transition-all duration-200 hover:bg-gray-50"
               >
-                Preise ansehen
+                Vorteile ansehen
               </Link>
             </div>
           </AnimateOnScroll>
@@ -282,13 +282,13 @@ export default function FeaturesPage() {
               Bereit loszulegen?
             </h2>
             <p className="text-white/50 text-[16px] mb-8">
-              Kostenlos starten – keine Kreditkarte, kein Jahresabo.
+              Fordere eine Demo an – wir zeigen dir alles in 20 Minuten.
             </p>
             <Link
-              href="/login"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-[#445c49] hover:bg-[#445c49] text-white text-[15px] font-bold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-wellbeing-green/30 hover:-translate-y-1"
+              href="/#preise"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[#445c49] text-[15px] font-bold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-white/20 hover:-translate-y-1"
             >
-              Jetzt kostenlos starten →
+              Demo anfragen →
             </Link>
           </AnimateOnScroll>
         </div>
