@@ -65,7 +65,7 @@ export default function Pricing() {
         aria-hidden
       />
 
-      <div className="relative z-10 max-w-5xl mx-auto px-5">
+      <div className="relative z-10 max-w-[1300px] mx-auto px-8">
         <AnimateOnScroll type="blur-in">
           <div className="text-center mb-16">
             <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">
@@ -90,13 +90,8 @@ export default function Pricing() {
                     : 'bg-white border border-gray-200 shadow-sm hover:border-gray-300 hover:shadow-md hover:-translate-y-1'
                 }`}
               >
-                {/* Pro shimmer top bar */}
-                {plan.highlight && (
-                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-violet-400 via-wellbeing-green to-violet-400 rounded-t-2xl" />
-                )}
-
                 {plan.badge && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#445c49] text-white text-[11px] font-bold rounded-full whitespace-nowrap uppercase tracking-wide shadow-md shadow-wellbeing-green-light">
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#445c49] text-white text-[11px] font-bold rounded-full whitespace-nowrap uppercase tracking-wide">
                     {plan.badge}
                   </div>
                 )}

@@ -16,7 +16,7 @@ export default function ProblemSolution() {
       <div className="absolute top-0 right-0 w-[500px] h-[400px] bg-rose-900/10 blur-[120px] rounded-full pointer-events-none" aria-hidden />
       <div className="absolute bottom-0 left-0 w-[400px] h-[300px] bg-amber-900/10 blur-[100px] rounded-full pointer-events-none" aria-hidden />
 
-      <div className="relative z-10 max-w-5xl mx-auto px-5">
+      <div className="relative z-10 max-w-[1300px] mx-auto px-8">
 
         {/* Header */}
         <AnimateOnScroll type="blur-in">
@@ -38,12 +38,12 @@ export default function ProblemSolution() {
 
           {/* Big card — left */}
           <AnimateOnScroll type="fade-right">
-            <div className="h-full rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] p-8 flex flex-col justify-between hover:border-amber-500/35 hover:bg-amber-500/[0.08] transition-all duration-300 group">
+            <div className="h-full rounded-2xl border border-white/10 bg-white/[0.05] p-8 flex flex-col justify-between hover:border-white/20 hover:bg-white/[0.08] transition-all duration-300 group">
               <div>
                 <div className="flex items-center justify-between mb-6">
-                  <span className="text-[10px] font-bold text-amber-400/60 uppercase tracking-widest">Problem 01</span>
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
-                    <AlertTriangle className="w-5 h-5 text-amber-400" />
+                  <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Problem 01</span>
+                  <div className="w-10 h-10 rounded-xl bg-white/[0.07] flex items-center justify-center group-hover:bg-white/[0.12] transition-colors">
+                    <AlertTriangle className="w-5 h-5 text-white/50" />
                   </div>
                 </div>
 
@@ -57,9 +57,9 @@ export default function ProblemSolution() {
                 </p>
               </div>
 
-              <div className="mt-8 border-t border-amber-500/10 pt-5 flex items-center gap-3">
-                <div className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/15">
-                  <span className="font-syne font-bold text-amber-400 text-[18px]">~8 Std.</span>
+              <div className="mt-8 border-t border-white/[0.08] pt-5 flex items-center gap-3">
+                <div className="px-3 py-1.5 rounded-lg bg-white/[0.07] border border-white/10">
+                  <span className="font-syne font-bold text-white/80 text-[18px]"><span className="text-[22px]">−</span>8 Std.</span>
                 </div>
                 <span className="text-[12px] text-white/25">pro Monat für Listenpflege verschwendet</span>
               </div>
@@ -69,11 +69,11 @@ export default function ProblemSolution() {
           {/* Right column — 2 stacked */}
           <div className="flex flex-col gap-4">
             <AnimateOnScroll type="fade-left" delay={100}>
-              <div className="rounded-2xl border border-red-500/20 bg-red-500/[0.05] p-7 hover:border-red-500/35 hover:bg-red-500/[0.08] transition-all duration-300 group">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-7 hover:border-white/20 hover:bg-white/[0.08] transition-all duration-300 group">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-bold text-red-400/60 uppercase tracking-widest">Problem 02</span>
-                  <div className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
-                    <Mail className="w-4 h-4 text-red-400" />
+                  <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Problem 02</span>
+                  <div className="w-9 h-9 rounded-xl bg-white/[0.07] flex items-center justify-center group-hover:bg-white/[0.12] transition-colors">
+                    <Mail className="w-4 h-4 text-white/50" />
                   </div>
                 </div>
                 <h3 className="font-syne font-bold text-white text-[20px] leading-[1.2] mb-3">
@@ -84,8 +84,8 @@ export default function ProblemSolution() {
                   Für ein einziges Produkt.
                 </p>
                 <div className="flex items-center gap-3">
-                  <div className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/15">
-                    <span className="font-syne font-bold text-red-400 text-[16px]">5–7</span>
+                  <div className="px-3 py-1.5 rounded-lg bg-white/[0.07] border border-white/10">
+                    <span className="font-syne font-bold text-white/80 text-[16px]">5–7</span>
                   </div>
                   <span className="text-[12px] text-white/20">E-Mails pro Produktfreigabe</span>
                 </div>
@@ -93,11 +93,11 @@ export default function ProblemSolution() {
             </AnimateOnScroll>
 
             <AnimateOnScroll type="fade-left" delay={200}>
-              <div className="rounded-2xl border border-orange-500/20 bg-orange-500/[0.05] p-7 hover:border-orange-500/35 hover:bg-orange-500/[0.08] transition-all duration-300 group">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.05] p-7 hover:border-white/20 hover:bg-white/[0.08] transition-all duration-300 group">
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-bold text-orange-400/60 uppercase tracking-widest">Problem 03</span>
-                  <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
-                    <Calculator className="w-4 h-4 text-orange-400" />
+                  <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Problem 03</span>
+                  <div className="w-9 h-9 rounded-xl bg-white/[0.07] flex items-center justify-center group-hover:bg-white/[0.12] transition-colors">
+                    <Calculator className="w-4 h-4 text-white/50" />
                   </div>
                 </div>
                 <h3 className="font-syne font-bold text-white text-[20px] leading-[1.2] mb-3">
@@ -108,8 +108,8 @@ export default function ProblemSolution() {
                   und am Ende stimmt die Marge trotzdem nicht.
                 </p>
                 <div className="flex items-center gap-3">
-                  <div className="px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/15">
-                    <span className="font-syne font-bold text-orange-400 text-[16px]">30 Min.</span>
+                  <div className="px-3 py-1.5 rounded-lg bg-white/[0.07] border border-white/10">
+                    <span className="font-syne font-bold text-white/80 text-[16px]">30 Min.</span>
                   </div>
                   <span className="text-[12px] text-white/20">Zeitverlust pro Angebot</span>
                 </div>

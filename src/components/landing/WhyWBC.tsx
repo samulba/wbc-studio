@@ -5,28 +5,28 @@ const advantages = [
   {
     icon: Euro,
     big: '0€',
-    label: 'zum Starten',
+    label: 'kostenlos starten',
     desc: 'Keine Kreditkarte. Kein Jahresabo. Sofort loslegen.',
     highlight: true,
   },
   {
     icon: UserX,
-    big: '0',
-    label: 'Logins für Kunden',
+    big: 'Kein',
+    label: 'Login nötig',
     desc: 'Deine Kunden brauchen keinen Account – einfach Link öffnen, Produkte freigeben.',
     highlight: false,
   },
   {
     icon: Globe,
-    big: 'EU',
-    label: 'Server Frankfurt',
+    big: '100%',
+    label: 'EU-Server',
     desc: '100% DSGVO-konform. Alle Daten auf deutschen Servern – kein amerikanischer Cloud-Anbieter.',
     highlight: false,
   },
   {
     icon: Zap,
     big: 'Auto',
-    label: 'Preiskalkulation',
+    label: 'Kalkulation',
     desc: 'EP eingeben, Marge setzen – VP netto & brutto werden sofort berechnet. Kein Taschenrechner.',
     highlight: false,
   },
@@ -39,8 +39,8 @@ const advantages = [
   },
   {
     icon: Clock,
-    big: '< 5',
-    label: 'Min Setup',
+    big: '5',
+    label: 'Min. Setup',
     desc: 'Von der Anmeldung bis zum ersten Projekt. Wir versprechen: keine Lernkurve.',
     highlight: false,
   },
@@ -64,7 +64,7 @@ export default function WhyWBC() {
         aria-hidden
       />
 
-      <div className="relative z-10 max-w-5xl mx-auto px-5">
+      <div className="relative z-10 max-w-[1300px] mx-auto px-8">
 
         {/* Header */}
         <AnimateOnScroll type="blur-in">

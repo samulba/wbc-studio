@@ -49,7 +49,7 @@ export default function Footer() {
           {/* Brand */}
           <div>
             <Link href="/" className="inline-flex items-center gap-3 mb-5 group">
-              <Image src="/logo-klein.png" alt="Wellbeing Spaces" width={36} height={36} className="w-9 h-9 object-contain brightness-0 invert opacity-80" />
+              <Image src="/logo-gross.png" alt="Wellbeing Spaces" width={40} height={40} className="w-10 h-10 object-contain brightness-0 invert opacity-80" />
               <span className="font-syne font-bold text-[28px] text-white group-hover:text-wellbeing-green-light transition-colors leading-none">
                 Wellbeing Spaces
               </span>

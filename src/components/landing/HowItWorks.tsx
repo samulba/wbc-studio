@@ -25,7 +25,7 @@ const steps = [
 export default function HowItWorks() {
   return (
     <section id="wie-es-funktioniert" className="bg-white py-28 overflow-hidden">
-      <div className="max-w-5xl mx-auto px-5">
+      <div className="max-w-[1300px] mx-auto px-8">
         <AnimateOnScroll type="blur-in">
           <div className="text-center mb-20">
             <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">

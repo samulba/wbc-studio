@@ -6,7 +6,6 @@ import ProblemSolution  from '@/components/landing/ProblemSolution'
 import Features     from '@/components/landing/Features'
 import HowItWorks   from '@/components/landing/HowItWorks'
 import WhyWBC       from '@/components/landing/WhyWBC'
-import Testimonials         from '@/components/landing/Testimonials'
 import PricingCalculator   from '@/components/landing/PricingCalculator'
 import Pricing             from '@/components/landing/Pricing'
 import FAQ          from '@/components/landing/FAQ'
@@ -41,7 +40,6 @@ export default function LandingPage() {
       <Features />
       <HowItWorks />
       <WhyWBC />
-      <Testimonials />
       <PricingCalculator />
       <Pricing />
       <FAQ />

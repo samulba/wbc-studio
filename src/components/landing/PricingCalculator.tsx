@@ -83,7 +83,7 @@ export default function PricingCalculator() {
         aria-hidden
       />
 
-      <div className="relative z-10 max-w-5xl mx-auto px-5">
+      <div className="relative z-10 max-w-[1300px] mx-auto px-8">
         <AnimateOnScroll type="blur-in">
           <div className="text-center mb-14">
             <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">

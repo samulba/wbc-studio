@@ -5,7 +5,7 @@ const competitors = ['Houzz Pro', 'Excel', 'E-Mail-Chaos', 'Mydoma']
 export default function CompetitorBadge() {
   return (
     <section className="bg-white border-y border-gray-100 py-14">
-      <div className="max-w-5xl mx-auto px-5 text-center">
+      <div className="max-w-[1300px] mx-auto px-8 text-center">
         <AnimateOnScroll type="fade-up">
           <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-8">
             Die einfachere Alternative für Designer die produktiv arbeiten wollen

@@ -39,15 +39,15 @@ export default function Nav() {
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-sm shadow-gray-100/60'
-            : 'bg-white/85 backdrop-blur-xl'
+            ? 'bg-white/98 backdrop-blur-md border-b border-gray-100 shadow-sm shadow-gray-100/60'
+            : 'bg-white border-b border-gray-100/60'
         }`}
       >
         <div className="w-full px-8 h-[68px] flex items-center justify-between gap-8">
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-            <Image src="/logo-klein.png" alt="Wellbeing Spaces" width={22} height={22} className="w-[22px] h-[22px] object-contain" />
+            <Image src="/logo-gross.png" alt="Wellbeing Spaces" width={36} height={36} className="w-[36px] h-[36px] object-contain" />
             <span className="font-syne text-[17px] font-bold text-[#445c49] tracking-tight leading-none group-hover:text-[#445c49] transition-colors duration-200">
               Wellbeing Spaces
             </span>
@@ -82,7 +82,7 @@ export default function Nav() {
             </Link>
             <Link
               href="/login"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#445c49] hover:bg-[#445c49] text-white text-[14px] font-semibold rounded-lg transition-all duration-150 hover:shadow-lg hover:shadow-wellbeing-green-light/60"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[14px] font-semibold rounded-lg transition-all duration-200 hover:shadow-lg hover:shadow-wellbeing-green/40 hover:-translate-y-0.5 active:scale-95"
             >
               Kostenlos starten
               <span className="text-wellbeing-green-light">→</span>

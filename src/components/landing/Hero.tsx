@@ -242,7 +242,7 @@ export default function Hero() {
     <section className="relative min-h-screen flex items-center overflow-hidden bg-white pt-16">
       <AnimatedBG />
 
-      <div className="relative z-10 w-full max-w-6xl mx-auto px-5">
+      <div className="relative z-10 w-full max-w-[1300px] mx-auto px-8">
         <div className="flex flex-col lg:flex-row items-center gap-14 lg:gap-16 py-16 lg:min-h-[calc(100vh-64px)]">
 
           {/* ── Left: Text ───────────────────────────── */}

@@ -83,7 +83,7 @@ export default function Features() {
         aria-hidden
       />
 
-      <div className="relative z-10 max-w-6xl mx-auto px-5">
+      <div className="relative z-10 max-w-[1300px] mx-auto px-8">
         <AnimateOnScroll type="blur-in">
           <div className="text-center mb-16">
             <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">
