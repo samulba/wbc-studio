@@ -2,6 +2,26 @@
 
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
 
+// ── Organisation ──────────────────────────────────────────────
+export type AboPlan = 'trial' | 'starter' | 'professional' | 'enterprise'
+
+export interface Organisation {
+  id: string
+  name: string
+  slug: string | null
+  email: string | null
+  telefon: string | null
+  website: string | null
+  adresse: string | null
+  logo_url: string | null
+  abo_plan: AboPlan
+  abo_aktiv_bis: string | null
+  max_projekte: number
+  max_mitglieder: number
+  created_at: string
+  updated_at: string
+}
+
 export type ProduktStatus = 'ausstehend' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung'
 export type BestellStatus = 'ausstehend' | 'bestellt' | 'geliefert' | 'rechnung_erhalten'
 export type ProjektStatus = 'offen' | 'in_bearbeitung' | 'freigegeben' | 'abgeschlossen'
