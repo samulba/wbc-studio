@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare } from 'lucide-react'
+import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare, FolderOpen, ReceiptText } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
 
@@ -117,6 +117,30 @@ export function KpiKarte({ label, wert, href, icon: Icon, farbe, bg, subLabel }:
       </div>
       <ArrowRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all ml-auto shrink-0" />
     </Link>
+  )
+}
+
+// ── KPI-Kacheln-Reihe (Wrapper – Icons bleiben client-seitig) ──
+// Server Components dürfen keine React-Komponenten (Functions) als Props übergeben.
+// Deshalb übernimmt dieser Client-Wrapper die Icon-Zuweisung komplett.
+
+export function KpiKartenReihe({ aktiveKunden, laufendeProjekte, offeneAngebote, monatsumsatz }: {
+  aktiveKunden: number
+  laufendeProjekte: number
+  offeneAngebote: number
+  monatsumsatz: number
+}) {
+  const kpis: KpiDaten[] = [
+    { label: 'Aktive Kunden',      wert: aktiveKunden,                                    href: '/dashboard/kunden',   icon: Users,       farbe: 'text-wellbeing-green', bg: 'bg-wellbeing-cream' },
+    { label: 'Laufende Projekte',  wert: laufendeProjekte,                                href: '/dashboard/projekte', icon: FolderOpen,  farbe: 'text-blue-600',        bg: 'bg-blue-50'         },
+    { label: 'Offene Angebote',    wert: offeneAngebote,                                  href: '/dashboard/projekte', icon: ReceiptText, farbe: 'text-violet-600',      bg: 'bg-violet-50'       },
+    { label: 'Monatsumsatz',       wert: monatsumsatz > 0 ? eur(monatsumsatz) : '–',     href: '/dashboard/projekte', icon: TrendingUp,  farbe: 'text-emerald-600',     bg: 'bg-emerald-50',
+      subLabel: 'Angenommene Angebote' },
+  ]
+  return (
+    <div className="grid grid-cols-4 gap-4">
+      {kpis.map((kpi) => <KpiKarte key={kpi.label} {...kpi} />)}
+    </div>
   )
 }
 

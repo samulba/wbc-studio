@@ -1,9 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Users, FolderOpen, ReceiptText, TrendingUp } from 'lucide-react'
 import type { ProjektMitKunde } from '@/lib/supabase/types'
 import {
-  KpiKarte,
+  KpiKartenReihe,
   NaechsteDeadlines,
   OffeneFollowUps,
   BudgetUebersicht,
@@ -17,9 +16,6 @@ import {
 } from '@/components/DashboardWidgets'
 
 // ── Hilfsfunktionen ───────────────────────────────────────────
-
-const eur = (n: number) =>
-  new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 
 function tageDiff(isoDate: string): number {
   return Math.floor((new Date(isoDate).getTime() - Date.now()) / 86_400_000)
@@ -272,42 +268,6 @@ export default async function DashboardPage() {
     letzteProjekte,
   } = await getDashboardData()
 
-  const kpis = [
-    {
-      label: 'Aktive Kunden',
-      wert:  aktiveKunden,
-      href:  '/dashboard/kunden',
-      icon:  Users,
-      farbe: 'text-wellbeing-green',
-      bg:    'bg-wellbeing-cream',
-    },
-    {
-      label: 'Laufende Projekte',
-      wert:  laufendeProjekte,
-      href:  '/dashboard/projekte',
-      icon:  FolderOpen,
-      farbe: 'text-blue-600',
-      bg:    'bg-blue-50',
-    },
-    {
-      label: 'Offene Angebote',
-      wert:  offeneAngebote,
-      href:  '/dashboard/projekte',
-      icon:  ReceiptText,
-      farbe: 'text-violet-600',
-      bg:    'bg-violet-50',
-    },
-    {
-      label:    'Monatsumsatz',
-      wert:     monatsumsatz > 0 ? eur(monatsumsatz) : '–',
-      subLabel: 'Angenommene Angebote',
-      href:     '/dashboard/projekte',
-      icon:     TrendingUp,
-      farbe:    'text-emerald-600',
-      bg:       'bg-emerald-50',
-    },
-  ]
-
   return (
     <div className="h-full overflow-y-auto px-6 py-5 space-y-4 animate-fadeIn">
 
@@ -333,12 +293,13 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ROW 1: KPI-Kacheln */}
-      <div className="grid grid-cols-4 gap-4">
-        {kpis.map((kpi) => (
-          <KpiKarte key={kpi.label} {...kpi} />
-        ))}
-      </div>
+      {/* ROW 1: KPI-Kacheln – Icons werden client-seitig in KpiKartenReihe aufgelöst */}
+      <KpiKartenReihe
+        aktiveKunden={aktiveKunden}
+        laufendeProjekte={laufendeProjekte}
+        offeneAngebote={offeneAngebote}
+        monatsumsatz={monatsumsatz}
+      />
 
       {/* ROW 2: Deadlines + Follow-ups */}
       <div className="grid grid-cols-2 gap-4 min-h-[220px]">
