@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import {
   Plus, Trash2, ChevronDown, Eye, ReceiptText,
-  ArrowLeft, PenLine, Send, CheckCircle, XCircle, Clock, Layers,
+  ArrowLeft, PenLine, Send, CheckCircle, XCircle, Clock, Layers, Download,
 } from 'lucide-react'
 import type { Angebot, AngebotStatus, AngebotPosition } from '@/lib/supabase/types'
 import {
@@ -293,9 +293,19 @@ function AngebotFormular({ projektId, kundeId, kundeName, defaultMwst, onSpeiche
 function AngebotDetail({ angebot, onZurueck }: { angebot: Angebot; onZurueck: () => void }) {
   return (
     <div className="space-y-4">
-      <button type="button" onClick={onZurueck} className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-wellbeing-green transition-colors mb-2">
-        <ArrowLeft className="w-3.5 h-3.5" /> Zurück zur Liste
-      </button>
+      <div className="flex items-center justify-between mb-2">
+        <button type="button" onClick={onZurueck} className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-wellbeing-green transition-colors">
+          <ArrowLeft className="w-3.5 h-3.5" /> Zurück zur Liste
+        </button>
+        <a
+          href={`/api/angebote/${angebot.id}/pdf`}
+          download
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-lg transition-all"
+        >
+          <Download className="w-3.5 h-3.5" />
+          PDF herunterladen
+        </a>
+      </div>
 
       {/* Header */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
@@ -551,6 +561,14 @@ export default function AngeboteClient({ projektId, kundeId, kundeName, initialA
                   <button type="button" onClick={() => setAnsicht({ detail: a })} title="Anzeigen" className="p-1.5 text-gray-400 hover:text-wellbeing-green hover:bg-gray-50 rounded-lg transition-all">
                     <Eye className="w-3.5 h-3.5" />
                   </button>
+                  <a
+                    href={`/api/angebote/${a.id}/pdf`}
+                    download
+                    title="PDF herunterladen"
+                    className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-gray-50 rounded-lg transition-all"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </a>
                   <button type="button" onClick={() => handleLoeschen(a.id)} title="Löschen" className="p-1.5 text-gray-300 hover:text-red-400 hover:bg-gray-50 rounded-lg transition-all">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

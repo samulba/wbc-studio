@@ -18,6 +18,11 @@ interface Props {
   kundeName: string | null
   produkte: PdfProdukt[]
   mwst: number
+  firmenname?: string
+  logoUrl?: string | null
+  firmenAdresse?: string | null
+  firmenEmail?: string | null
+  firmenTelefon?: string | null
 }
 
 const STATUSLABEL: Record<string, string> = {
@@ -31,7 +36,7 @@ const r2 = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n) + ' €'
 
-export default function PdfExportButton({ projektName, kundeName, produkte, mwst }: Props) {
+export default function PdfExportButton({ projektName, kundeName, produkte, mwst, firmenname, logoUrl, firmenAdresse, firmenEmail, firmenTelefon }: Props) {
   const [loading, setLoading] = useState(false)
 
   async function handleExport() {
@@ -46,16 +51,44 @@ export default function PdfExportButton({ projektName, kundeName, produkte, mwst
       const pageH  = doc.internal.pageSize.getHeight()
       const margin = 14
       const heute  = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      const firma  = firmenname ?? 'Wellbeing Spaces'
+
+      // ── Logo (falls vorhanden) ────────────────────────────
+      if (logoUrl) {
+        try {
+          const res  = await fetch(logoUrl)
+          const buf  = await res.arrayBuffer()
+          const bytes = new Uint8Array(buf)
+          let binary = ''
+          for (let b = 0; b < bytes.byteLength; b++) binary += String.fromCharCode(bytes[b])
+          const b64  = btoa(binary)
+          const mime = res.headers.get('content-type') ?? 'image/png'
+          const fmt  = mime.includes('jpeg') || mime.includes('jpg') ? 'JPEG' : 'PNG'
+          doc.addImage(`data:${mime};base64,${b64}`, fmt, margin, 6, 30, 12)
+        } catch { /* Logo nicht verfügbar – überspringen */ }
+      }
 
       // ── Header-Linie ──────────────────────────────────────
       doc.setFillColor(68, 92, 73)             // wellbeing-green #445c49
-      doc.rect(margin, 12, pageW - margin * 2, 0.6, 'F')
+      doc.rect(margin, 20, pageW - margin * 2, 0.6, 'F')
 
-      // Wellbeing Spaces – oben rechts
+      // Firmenname – oben rechts
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(9)
       doc.setTextColor(68, 92, 73)
-      doc.text('Wellbeing Spaces', pageW - margin, 10, { align: 'right' })
+      doc.text(firma, pageW - margin, 10, { align: 'right' })
+
+      // Firmenkontakt – oben rechts, klein
+      const kontaktZeilen: string[] = []
+      if (firmenAdresse) kontaktZeilen.push(firmenAdresse)
+      const kLine: string[] = []
+      if (firmenTelefon) kLine.push(`Tel: ${firmenTelefon}`)
+      if (firmenEmail)   kLine.push(firmenEmail)
+      if (kLine.length)  kontaktZeilen.push(kLine.join(' · '))
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(6.5)
+      doc.setTextColor(150, 150, 150)
+      kontaktZeilen.forEach((l, i) => doc.text(l, pageW - margin, 14 + i * 3.5, { align: 'right' }))
 
       // Datum – oben links
       doc.setFont('helvetica', 'normal')
@@ -64,7 +97,7 @@ export default function PdfExportButton({ projektName, kundeName, produkte, mwst
       doc.text(heute, margin, 10)
 
       // ── Titel-Block ───────────────────────────────────────
-      let y = 22
+      let y = 26
 
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(18)
@@ -132,7 +165,7 @@ export default function PdfExportButton({ projektName, kundeName, produkte, mwst
           textColor: [17, 24, 39],
         },
         headStyles: {
-          fillColor: [99, 102, 241],
+          fillColor: [68, 92, 73],   // wellbeing-green #445c49
           textColor: [255, 255, 255],
           fontStyle: 'bold',
           fontSize: 8,
@@ -171,7 +204,7 @@ export default function PdfExportButton({ projektName, kundeName, produkte, mwst
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(7)
         doc.setTextColor(156, 163, 175)
-        doc.text(`Seite ${i} / ${pageCount}`, pageW / 2, pageH - 8, { align: 'center' })
+        doc.text(`${firma}  ·  Seite ${i} / ${pageCount}`, pageW / 2, pageH - 8, { align: 'center' })
       }
 
       // ── Speichern ─────────────────────────────────────────

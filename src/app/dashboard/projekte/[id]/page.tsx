@@ -169,7 +169,8 @@ async function getProdukteForPdf(projektId: string): Promise<PdfProdukt[]> {
 }
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, raumtypen, kunden, konfigSessions, naechsteEvents, zeitEintraege, zeitSumme] = await Promise.all([
+  const supabaseForBranding = await (await import('@/lib/supabase/server')).createClient()
+  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, raumtypen, kunden, konfigSessions, naechsteEvents, zeitEintraege, zeitSumme, { data: branding }] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
@@ -184,6 +185,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
     naechsteEventsAbrufen(params.id, 3),
     getZeiterfassung(params.id),
     getZeitSumme(params.id),
+    supabaseForBranding.from('branding').select('firmenname, logo_url, adresse, email, telefon').maybeSingle(),
   ])
 
   if (!projekt) notFound()
@@ -312,7 +314,17 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
                 <Download className="w-3.5 h-3.5" />
                 CSV
               </a>
-              <PdfExportButton projektName={projekt.name} kundeName={projekt.kunden?.name ?? null} produkte={pdfProdukte} mwst={mwst} />
+              <PdfExportButton
+                projektName={projekt.name}
+                kundeName={projekt.kunden?.name ?? null}
+                produkte={pdfProdukte}
+                mwst={mwst}
+                firmenname={branding?.firmenname ?? undefined}
+                logoUrl={branding?.logo_url ?? null}
+                firmenAdresse={branding?.adresse ?? null}
+                firmenEmail={branding?.email ?? null}
+                firmenTelefon={branding?.telefon ?? null}
+              />
               <Link
                 href={`/dashboard/projekte/${projekt.id}/bearbeiten`}
                 className="px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-lg transition-all"

@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import {
   Plus, FileText, ChevronDown, Eye, Trash2, CheckCircle,
-  Send, XCircle, Clock, PenLine,
+  Send, XCircle, Clock, PenLine, Download,
 } from 'lucide-react'
 import type { Vertrag, VertragStatus, VertragsVorlage } from '@/lib/supabase/types'
 import { vertragErstellen, vertragStatusAendern, vertragLoeschen } from '@/app/actions/vertraege'
@@ -288,6 +288,14 @@ export default function VertraegeClient({ projektId, kundeId, initialVertraege, 
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
+                  <a
+                    href={`/api/vertraege/${v.id}/pdf`}
+                    download
+                    title="PDF herunterladen"
+                    className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-gray-50 rounded-lg transition-all"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </a>
                   <button
                     type="button"
                     onClick={() => handleLoeschen(v.id)}
