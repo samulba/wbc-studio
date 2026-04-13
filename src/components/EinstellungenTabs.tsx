@@ -32,6 +32,7 @@ const TABS = [
   { key: 'freigaben',          label: 'Freigaben' },
   { key: 'benachrichtigungen', label: 'Benachrichtigungen' },
   { key: 'abrechnung',         label: 'Abrechnung' },
+  { key: 'rechtliches',        label: 'Rechtliches' },
   { key: 'handbuch',           label: 'Handbuch' },
 ]
 
@@ -796,6 +797,189 @@ function AbrechnungTab() {
   )
 }
 
+// ── Tab: Rechtliches ─────────────────────────────────────────
+
+const IMPRESSUM_TEXT = `Angaben gemäß § 5 TMG
+
+Samuel Liba
+Unternehmensberatung
+Geranienweg 7
+85586 Poing
+
+Telefon: 0176 31335327
+E-Mail: info@vicinusmedia.com
+USt-IdNr.: DE450215192
+
+Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV:
+Samuel Liba, Geranienweg 7, 85586 Poing
+
+Haftungsausschluss
+
+Trotz sorgfältiger inhaltlicher Kontrolle übernehmen wir keine Haftung für die Inhalte externer Links. Für den Inhalt der verlinkten Seiten sind ausschließlich deren Betreiber verantwortlich.`
+
+const DATENSCHUTZ_TEXT = `Diese Datenschutzerklärung gilt für die Nutzung der Software "Wellbeing Spaces" (app.wellbeing-spaces.de).
+
+Verantwortlicher: Samuel Liba, Geranienweg 7, 85586 Poing, info@vicinusmedia.com
+
+Wir erheben und verarbeiten personenbezogene Daten nur, soweit dies zur Bereitstellung unserer Dienste erforderlich ist:
+• E-Mail-Adresse und Passwort (für die Anmeldung)
+• Von Ihnen eingegebene Projektdaten (Kunden, Räume, Produkte, Partner)
+• Technische Verbindungsdaten durch Hosting-Anbieter
+
+Hosting: Vercel Inc. (EU-Region Frankfurt), Supabase Inc. (eu-central-1).
+
+Alle Preise verstehen sich zzgl. MwSt. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
+
+Ihre Rechte: Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung (Art. 18), Datenübertragbarkeit (Art. 20), Widerspruch (Art. 21).
+
+Kontakt: info@vicinusmedia.com
+
+Stand: April 2026`
+
+const AGB_TEXT = `Allgemeine Geschäftsbedingungen (AGB)
+Stand: April 2026
+
+§ 1 Geltungsbereich
+Diese AGB gelten für alle Leistungen von Samuel Liba, Unternehmensberatung, Geranienweg 7, 85586 Poing.
+
+§ 2 Vertragsgegenstand
+Gegenstand des Vertrages ist die Nutzung der Software "Wellbeing Spaces" als Software-as-a-Service (SaaS).
+
+§ 3 Registrierung und Nutzerkonto
+• Zur Nutzung ist eine Registrierung erforderlich
+• Der Nutzer ist für die Geheimhaltung seiner Zugangsdaten verantwortlich
+
+§ 4 Leistungen
+• Bereitstellung der Software über das Internet
+• Speicherung von Nutzerdaten auf unseren Servern
+• Regelmäßige Updates und Wartung
+
+§ 5 Vergütung
+• Die Preise richten sich nach dem gewählten Tarif
+• Alle Preise verstehen sich zzgl. MwSt.
+
+§ 6 Datenschutz
+Die Verarbeitung personenbezogener Daten erfolgt gemäß unserer Datenschutzerklärung.
+
+§ 7 Haftung
+• Haftung für Vorsatz und grobe Fahrlässigkeit unbeschränkt
+• Bei leichter Fahrlässigkeit Haftung auf vorhersehbare Schäden begrenzt
+
+§ 8 Kündigung
+• Monatliche Tarife können zum Monatsende gekündigt werden
+• Jährliche Tarife zum Ablauf der Vertragslaufzeit
+
+§ 9 Schlussbestimmungen
+• Es gilt deutsches Recht
+• Gerichtsstand ist München`
+
+function RechtlichesModal({
+  titel,
+  inhalt,
+  onClose,
+}: {
+  titel: string
+  inhalt: string
+  onClose: () => void
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" aria-hidden />
+      <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[80vh]">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+          <h2 className="font-syne font-bold text-[17px] text-gray-900">{titel}</h2>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div className="px-6 py-5 overflow-y-auto flex-1">
+          <pre className="text-[13px] text-gray-600 leading-relaxed whitespace-pre-wrap font-sans">{inhalt}</pre>
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 shrink-0">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-lg transition-colors"
+          >
+            Schließen
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function RechtlichesTab() {
+  const [modal, setModal] = useState<'impressum' | 'datenschutz' | 'agb' | null>(null)
+
+  const items = [
+    {
+      key: 'impressum' as const,
+      titel: 'Impressum',
+      beschreibung: 'Angaben gemäß § 5 TMG – Verantwortlicher, Kontaktdaten',
+    },
+    {
+      key: 'datenschutz' as const,
+      titel: 'Datenschutzerklärung',
+      beschreibung: 'Informationen zur Verarbeitung personenbezogener Daten gemäß DSGVO',
+    },
+    {
+      key: 'agb' as const,
+      titel: 'Allgemeine Geschäftsbedingungen',
+      beschreibung: 'Nutzungsbedingungen für die Software "Wellbeing Spaces"',
+    },
+  ]
+
+  const inhalte = {
+    impressum: IMPRESSUM_TEXT,
+    datenschutz: DATENSCHUTZ_TEXT,
+    agb: AGB_TEXT,
+  }
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <p className="text-sm text-gray-500 mb-2">
+        Rechtliche Informationen zu Wellbeing Spaces. Klicke auf einen Eintrag, um den vollständigen Text anzuzeigen.
+      </p>
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden divide-y divide-gray-100">
+        {items.map((item) => (
+          <div key={item.key} className="flex items-center justify-between px-6 py-4">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">{item.titel}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{item.beschreibung}</p>
+            </div>
+            <button
+              onClick={() => setModal(item.key)}
+              className="shrink-0 ml-4 px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+            >
+              Anzeigen
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-gray-50 border border-gray-100 rounded-xl px-5 py-4 text-xs text-gray-500 space-y-1">
+        <p className="font-medium text-gray-700">Verantwortlicher</p>
+        <p>Samuel Liba · Geranienweg 7, 85586 Poing</p>
+        <p>info@vicinusmedia.com · 0176 31335327</p>
+      </div>
+
+      {modal && (
+        <RechtlichesModal
+          titel={items.find((i) => i.key === modal)!.titel}
+          inhalt={inhalte[modal]}
+          onClose={() => setModal(null)}
+        />
+      )}
+    </div>
+  )
+}
+
 // ── Tab: Handbuch ─────────────────────────────────────────────
 
 function HandbuchTab() {
@@ -858,6 +1042,7 @@ export default function EinstellungenTabs({
       {aktuellerTab === 'freigaben'          && <FreigabenTab einstellungen={einstellungen} />}
       {aktuellerTab === 'benachrichtigungen' && <BenachrichtigungenTab einstellungen={einstellungen} />}
       {aktuellerTab === 'abrechnung'         && <AbrechnungTab />}
+      {aktuellerTab === 'rechtliches'        && <RechtlichesTab />}
       {aktuellerTab === 'handbuch'           && <HandbuchTab />}
 
       {/* Fallback: alte Tab-Keys weiterleiten */}

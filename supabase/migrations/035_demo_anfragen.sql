@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS demo_anfragen (
   email       TEXT        NOT NULL,
   telefon     TEXT,
   nachricht   TEXT,
+  status      TEXT        NOT NULL DEFAULT 'neu'
+                CHECK (status IN ('neu', 'kontaktiert', 'demo_gehalten', 'abgeschlossen')),
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 

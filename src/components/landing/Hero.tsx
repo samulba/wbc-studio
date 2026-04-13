@@ -303,7 +303,7 @@ export default function Hero() {
               className="flex flex-wrap items-center lg:justify-start justify-center gap-x-6 gap-y-2 animate-fade-up"
               style={{ animationDelay: '400ms' }}
             >
-              {['Kostenfrei in der Beta', 'Keine Kreditkarte', 'DSGVO-konform'].map((t) => (
+              {['Unverbindliche Demo', 'Keine Kreditkarte', 'DSGVO-konform'].map((t) => (
                 <span key={t} className="flex items-center gap-1.5 text-[13px] text-gray-400">
                   <span className="text-emerald-500 font-bold">✓</span>
                   {t}
