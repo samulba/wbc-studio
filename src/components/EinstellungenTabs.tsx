@@ -815,7 +815,15 @@ Samuel Liba, Geranienweg 7, 85586 Poing
 
 Haftungsausschluss
 
-Trotz sorgfältiger inhaltlicher Kontrolle übernehmen wir keine Haftung für die Inhalte externer Links. Für den Inhalt der verlinkten Seiten sind ausschließlich deren Betreiber verantwortlich.`
+Trotz sorgfältiger inhaltlicher Kontrolle übernehmen wir keine Haftung für die Inhalte externer Links. Für den Inhalt der verlinkten Seiten sind ausschließlich deren Betreiber verantwortlich.
+
+── Entwicklung & Design ──
+
+Diese Software wurde konzipiert und entwickelt in Zusammenarbeit mit:
+
+VicinusMedia
+Webdesign & Webapps München
+www.vicinusmedia.com`
 
 const DATENSCHUTZ_TEXT = `Diese Datenschutzerklärung gilt für die Nutzung der Software "Wellbeing Spaces" (app.wellbeing-spaces.de).
 

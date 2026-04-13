@@ -8,7 +8,7 @@ import DemoModal from './DemoModal'
 function AnimatedBG() {
   const orbs = [
     { w: 520, h: 520, top: '-10%', right: '-6%',  color: 'bg-wellbeing-green-light', blur: 'blur-[90px]',  delay: '0s',  dur: '12s', op: 0.38 },
-    { w: 360, h: 360, top: '45%',  right: '8%',   color: 'bg-violet-200', blur: 'blur-[70px]',  delay: '-4s', dur: '16s', op: 0.24 },
+    { w: 360, h: 360, top: '45%',  right: '8%',   color: 'bg-wellbeing-cream', blur: 'blur-[70px]',  delay: '-4s', dur: '16s', op: 0.28 },
     { w: 260, h: 260, top: '15%',  left:  '15%',  color: 'bg-blue-100',   blur: 'blur-[60px]',  delay: '-8s', dur: '10s', op: 0.18 },
     { w: 200, h: 200, top: '65%',  left:  '5%',   color: 'bg-wellbeing-cream', blur: 'blur-[50px]',  delay: '-6s', dur: '14s', op: 0.14 },
   ]

@@ -1,6 +1,12 @@
+'use client'
+
+import { useState } from 'react'
 import AnimateOnScroll from './AnimateOnScroll'
+import DemoModal from './DemoModal'
 
 export default function Pricing() {
+  const [demoOpen, setDemoOpen] = useState(false)
+
   return (
     <section id="preise" className="bg-white py-28 relative overflow-hidden">
       {/* Background accent */}
@@ -26,33 +32,44 @@ export default function Pricing() {
 
         <AnimateOnScroll type="fade-up">
           <div className="max-w-2xl mx-auto">
-            <div className="relative rounded-2xl border-2 border-dashed border-[#445c49]/20 bg-wellbeing-cream/30 p-12 text-center overflow-hidden">
-              {/* Decorative corner badges */}
+            <div className="relative rounded-2xl border-2 border-dashed border-[#445c49]/20 bg-wellbeing-cream/30 p-10 text-center overflow-hidden">
+              {/* Decorative corner dots */}
               <div className="absolute top-5 left-5 w-2 h-2 rounded-full bg-[#445c49]/20" />
               <div className="absolute top-5 right-5 w-2 h-2 rounded-full bg-[#445c49]/20" />
               <div className="absolute bottom-5 left-5 w-2 h-2 rounded-full bg-[#445c49]/20" />
               <div className="absolute bottom-5 right-5 w-2 h-2 rounded-full bg-[#445c49]/20" />
 
+              {/* Beta badge */}
               <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-100 border border-amber-200 rounded-full text-amber-700 text-[12px] font-bold uppercase tracking-widest mb-6">
                 <span>🚧</span>
                 Beta-Phase
               </div>
 
-              <h3 className="font-syne font-bold text-[28px] md:text-[36px] text-[#445c49] mb-4 leading-tight">
-                Aktuell kostenfrei<br className="hidden sm:block" /> für alle Beta-Nutzer
-              </h3>
-
-              <p className="text-gray-500 text-[16px] leading-relaxed max-w-md mx-auto mb-8">
-                Während der Beta-Phase ist Wellbeing Spaces für alle Tester vollständig
-                kostenfrei. Preise werden transparent kommuniziert bevor die Beta endet.
+              {/* Title */}
+              <p className="text-gray-600 text-[16px] leading-relaxed max-w-lg mx-auto mb-5">
+                Wellbeing Spaces befindet sich aktuell in der <strong className="text-gray-800">geschlossenen Beta</strong>.
               </p>
 
-              <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-[14px] text-gray-500">
+              <p className="text-gray-500 text-[15px] leading-relaxed max-w-md mx-auto mb-4">
+                Du möchtest die App testen? Schreib uns und wir richten dir einen Demo-Zugang ein.
+                Schau dir alles in Ruhe an und gib uns dein ehrliches Feedback.
+              </p>
+
+              {/* Bonus */}
+              <div className="inline-flex items-start gap-2.5 bg-[#445c49]/5 border border-[#445c49]/10 rounded-xl px-5 py-3.5 text-left mb-8 max-w-md mx-auto">
+                <span className="text-[18px] shrink-0 mt-0.5">💡</span>
+                <p className="text-[14px] text-gray-600 leading-snug">
+                  <strong className="text-[#445c49]">Bonus:</strong> Beta-Tester mit konstruktivem Feedback erhalten
+                  einen <strong className="text-[#445c49]">exklusiven Rabatt</strong>, sobald wir live gehen!
+                </p>
+              </div>
+
+              {/* Checkmarks */}
+              <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2.5 text-[14px] text-gray-500 mb-8">
                 {[
-                  'Keine Kreditkarte',
                   'Voller Funktionsumfang',
-                  'DSGVO-konform',
-                  'Feedback erwünscht',
+                  'Persönliche Einführung',
+                  'Direkter Draht zu uns',
                 ].map((t) => (
                   <span key={t} className="flex items-center gap-2">
                     <span className="text-emerald-500 font-bold text-[16px]">✓</span>
@@ -60,10 +77,20 @@ export default function Pricing() {
                   </span>
                 ))}
               </div>
+
+              {/* CTA */}
+              <button
+                onClick={() => setDemoOpen(true)}
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-[#445c49]/30 hover:-translate-y-0.5"
+              >
+                Demo anfragen →
+              </button>
             </div>
           </div>
         </AnimateOnScroll>
       </div>
+
+      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </section>
   )
 }

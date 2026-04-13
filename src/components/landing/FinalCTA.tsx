@@ -40,7 +40,7 @@ export default function FinalCTA() {
       <div
         className="absolute inset-0 opacity-[0.03] pointer-events-none"
         style={{
-          backgroundImage: 'radial-gradient(circle, #818CF8 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, #94c1a4 1px, transparent 1px)',
           backgroundSize: '36px 36px',
         }}
         aria-hidden

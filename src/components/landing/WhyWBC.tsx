@@ -52,13 +52,13 @@ export default function WhyWBC() {
 
       {/* Background glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-wellbeing-green/10 blur-[130px] rounded-full pointer-events-none" aria-hidden />
-      <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-violet-800/10 blur-[100px] rounded-full pointer-events-none" aria-hidden />
+      <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-wellbeing-green-dark/20 blur-[100px] rounded-full pointer-events-none" aria-hidden />
 
       {/* Dot grid */}
       <div
         className="absolute inset-0 opacity-[0.025] pointer-events-none"
         style={{
-          backgroundImage: 'radial-gradient(circle, #818CF8 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, #94c1a4 1px, transparent 1px)',
           backgroundSize: '40px 40px',
         }}
         aria-hidden

@@ -123,6 +123,30 @@ export default function ImpressumPage() {
               </div>
             </div>
           </section>
+
+          <section>
+            <h2 className="font-syne font-bold text-[18px] text-[#445c49] mb-4 pb-3 border-b border-gray-100">
+              Entwicklung & Design
+            </h2>
+            <p className="text-[14px]">
+              Diese Software wurde konzipiert und entwickelt in Zusammenarbeit mit:
+            </p>
+            <div className="mt-3 bg-gray-50 border border-gray-100 rounded-xl p-5 text-[14px] space-y-1">
+              <p className="font-semibold text-gray-800">VicinusMedia</p>
+              <p className="text-gray-500">Webdesign & Webapps München</p>
+              <p>
+                <a
+                  href="https://www.vicinusmedia.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#445c49] hover:underline"
+                >
+                  www.vicinusmedia.com
+                </a>
+              </p>
+            </div>
+          </section>
+
         </div>
 
         <div className="mt-12 pt-8 border-t border-gray-100 flex items-center gap-4 text-[13px] text-gray-400">
