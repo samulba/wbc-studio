@@ -5,22 +5,30 @@ import { revalidatePath } from 'next/cache'
 import type { Kategorie, KategorieTyp } from '@/lib/supabase/types'
 
 export async function getEinstellungen(): Promise<Record<string, string>> {
-  const supabase = await createClient()
-  const { data } = await supabase.from('einstellungen').select('key, value')
-  if (!data) return {}
-  return Object.fromEntries(data.map((r) => [r.key, r.value]))
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase.from('einstellungen').select('key, value')
+    if (!data) return {}
+    return Object.fromEntries(data.map((r) => [r.key, r.value]))
+  } catch {
+    return {}
+  }
 }
 
 /** MwSt.-Satz als Dezimalzahl (z.B. 0.19 für 19%). Fallback: 0.19. */
 export async function getMwstSatz(): Promise<number> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('einstellungen')
-    .select('value')
-    .eq('key', 'mwst_satz')
-    .single()
-  const pct = parseFloat(data?.value ?? '19')
-  return isNaN(pct) ? 0.19 : pct / 100
+  try {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from('einstellungen')
+      .select('value')
+      .eq('key', 'mwst_satz')
+      .maybeSingle()
+    const pct = parseFloat(data?.value ?? '19')
+    return isNaN(pct) ? 0.19 : pct / 100
+  } catch {
+    return 0.19
+  }
 }
 
 export type EinstellungActionState = { fehler?: string; erfolg?: string } | null
