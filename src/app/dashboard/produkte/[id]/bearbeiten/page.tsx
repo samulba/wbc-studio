@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import ProduktFormular from '@/components/ProduktFormular'
 import { produktAktualisierenBibliothek } from '@/app/actions/produkte'
-import { getMwstSatz } from '@/app/actions/einstellungen'
+import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import type { Partner, ProduktMitDetails } from '@/lib/supabase/types'
 import type { Notiz } from '@/components/NotizBlock'
 
@@ -43,12 +43,14 @@ export default async function BibliothekProduktBearbeitenPage({
 }: {
   params: { id: string }
 }) {
-  const [produkt, partner, notizen, mwst] = await Promise.all([
+  const [produkt, partner, notizen, mwst, kategorienRoh] = await Promise.all([
     getProdukt(params.id),
     getPartner(),
     getProduktNotizen(params.id),
     getMwstSatz(),
+    getKategorien('produktkategorie'),
   ])
+  const kategorienListe = kategorienRoh.map((k) => ({ name: k.name }))
 
   if (!produkt) notFound()
 
@@ -75,6 +77,7 @@ export default async function BibliothekProduktBearbeitenPage({
         <ProduktFormular
           aktion={aktion}
           partner={partner}
+          kategorienListe={kategorienListe}
           initialData={produkt}
           abbrechen={zurueck}
           mwst={mwst}

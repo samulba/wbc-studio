@@ -2,6 +2,7 @@
 
 import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import type { Kategorie, KategorieTyp } from '@/lib/supabase/types'
 
 export async function getEinstellungen(): Promise<Record<string, string>> {
   const supabase = await createClient()
@@ -208,6 +209,7 @@ export async function saveFreigabeLinks(
 
 // ── Freigabe-Einstellungen (Legacy) ──────────────────────────
 
+
 export async function saveFreigabe(
   prevState: EinstellungActionState,
   formData: FormData
@@ -228,4 +230,108 @@ export async function saveFreigabe(
 
   revalidatePath('/dashboard/einstellungen')
   return { erfolg: 'Freigabe-Einstellungen gespeichert.' }
+}
+
+
+// ── Kategorien-Tabelle (Migration 037) ───────────────────────
+
+/** Alle Kategorien eines Typs für die aktuelle Org laden. */
+export async function getKategorien(typ: KategorieTyp): Promise<Kategorie[]> {
+  const supabase = await createClient()
+  let orgId: string
+  try { orgId = await getOrganisationId() } catch { return [] }
+
+  const { data } = await supabase
+    .from('kategorien')
+    .select('*')
+    .eq('organisation_id', orgId)
+    .eq('typ', typ)
+    .order('reihenfolge')
+    .order('name')
+
+  return (data ?? []) as Kategorie[]
+}
+
+/** Neue Kategorie anlegen. */
+export async function addKategorie(
+  typ: KategorieTyp,
+  name: string,
+  icon: string
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const trimmed = name.trim()
+  if (!trimmed) return { fehler: 'Name darf nicht leer sein.' }
+
+  const { error } = await supabase.from('kategorien').insert({
+    organisation_id: orgId,
+    typ,
+    name: trimmed,
+    icon: icon || 'Package',
+  })
+
+  if (error) {
+    if (error.code === '23505') return { fehler: `„${trimmed}" existiert bereits.` }
+    return { fehler: 'Fehler beim Speichern.' }
+  }
+
+  revalidatePath('/dashboard/kategorien')
+  revalidatePath('/dashboard/einstellungen')
+  return {}
+}
+
+/** Kategorie umbenennen / Icon ändern. */
+export async function updateKategorie(
+  id: string,
+  name: string,
+  icon: string
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const trimmed = name.trim()
+  if (!trimmed) return { fehler: 'Name darf nicht leer sein.' }
+
+  const { error } = await supabase
+    .from('kategorien')
+    .update({ name: trimmed, icon: icon || 'Package' })
+    .eq('id', id)
+
+  if (error) {
+    if (error.code === '23505') return { fehler: `„${trimmed}" existiert bereits.` }
+    return { fehler: 'Fehler beim Aktualisieren.' }
+  }
+
+  revalidatePath('/dashboard/kategorien')
+  revalidatePath('/dashboard/einstellungen')
+  return {}
+}
+
+/** Kategorie löschen. */
+export async function deleteKategorie(id: string): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase.from('kategorien').delete().eq('id', id)
+  if (error) return { fehler: 'Fehler beim Löschen.' }
+  revalidatePath('/dashboard/kategorien')
+  revalidatePath('/dashboard/einstellungen')
+  return {}
+}
+
+/** Zählt Entitäten die diese Kategorie nutzen (via FK-Spalten). */
+export async function checkKategorieUsageById(
+  id: string,
+  typ: KategorieTyp
+): Promise<number> {
+  const supabase = await createClient()
+  if (typ === 'produktkategorie') {
+    const { count } = await supabase.from('produkte').select('*', { count: 'exact', head: true }).eq('kategorie_id', id).is('deleted_at', null)
+    return count ?? 0
+  }
+  if (typ === 'raumtyp') {
+    const { count } = await supabase.from('raeume').select('*', { count: 'exact', head: true }).eq('raumtyp_id', id).is('deleted_at', null)
+    return count ?? 0
+  }
+  if (typ === 'projektart') {
+    const { count } = await supabase.from('projekte').select('*', { count: 'exact', head: true }).eq('projektart_id', id).is('deleted_at', null)
+    return count ?? 0
+  }
+  return 0
 }

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useFormState, useFormStatus } from 'react-dom'
 import {
   type LucideIcon,
   // Möbel & Einrichtung
@@ -24,9 +23,9 @@ import {
   ChefHat, Utensils, Wine,
 } from 'lucide-react'
 import {
-  addListItem, deleteListItem, checkKategorieUsage, updateListItem,
-  type EinstellungActionState,
+  addKategorie, updateKategorie, deleteKategorie, checkKategorieUsageById,
 } from '@/app/actions/einstellungen'
+import type { Kategorie, KategorieTyp } from '@/lib/supabase/types'
 
 // ── Icon-Registrierung ─────────────────────────────────────────
 const ICON_KOMPONENTEN: Record<string, LucideIcon> = {
@@ -57,16 +56,6 @@ function getIconKomponente(iconName: string): LucideIcon {
   return ICON_KOMPONENTEN[iconName] ?? Package
 }
 
-// ── parseItem: "Name|IconName" → { name, iconName } ───────────
-function parseItem(raw: string): { name: string; iconName: string } {
-  const idx = raw.indexOf('|')
-  if (idx === -1) return { name: raw.trim(), iconName: 'Package' }
-  return {
-    name:     raw.slice(0, idx).trim(),
-    iconName: raw.slice(idx + 1).trim() || 'Package',
-  }
-}
-
 // ── Icon-Picker Modal ──────────────────────────────────────────
 function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name: string) => void }) {
   const [open, setOpen] = useState(false)
@@ -74,7 +63,6 @@ function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name:
 
   return (
     <>
-      {/* Kompakter Trigger – nur Icon, kein Text */}
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -86,12 +74,8 @@ function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name:
 
       {open && (
         <>
-          {/* Backdrop */}
           <div className="fixed inset-0 z-40 bg-black/20" onClick={() => setOpen(false)} />
-
-          {/* Modal – zentriert, 8 Icons pro Reihe */}
           <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden">
-            {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
               <p className="text-sm font-semibold text-gray-800">Icon auswählen</p>
               <button
@@ -102,8 +86,6 @@ function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name:
                 ✕
               </button>
             </div>
-
-            {/* Icon-Grid */}
             <div className="max-h-[420px] overflow-y-auto px-4 py-3 space-y-4">
               {ICON_GRUPPEN.map((gruppe) => (
                 <div key={gruppe.label}>
@@ -141,60 +123,37 @@ function IconPicker({ selected, onSelect }: { selected: string; onSelect: (name:
   )
 }
 
-// ── Submit Button ─────────────────────────────────────────────
-function SubmitButton({ label }: { label: string }) {
-  const { pending } = useFormStatus()
-  return (
-    <button type="submit" disabled={pending}
-      className="px-4 py-2 text-sm font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white rounded-lg transition-colors whitespace-nowrap">
-      {pending ? '…' : label}
-    </button>
-  )
-}
-
-function Meldung({ state }: { state: EinstellungActionState | null }) {
-  if (!state) return null
-  return (
-    <p className={`text-xs mt-1 ${state.fehler ? 'text-red-500' : 'text-emerald-600'}`}>
-      {state.fehler ?? state.erfolg}
-    </p>
-  )
-}
-
 // ── Einzelne Kategorie-Karte ───────────────────────────────────
-function KategorieKarte({ rawItem, schluessel, mitPruefung }: {
-  rawItem: string
-  schluessel: string
+function KategorieKarte({ item, mitPruefung }: {
+  item: Kategorie
   mitPruefung?: boolean
 }) {
-  const { name, iconName } = parseItem(rawItem)
-  const Icon = getIconKomponente(iconName)
-
+  const Icon = getIconKomponente(item.icon)
   const [editMode, setEditMode]   = useState(false)
-  const [editName, setEditName]   = useState(name)
-  const [editIcon, setEditIcon]   = useState(iconName)
+  const [editName, setEditName]   = useState(item.name)
+  const [editIcon, setEditIcon]   = useState(item.icon)
   const [fehler, setFehler]       = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleDelete() {
     startTransition(async () => {
       if (mitPruefung) {
-        const count = await checkKategorieUsage(name)
+        const count = await checkKategorieUsageById(item.id, item.typ)
         if (count > 0) {
           setFehler(`${count} Produkt${count !== 1 ? 'e' : ''} verwend${count !== 1 ? 'en' : 'et'} diese Kategorie. Bitte ändere zuerst die Kategorie dieser Produkte.`)
           return
         }
       }
       setFehler(null)
-      await deleteListItem(schluessel, rawItem)
+      const result = await deleteKategorie(item.id)
+      if (result?.fehler) setFehler(result.fehler)
     })
   }
 
   function handleSave() {
     if (!editName.trim()) { setFehler('Name darf nicht leer sein.'); return }
     startTransition(async () => {
-      const neuesItem = `${editName.trim()}|${editIcon}`
-      const result = await updateListItem(schluessel, rawItem, neuesItem)
+      const result = await updateKategorie(item.id, editName.trim(), editIcon)
       if (result?.fehler) {
         setFehler(result.fehler)
       } else {
@@ -207,8 +166,8 @@ function KategorieKarte({ rawItem, schluessel, mitPruefung }: {
   function cancelEdit() {
     setEditMode(false)
     setFehler(null)
-    setEditName(name)
-    setEditIcon(iconName)
+    setEditName(item.name)
+    setEditIcon(item.icon)
   }
 
   if (editMode) {
@@ -245,15 +204,15 @@ function KategorieKarte({ rawItem, schluessel, mitPruefung }: {
         <div className="w-9 h-9 rounded-lg bg-wellbeing-cream flex items-center justify-center shrink-0">
           <Icon className="w-[18px] h-[18px] text-wellbeing-green" />
         </div>
-        <span className="flex-1 text-sm text-gray-800 font-medium truncate">{name}</span>
+        <span className="flex-1 text-sm text-gray-800 font-medium truncate">{item.name}</span>
         <button type="button" onClick={() => { setEditMode(true); setFehler(null) }}
           disabled={isPending}
-          title={`„${name}" bearbeiten`}
+          title={`„${item.name}" bearbeiten`}
           className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-wellbeing-green hover:bg-wellbeing-cream transition-colors shrink-0">
           <Pencil className="w-3.5 h-3.5" />
         </button>
         <button type="button" onClick={handleDelete} disabled={isPending}
-          title={`„${name}" löschen`}
+          title={`„${item.name}" löschen`}
           className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
           <span className="text-[13px] leading-none">✕</span>
         </button>
@@ -266,14 +225,31 @@ function KategorieKarte({ rawItem, schluessel, mitPruefung }: {
 }
 
 // ── Listen Abschnitt ──────────────────────────────────────────
-function ListeAbschnitt({ titel, beschreibung, schluessel, items, platzhalter, mitIcons, mitPruefung }: {
+function ListeAbschnitt({ titel, beschreibung, typ, items, platzhalter, mitIcons, mitPruefung }: {
   titel: string; beschreibung?: string
-  schluessel: string; items: string[]; platzhalter: string
+  typ: KategorieTyp; items: Kategorie[]; platzhalter: string
   mitIcons?: boolean; mitPruefung?: boolean
 }) {
-  const boundAdd = addListItem.bind(null, schluessel)
-  const [state, action] = useFormState(boundAdd, null)
+  const [neuName, setNeuName]           = useState('')
   const [gewaehltesIcon, setGewaehltesIcon] = useState('Package')
+  const [meldung, setMeldung]           = useState<{ fehler?: string; erfolg?: string } | null>(null)
+  const [isPending, startTransition]    = useTransition()
+
+  function handleAdd(e: React.FormEvent) {
+    e.preventDefault()
+    const name = neuName.trim()
+    if (!name) return
+    startTransition(async () => {
+      const result = await addKategorie(typ, name, gewaehltesIcon)
+      if (result?.fehler) {
+        setMeldung({ fehler: result.fehler })
+      } else {
+        setMeldung({ erfolg: `„${name}" hinzugefügt.` })
+        setNeuName('')
+        setGewaehltesIcon('Package')
+      }
+    })
+  }
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
@@ -287,30 +263,38 @@ function ListeAbschnitt({ titel, beschreibung, schluessel, items, platzhalter, m
           <p className="text-sm text-gray-400">Noch keine Einträge vorhanden.</p>
         ) : (
           <div className="grid grid-cols-3 gap-3">
-            {items.map((rawItem) => (
+            {items.map((item) => (
               <KategorieKarte
-                key={rawItem}
-                rawItem={rawItem}
-                schluessel={schluessel}
+                key={item.id}
+                item={item}
                 mitPruefung={mitPruefung}
               />
             ))}
           </div>
         )}
 
-        <form action={action} className="space-y-2 pt-1">
+        <form onSubmit={handleAdd} className="space-y-2 pt-1">
           <div className="flex items-center gap-2">
             {mitIcons && (
-              <>
-                <IconPicker selected={gewaehltesIcon} onSelect={setGewaehltesIcon} />
-                <input type="hidden" name="icon" value={gewaehltesIcon} />
-              </>
+              <IconPicker selected={gewaehltesIcon} onSelect={setGewaehltesIcon} />
             )}
-            <input name="name" placeholder={platzhalter} required
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light" />
-            <SubmitButton label="Hinzufügen" />
+            <input
+              value={neuName}
+              onChange={(e) => setNeuName(e.target.value)}
+              placeholder={platzhalter}
+              required
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light"
+            />
+            <button type="submit" disabled={isPending}
+              className="px-4 py-2 text-sm font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white rounded-lg transition-colors whitespace-nowrap">
+              {isPending ? '…' : 'Hinzufügen'}
+            </button>
           </div>
-          <Meldung state={state} />
+          {meldung && (
+            <p className={`text-xs mt-1 ${meldung.fehler ? 'text-red-500' : 'text-emerald-600'}`}>
+              {meldung.fehler ?? meldung.erfolg}
+            </p>
+          )}
         </form>
       </div>
     </div>
@@ -319,26 +303,26 @@ function ListeAbschnitt({ titel, beschreibung, schluessel, items, platzhalter, m
 
 // ── Haupt-Komponente ──────────────────────────────────────────
 export default function KategorienVerwaltung({ kategorien, raumtypen, projektarten }: {
-  kategorien: string[]; raumtypen: string[]; projektarten: string[]
+  kategorien: Kategorie[]; raumtypen: Kategorie[]; projektarten: Kategorie[]
 }) {
   return (
     <div className="space-y-6">
       <ListeAbschnitt
         titel="Produktkategorien"
         beschreibung="Kategorien für Produkte in Räumen (z.B. Möbel, Leuchten)"
-        schluessel="produktkategorien" items={kategorien} platzhalter="z.B. Spiegel"
+        typ="produktkategorie" items={kategorien} platzhalter="z.B. Spiegel"
         mitIcons mitPruefung
       />
       <ListeAbschnitt
         titel="Raumtypen"
         beschreibung="Typen für neue Räume in Projekten"
-        schluessel="raumtypen" items={raumtypen} platzhalter="z.B. Empfang"
+        typ="raumtyp" items={raumtypen} platzhalter="z.B. Empfang"
         mitIcons
       />
       <ListeAbschnitt
         titel="Projektarten"
         beschreibung="Klassifizierung von Projekten"
-        schluessel="projektarten" items={projektarten} platzhalter="z.B. Umbau"
+        typ="projektart" items={projektarten} platzhalter="z.B. Umbau"
         mitIcons
       />
     </div>

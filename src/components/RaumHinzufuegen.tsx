@@ -3,6 +3,7 @@
 import { useFormState, useFormStatus } from 'react-dom'
 import { useState, useRef, useEffect } from 'react'
 import type { RaumActionState } from '@/app/actions/raeume'
+import type { Kategorie } from '@/lib/supabase/types'
 import {
   type LucideIcon,
   Sofa, Armchair, Lamp, Lightbulb, Bed, Table2, Wind,
@@ -32,11 +33,6 @@ function getIcon(name: string): LucideIcon {
   return ICONS[name] ?? Package
 }
 
-function parseRaumtyp(raw: string): { name: string; iconName: string } {
-  const idx = raw.indexOf('|')
-  if (idx === -1) return { name: raw.trim(), iconName: 'Package' }
-  return { name: raw.slice(0, idx).trim(), iconName: raw.slice(idx + 1).trim() || 'Package' }
-}
 
 function HinzufuegenButton() {
   const { pending } = useFormStatus()
@@ -53,7 +49,7 @@ function HinzufuegenButton() {
 
 interface Props {
   aktion: (prevState: RaumActionState, formData: FormData) => Promise<RaumActionState>
-  raumtypen: string[]
+  raumtypen: Kategorie[]
   raumAnzahl: number
 }
 
@@ -64,8 +60,6 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
   const [gewaehltIcon, setGewaehltIcon]   = useState<string>('Package')
   const [dropdownOffen, setDropdownOffen] = useState(false)
   const dropdownRef                       = useRef<HTMLDivElement>(null)
-
-  const parsed = raumtypen.map(parseRaumtyp)
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -112,7 +106,7 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
       {/* Aufklappbares Formular */}
       {offen && (
         <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/40">
-          {parsed.length === 0 ? (
+          {raumtypen.length === 0 ? (
             /* Keine Raumtypen konfiguriert */
             <div className="flex items-center justify-between gap-3 py-2">
               <p className="text-xs text-gray-500">
@@ -173,17 +167,17 @@ export default function RaumHinzufuegen({ aktion, raumtypen, raumAnzahl }: Props
 
                 {dropdownOffen && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-52 overflow-y-auto">
-                    {parsed.map(({ name: typName, iconName }) => {
-                      const Icon = getIcon(iconName)
+                    {raumtypen.map((typ) => {
+                      const Icon = getIcon(typ.icon)
                       return (
                         <button
-                          key={typName}
+                          key={typ.id}
                           type="button"
-                          onClick={() => selectTyp(typName, iconName)}
-                          className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-gray-50 transition-colors ${gewaehlt === typName ? 'bg-wellbeing-green/5 text-wellbeing-green' : 'text-gray-700'}`}
+                          onClick={() => selectTyp(typ.name, typ.icon)}
+                          className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-gray-50 transition-colors ${gewaehlt === typ.name ? 'bg-wellbeing-green/5 text-wellbeing-green' : 'text-gray-700'}`}
                         >
-                          <Icon className={`w-4 h-4 shrink-0 ${gewaehlt === typName ? 'text-wellbeing-green' : 'text-gray-400'}`} />
-                          {typName}
+                          <Icon className={`w-4 h-4 shrink-0 ${gewaehlt === typ.name ? 'text-wellbeing-green' : 'text-gray-400'}`} />
+                          {typ.name}
                         </button>
                       )
                     })}

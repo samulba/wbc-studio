@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import ProjektFormular from '@/components/ProjektFormular'
 import { projektAnlegen } from '@/app/actions/projekte'
+import { getKategorien } from '@/app/actions/einstellungen'
 import type { Kunde } from '@/lib/supabase/types'
 
 async function getKunden(): Promise<Pick<Kunde, 'id' | 'name'>[]> {
@@ -19,7 +20,7 @@ export default async function NeuesProjektPage({
 }: {
   searchParams: { kunde?: string }
 }) {
-  const kunden = await getKunden()
+  const [kunden, projektarten] = await Promise.all([getKunden(), getKategorien('projektart')])
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
@@ -46,6 +47,7 @@ export default async function NeuesProjektPage({
           <ProjektFormular
             aktion={projektAnlegen}
             kunden={kunden}
+            projektarten={projektarten}
             abbrechen="/dashboard/projekte"
             vorausgewaehlterKundeId={searchParams.kunde}
           />

@@ -20,7 +20,7 @@ import ProjektAktionenButtons from '@/components/ProjektAktionenButtons'
 import SortableRaumListe, { type RaumStat } from '@/components/SortableRaumListe'
 import PdfExportButton, { type PdfProdukt } from '@/components/PdfExportButton'
 import KonfiguratorLinkKarte from '@/components/KonfiguratorLinkKarte'
-import { getMwstSatz, getEinstellungen } from '@/app/actions/einstellungen'
+import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
 import type { TimelineEvent } from '@/lib/supabase/types'
 import type { DateiItem } from '@/components/DateiUpload'
@@ -127,7 +127,7 @@ async function getProdukteForPdf(projektId: string): Promise<PdfProdukt[]> {
 }
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, einstellungen, kunden, konfigSessions, naechsteEvents] = await Promise.all([
+  const [projekt, raeume, aktiverToken, dateien, stats, notizen, pdfProdukte, mwst, raumtypen, kunden, konfigSessions, naechsteEvents] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
@@ -136,16 +136,13 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
     getNotizen(params.id),
     getProdukteForPdf(params.id),
     getMwstSatz(),
-    getEinstellungen(),
+    getKategorien('raumtyp'),
     getKunden(),
     konfiguratorSessionsAbrufen(params.id),
     naechsteEventsAbrufen(params.id, 3),
   ])
 
   if (!projekt) notFound()
-
-  const raumtypen = (einstellungen.raumtypen ?? 'Büro,Studio,Wellness,Hotel,Privat,Wohnung,Sonstiges')
-    .split(',').map((s: string) => s.trim()).filter(Boolean)
 
   const raumIds = raeume.map((r) => r.id)
   const raumStats = await getRaumStats(raumIds)

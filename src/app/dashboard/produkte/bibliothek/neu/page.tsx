@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import ProduktFormular from '@/components/ProduktFormular'
 import { produktInBibliothekAnlegen } from '@/app/actions/produkte'
-import { getMwstSatz } from '@/app/actions/einstellungen'
+import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import type { Partner } from '@/lib/supabase/types'
 
 async function getPartner(): Promise<Pick<Partner, 'id' | 'name'>[]> {
@@ -17,7 +17,8 @@ async function getPartner(): Promise<Pick<Partner, 'id' | 'name'>[]> {
 }
 
 export default async function BibliothekNeuesProduktPage() {
-  const [partner, mwst] = await Promise.all([getPartner(), getMwstSatz()])
+  const [partner, mwst, kategorienRoh] = await Promise.all([getPartner(), getMwstSatz(), getKategorien('produktkategorie')])
+  const kategorienListe = kategorienRoh.map((k) => ({ name: k.name }))
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
@@ -40,6 +41,7 @@ export default async function BibliothekNeuesProduktPage() {
         <ProduktFormular
           aktion={produktInBibliothekAnlegen}
           partner={partner}
+          kategorienListe={kategorienListe}
           abbrechen="/dashboard/produkte"
           mwst={mwst}
         />

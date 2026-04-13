@@ -8,6 +8,7 @@ import LogoUpload from '@/components/LogoUpload'
 import PartnerProduktHinzufuegen from '@/components/PartnerProduktHinzufuegen'
 import { ExternalLink, Mail, Phone, Globe } from 'lucide-react'
 import type { KategorieOption } from '@/components/KategorieDropdown'
+import { getKategorien } from '@/app/actions/einstellungen'
 
 type ProduktMitRaum = {
   id: string; name: string; menge: number; einheit: string
@@ -36,24 +37,6 @@ const statusLabel: Record<string, string> = {
 }
 
 
-async function getKategorienListe(): Promise<KategorieOption[]> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('einstellungen')
-    .select('wert')
-    .eq('schluessel', 'produktkategorien')
-    .single()
-  if (!data?.wert) return []
-  return (data.wert as string)
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((raw) => {
-      const idx = raw.indexOf('|')
-      if (idx === -1) return { name: raw, icon: 'Package' }
-      return { name: raw.slice(0, idx).trim(), icon: raw.slice(idx + 1).trim() || 'Package' }
-    })
-}
 
 async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
   const supabase = await createClient()
@@ -69,7 +52,7 @@ async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
 
 export default async function PartnerDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
-  const [{ data: partner }, { data: produkte }, notizen, kategorienListe] = await Promise.all([
+  const [{ data: partner }, { data: produkte }, notizen, kategorienRoh] = await Promise.all([
     supabase.from('partner').select('*').eq('id', params.id).is('deleted_at', null).single(),
     supabase
       .from('produkte')
@@ -77,8 +60,9 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
       .eq('partner_id', params.id).is('deleted_at', null)
       .order('created_at', { ascending: false }),
     getPartnerNotizen(params.id),
-    getKategorienListe(),
+    getKategorien('produktkategorie'),
   ])
+  const kategorienListe: KategorieOption[] = kategorienRoh.map((k) => ({ name: k.name, icon: k.icon }))
 
   if (!partner) notFound()
 

@@ -22,6 +22,20 @@ export interface Organisation {
   updated_at: string
 }
 
+// ── Kategorien ────────────────────────────────────────────────
+export type KategorieTyp = 'produktkategorie' | 'raumtyp' | 'projektart'
+
+export interface Kategorie {
+  id: string
+  organisation_id: string
+  typ: KategorieTyp
+  name: string
+  icon: string
+  reihenfolge: number
+  created_at: string
+  updated_at: string
+}
+
 export type ProduktStatus = 'ausstehend' | 'freigegeben' | 'abgelehnt' | 'ueberarbeitung'
 export type BestellStatus = 'ausstehend' | 'bestellt' | 'geliefert' | 'rechnung_erhalten'
 export type ProjektStatus = 'offen' | 'in_bearbeitung' | 'freigegeben' | 'abgeschlossen'

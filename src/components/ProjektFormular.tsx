@@ -4,16 +4,6 @@ import { useFormState, useFormStatus } from 'react-dom'
 import type { ProjektActionState } from '@/app/actions/projekte'
 import type { Kunde, Projekt } from '@/lib/supabase/types'
 
-export const PROJEKTARTEN = [
-  'Hotel',
-  'Büro / Office',
-  'Restaurant / Gastronomie',
-  'Wohnprojekt / Residential',
-  'Spa / Wellness',
-  'Einzelhandel / Retail',
-  'Sonstige',
-]
-
 export const PROJEKT_STATUS = [
   { wert: 'offen', label: 'Offen' },
   { wert: 'in_bearbeitung', label: 'In Bearbeitung' },
@@ -37,6 +27,7 @@ function SpeichernButton() {
 interface Props {
   aktion: (prevState: ProjektActionState, formData: FormData) => Promise<ProjektActionState>
   kunden: Pick<Kunde, 'id' | 'name'>[]
+  projektarten: { name: string }[]
   initialData?: Projekt
   abbrechen: string
   istBearbeiten?: boolean
@@ -46,6 +37,7 @@ interface Props {
 export default function ProjektFormular({
   aktion,
   kunden,
+  projektarten,
   initialData,
   abbrechen,
   istBearbeiten = false,
@@ -118,8 +110,8 @@ export default function ProjektFormular({
             className={inp}
           >
             <option value="">Bitte wählen…</option>
-            {PROJEKTARTEN.map((art) => (
-              <option key={art} value={art}>{art}</option>
+            {projektarten.map((art) => (
+              <option key={art.name} value={art.name}>{art.name}</option>
             ))}
           </select>
         </div>

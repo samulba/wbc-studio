@@ -4,7 +4,7 @@ import ProdukteTabelle, { type ProduktZeile } from '@/components/ProdukteTabelle
 import NeuesProduktModal from '@/components/NeuesProduktModal'
 import type { KategorieOption } from '@/components/KategorieDropdown'
 import type { ProjektOption, RaumOption } from '@/components/ProduktZuweisenModal'
-import { getMwstSatz } from '@/app/actions/einstellungen'
+import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 
 async function getProdukte(): Promise<ProduktZeile[]> {
   const supabase = await createClient()
@@ -70,32 +70,14 @@ async function getProjekteMitRaeumen(): Promise<{ projekte: ProjektOption[]; rae
   }
 }
 
-async function getKategorienListe(): Promise<KategorieOption[]> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('einstellungen')
-    .select('value')
-    .eq('key', 'produktkategorien')
-    .single()
-  if (!data?.value) return []
-  return (data.value as string)
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((raw) => {
-      const idx = raw.indexOf('|')
-      if (idx === -1) return { name: raw, icon: 'Package' }
-      return { name: raw.slice(0, idx).trim(), icon: raw.slice(idx + 1).trim() || 'Package' }
-    })
-}
-
 export default async function ProdukteSeite() {
-  const [produkte, kategorienListe, { projekte, raeume }, mwst] = await Promise.all([
+  const [produkte, kategorienRoh, { projekte, raeume }, mwst] = await Promise.all([
     getProdukte(),
-    getKategorienListe(),
+    getKategorien('produktkategorie'),
     getProjekteMitRaeumen(),
     getMwstSatz(),
   ])
+  const kategorienListe: KategorieOption[] = kategorienRoh.map((k) => ({ name: k.name, icon: k.icon }))
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">

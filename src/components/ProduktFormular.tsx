@@ -15,10 +15,6 @@ import type { ScraperErgebnis } from '@/app/api/scrape-product/route'
 // ── Konstanten ────────────────────────────────────────────────
 const MWST_DEFAULT = 0.19
 const EINHEITEN    = ['Stk', 'Paar', 'm', 'm²', 'Lfd. m', 'Set', 'Pauschal']
-const KATEGORIEN   = [
-  'Beleuchtung', 'Möbel', 'Textilien', 'Dekoration',
-  'Pflanzen', 'Kunst', 'Technik', 'Sanitär', 'Sonstige',
-]
 const LIEFERZEIT_VORSCHLAEGE = [
   'Sofort verfügbar', '1-2 Wochen', '3-4 Wochen',
   '6-8 Wochen', '8-12 Wochen', 'Auf Anfrage',
@@ -51,13 +47,14 @@ type ProduktErweitert = ProduktMitDetails & {
 }
 
 interface Props {
-  aktion:    (prevState: ProduktActionState, formData: FormData) => Promise<ProduktActionState>
-  partner:   Pick<Partner, 'id' | 'name'>[]
-  initialData?: ProduktErweitert
-  abbrechen: string
-  mwst?:     number
-  notizen?:  Notiz[]
-  produktId?: string
+  aktion:         (prevState: ProduktActionState, formData: FormData) => Promise<ProduktActionState>
+  partner:        Pick<Partner, 'id' | 'name'>[]
+  kategorienListe: { name: string }[]
+  initialData?:   ProduktErweitert
+  abbrechen:      string
+  mwst?:          number
+  notizen?:       Notiz[]
+  produktId?:     string
 }
 
 // ── AutoFill Modal ────────────────────────────────────────────
@@ -385,7 +382,7 @@ function SpeichernButton({ disabled }: { disabled?: boolean }) {
 
 // ── Hauptkomponente ───────────────────────────────────────────
 export default function ProduktFormular({
-  aktion, partner, initialData, abbrechen, mwst = MWST_DEFAULT, notizen, produktId,
+  aktion, partner, kategorienListe, initialData, abbrechen, mwst = MWST_DEFAULT, notizen, produktId,
 }: Props) {
   const [state, formAction] = useFormState(aktion, null)
 
@@ -653,7 +650,7 @@ export default function ProduktFormular({
                   className={inp}
                 >
                   <option value="">— wählen —</option>
-                  {KATEGORIEN.map((k) => <option key={k} value={k}>{k}</option>)}
+                  {kategorienListe.map((k) => <option key={k.name} value={k.name}>{k.name}</option>)}
                 </select>
               </div>
             </div>

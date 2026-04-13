@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import ProjektFormular from '@/components/ProjektFormular'
 import { projektAktualisieren } from '@/app/actions/projekte'
+import { getKategorien } from '@/app/actions/einstellungen'
 import type { Kunde } from '@/lib/supabase/types'
 
 async function getKunden(): Promise<Pick<Kunde, 'id' | 'name'>[]> {
@@ -21,7 +22,7 @@ export default async function ProjektBearbeitenPage({
   params: { id: string }
 }) {
   const supabase = await createClient()
-  const [{ data: projekt }, kunden] = await Promise.all([
+  const [{ data: projekt }, kunden, projektarten] = await Promise.all([
     supabase
       .from('projekte')
       .select('*')
@@ -29,6 +30,7 @@ export default async function ProjektBearbeitenPage({
       .is('deleted_at', null)
       .single(),
     getKunden(),
+    getKategorien('projektart'),
   ])
 
   if (!projekt) notFound()
@@ -51,6 +53,7 @@ export default async function ProjektBearbeitenPage({
         <ProjektFormular
           aktion={aktion}
           kunden={kunden}
+          projektarten={projektarten}
           initialData={projekt}
           abbrechen={`/dashboard/projekte/${projekt.id}`}
           istBearbeiten
