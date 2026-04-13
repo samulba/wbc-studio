@@ -224,9 +224,23 @@ export interface Produkt {
   produkt_url: string | null
   reihenfolge: number
   bestellstatus: BestellStatus
+  // Varianten (Migration 041)
+  ist_variante: boolean
+  eltern_produkt_id: string | null
+  varianten_attribute: Json | null  // z.B. {"farbe": "Eiche", "groesse": "120x80"}
   deleted_at: string | null
   created_at: string
   updated_at: string
+}
+
+// ── Varianten-Definitionen (Migration 041) ────────────────────
+export interface VariantenDefinition {
+  id: string
+  organisation_id: string
+  produkt_id: string
+  attribut_name: string
+  optionen: string[]
+  reihenfolge: number
 }
 
 export type ProduktMitDetails = Produkt & {

@@ -3,7 +3,7 @@
 import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import type { ProduktStatus, BestellStatus } from '@/lib/supabase/types'
+import type { ProduktStatus, BestellStatus, VariantenDefinition, Json } from '@/lib/supabase/types'
 
 export type ProduktActionState = { fehler: string } | null
 
@@ -316,4 +316,157 @@ export async function produktStatusAendern(
     .upsert({ produkt_id: produktId, status }, { onConflict: 'produkt_id' })
 
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+}
+
+// ── Produkt-Varianten (Migration 041) ─────────────────────────
+
+/**
+ * Legt eine neue Variante basierend auf einem Eltern-Produkt an.
+ * Kopiert alle Stammdaten und setzt ist_variante=true + varianten_attribute.
+ */
+export async function varianteAnlegen(
+  elternProduktId: string,
+  variantenAttribute: Record<string, string>
+): Promise<{ id?: string; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  // Eltern-Produkt laden
+  const { data: eltern, error: elternError } = await supabase
+    .from('produkte')
+    .select('*')
+    .eq('id', elternProduktId)
+    .is('deleted_at', null)
+    .single()
+
+  if (elternError || !eltern) return { fehler: 'Eltern-Produkt nicht gefunden.' }
+
+  // Varianten-Name aus Attributen generieren (z.B. "Eiche / 120x80")
+  const attributWerte = Object.values(variantenAttribute).join(' / ')
+  const variantenName = `${eltern.name} – ${attributWerte}`
+
+  const { data: variante, error } = await supabase
+    .from('produkte')
+    .insert({
+      organisation_id: orgId,
+      raum_id: null,
+      partner_id: eltern.partner_id,
+      name: variantenName,
+      beschreibung: eltern.beschreibung,
+      kategorie: eltern.kategorie,
+      menge: eltern.menge,
+      einheit: eltern.einheit,
+      einkaufspreis: eltern.einkaufspreis,
+      marge_prozent: eltern.marge_prozent,
+      provision_prozent: eltern.provision_prozent,
+      verkaufspreis: eltern.verkaufspreis,
+      bild_url: eltern.bild_url,
+      produkt_url: eltern.produkt_url,
+      notizen_intern: eltern.notizen_intern,
+      // Neue Variantenfelder
+      ist_variante: true,
+      eltern_produkt_id: elternProduktId,
+      varianten_attribute: variantenAttribute as unknown as Json,
+    })
+    .select('id')
+    .single()
+
+  if (error || !variante) return { fehler: 'Fehler beim Anlegen der Variante.' }
+
+  // Produktstatus für Variante anlegen
+  await supabase.from('produktstatus').insert({
+    produkt_id: variante.id,
+    status: 'ausstehend',
+    organisation_id: orgId,
+  })
+
+  revalidatePath('/dashboard/produkte')
+  return { id: variante.id }
+}
+
+/**
+ * Speichert (upsert) eine Varianten-Definition für ein Produkt.
+ * Definiert, welche Optionen ein bestimmtes Attribut hat.
+ */
+export async function variantenDefinitionSpeichern(
+  produktId: string,
+  attributName: string,
+  optionen: string[]
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  if (!attributName.trim()) return { fehler: 'Attribut-Name ist erforderlich.' }
+  if (optionen.length === 0) return { fehler: 'Mindestens eine Option ist erforderlich.' }
+
+  const { error } = await supabase
+    .from('varianten_definitionen')
+    .upsert(
+      {
+        organisation_id: orgId,
+        produkt_id: produktId,
+        attribut_name: attributName.trim(),
+        optionen,
+      },
+      { onConflict: 'produkt_id,attribut_name' }
+    )
+
+  if (error) return { fehler: 'Fehler beim Speichern der Varianten-Definition.' }
+
+  revalidatePath('/dashboard/produkte')
+  return {}
+}
+
+/**
+ * Lädt alle Varianten-Definitionen eines Produkts.
+ */
+export async function getVariantenDefinitionen(
+  produktId: string
+): Promise<VariantenDefinition[]> {
+  const supabase = await createClient()
+
+  const { data } = await supabase
+    .from('varianten_definitionen')
+    .select('*')
+    .eq('produkt_id', produktId)
+    .order('reihenfolge')
+
+  return (data ?? []) as VariantenDefinition[]
+}
+
+/**
+ * Lädt alle Varianten eines Eltern-Produkts.
+ */
+export async function getVarianten(elternProduktId: string) {
+  const supabase = await createClient()
+
+  const { data } = await supabase
+    .from('produkte')
+    .select('id, name, varianten_attribute, verkaufspreis, einkaufspreis, bild_url, bestellstatus')
+    .eq('eltern_produkt_id', elternProduktId)
+    .is('deleted_at', null)
+    .order('created_at')
+
+  return data ?? []
+}
+
+/**
+ * Löscht eine Varianten-Definition (und optional alle zugehörigen Varianten-Produkte).
+ */
+export async function variantenDefinitionLoeschen(
+  id: string,
+  produktId: string
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('varianten_definitionen')
+    .delete()
+    .eq('id', id)
+    .eq('produkt_id', produktId)
+
+  if (error) return { fehler: 'Fehler beim Löschen der Definition.' }
+
+  revalidatePath('/dashboard/produkte')
+  return {}
 }
