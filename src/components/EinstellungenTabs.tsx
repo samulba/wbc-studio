@@ -752,13 +752,13 @@ export default function EinstellungenTabs({
   branding: Branding | null
 }) {
   const istAdmin = userRolle === 'admin'
-  const adminOnlyKeys = new Set(['team', 'branding'])
+  const adminOnlyKeys = new Set(['branding'])
   const sichtbareTabs = TABS.filter((t) => !adminOnlyKeys.has(t.key) || istAdmin)
 
   return (
     <div>
       {/* Tab-Leiste */}
-      <div className="flex gap-0 mb-8 border-b border-gray-200 overflow-x-auto">
+      <div className="flex flex-wrap gap-0 mb-8 border-b border-gray-200">
         {sichtbareTabs.map((t) => (
           <a
             key={t.key}
