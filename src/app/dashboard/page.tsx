@@ -25,100 +25,142 @@ function tageDiff(isoDate: string): number {
   return Math.floor((new Date(isoDate).getTime() - Date.now()) / 86_400_000)
 }
 
+/** Führt einen Supabase-Query sicher aus und gibt null zurück wenn er fehlschlägt. */
+async function safeQuery<T>(
+  queryFn: () => PromiseLike<{ data: T | null; error: unknown; count?: number | null }>
+): Promise<{ data: T | null; count: number | null }> {
+  try {
+    const result = await queryFn()
+    if (result.error) return { data: null, count: null }
+    return { data: result.data, count: result.count ?? null }
+  } catch {
+    return { data: null, count: null }
+  }
+}
+
 // ── Datenabruf ────────────────────────────────────────────────
 
 async function getDashboardData() {
   const supabase = await createClient()
 
-  // Aktueller Monatsanfang
-  const now = new Date()
+  const now         = new Date()
   const monatsStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-
-  // Deadline in 60 Tagen
-  const in60Tagen = new Date()
-  in60Tagen.setDate(in60Tagen.getDate() + 60)
-
-  // Follow-up in 7 Tagen
-  const in7Tagen = new Date()
-  in7Tagen.setDate(in7Tagen.getDate() + 7)
+  const in60Tagen   = new Date(now); in60Tagen.setDate(now.getDate() + 60)
+  const in7Tagen    = new Date(now); in7Tagen.setDate(now.getDate() + 7)
   const in7TagenStr = in7Tagen.toISOString().slice(0, 10)
+  const in60Str     = in60Tagen.toISOString().slice(0, 10)
 
+  // Alle Kern-Queries parallel, jeder mit eigenem Fehler-Schutz
   const [
-    { count: aktiveKunden },
-    { count: laufendeProjekte },
-    { data: deadlineProjekte },
-    { data: letzteProjekteRaw },
-    { data: produkteKostenRaw },
-    { data: aktivProjekteBudget },
+    aktiveKundenResult,
+    laufendeProjekteResult,
+    deadlineProjekteResult,
+    letzteProjekteResult,
+    produkteKostenResult,
+    aktivProjekteBudgetResult,
   ] = await Promise.all([
-    // ROW 1 KPIs
-    supabase.from('kunden').select('*', { count: 'exact', head: true }).eq('status', 'aktiv').is('deleted_at', null),
-    supabase.from('projekte').select('*', { count: 'exact', head: true }).in('status', ['offen', 'in_bearbeitung']).is('deleted_at', null).eq('archiviert', false),
 
-    // ROW 2: Deadlines
-    supabase
-      .from('projekte')
-      .select('id, name, deadline, kunden(name)')
-      .is('deleted_at', null)
-      .eq('archiviert', false)
-      .in('status', ['offen', 'in_bearbeitung'])
-      .not('deadline', 'is', null)
-      .lte('deadline', in60Tagen.toISOString().slice(0, 10))
-      .order('deadline', { ascending: true })
-      .limit(6),
+    // Aktive Kunden – ohne status-Filter als Fallback falls Spalte fehlt
+    safeQuery(() =>
+      supabase
+        .from('kunden')
+        .select('*', { count: 'exact', head: true })
+        .is('deleted_at', null)
+    ),
 
-    // ROW 4: Letzte Projekte
-    supabase
-      .from('projekte')
-      .select('*, kunden(id, name)')
-      .is('deleted_at', null)
-      .eq('archiviert', false)
-      .order('created_at', { ascending: false })
-      .limit(8),
+    // Laufende Projekte
+    safeQuery(() =>
+      supabase
+        .from('projekte')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['offen', 'in_bearbeitung'])
+        .is('deleted_at', null)
+        .eq('archiviert', false)
+    ),
 
-    // ROW 3 Budget: Ist-Kosten aus raum_produkte
-    supabase
-      .from('raum_produkte')
-      .select('menge, verkaufspreis_override, raeume!inner(projekt_id), produkte!inner(verkaufspreis)'),
+    // Nächste Deadlines
+    safeQuery(() =>
+      supabase
+        .from('projekte')
+        .select('id, name, deadline, kunden(name)')
+        .is('deleted_at', null)
+        .eq('archiviert', false)
+        .in('status', ['offen', 'in_bearbeitung'])
+        .not('deadline', 'is', null)
+        .lte('deadline', in60Str)
+        .order('deadline', { ascending: true })
+        .limit(6)
+    ),
 
-    // Aktive Projekte mit Budget für Übersicht
-    supabase
-      .from('projekte')
-      .select('id, name, gesamtbudget')
-      .is('deleted_at', null)
-      .eq('archiviert', false)
-      .in('status', ['offen', 'in_bearbeitung'])
-      .not('gesamtbudget', 'is', null)
-      .order('gesamtbudget', { ascending: false })
-      .limit(5),
+    // Letzte Projekte
+    safeQuery(() =>
+      supabase
+        .from('projekte')
+        .select('*, kunden(id, name)')
+        .is('deleted_at', null)
+        .eq('archiviert', false)
+        .order('created_at', { ascending: false })
+        .limit(8)
+    ),
+
+    // Budget: Ist-Kosten aus raum_produkte
+    safeQuery(() =>
+      supabase
+        .from('raum_produkte')
+        .select('menge, verkaufspreis_override, raeume!inner(projekt_id), produkte!inner(verkaufspreis)')
+    ),
+
+    // Aktive Projekte mit Budget
+    safeQuery(() =>
+      supabase
+        .from('projekte')
+        .select('id, name, gesamtbudget')
+        .is('deleted_at', null)
+        .eq('archiviert', false)
+        .in('status', ['offen', 'in_bearbeitung'])
+        .not('gesamtbudget', 'is', null)
+        .order('gesamtbudget', { ascending: false })
+        .limit(5)
+    ),
   ])
 
-  // Angebote-Daten (graceful: Tabelle existiert möglicherweise noch nicht)
+  // Angebote (eigene try/catch – Tabelle evtl. nicht migriert)
   let offeneAngebote = 0
-  let monatsumsatz = 0
+  let monatsumsatz   = 0
   try {
-    const [{ count: angeboteCount }, { data: monatsDaten }] = await Promise.all([
-      supabase.from('angebote').select('*', { count: 'exact', head: true }).in('status', ['entwurf', 'gesendet']),
-      supabase.from('angebote').select('brutto_summe').eq('status', 'angenommen').gte('created_at', monatsStart),
+    const [r1, r2] = await Promise.all([
+      safeQuery(() =>
+        supabase
+          .from('angebote')
+          .select('*', { count: 'exact', head: true })
+          .in('status', ['entwurf', 'gesendet'])
+      ),
+      safeQuery(() =>
+        supabase
+          .from('angebote')
+          .select('brutto_summe')
+          .eq('status', 'angenommen')
+          .gte('created_at', monatsStart)
+      ),
     ])
-    offeneAngebote = angeboteCount ?? 0
-    monatsumsatz = (monatsDaten ?? []).reduce(
-      (sum, a) => sum + ((a as { brutto_summe: number | null }).brutto_summe ?? 0),
-      0
-    )
+    offeneAngebote = r1.count ?? 0
+    monatsumsatz   = ((r2.data ?? []) as { brutto_summe: number | null }[])
+      .reduce((sum, a) => sum + (a.brutto_summe ?? 0), 0)
   } catch { /* angebote-Tabelle noch nicht migriert */ }
 
-  // Follow-ups (graceful: tabelle existiert vielleicht noch nicht)
+  // Follow-ups (eigene try/catch – Tabelle evtl. nicht migriert)
   let followUpEintraege: FollowUpEintrag[] = []
   try {
-    const { data: followUps } = await supabase
-      .from('kommunikation')
-      .select('id, typ, betreff, follow_up_datum, kunden!inner(id, name)')
-      .eq('erledigt', false)
-      .not('follow_up_datum', 'is', null)
-      .lte('follow_up_datum', in7TagenStr)
-      .order('follow_up_datum', { ascending: true })
-      .limit(8)
+    const r = await safeQuery(() =>
+      supabase
+        .from('kommunikation')
+        .select('id, typ, betreff, follow_up_datum, kunden!inner(id, name)')
+        .eq('erledigt', false)
+        .not('follow_up_datum', 'is', null)
+        .lte('follow_up_datum', in7TagenStr)
+        .order('follow_up_datum', { ascending: true })
+        .limit(8)
+    )
 
     type FollowUpRaw = {
       id: string
@@ -128,85 +170,89 @@ async function getDashboardData() {
       kunden: { id: string; name: string } | null
     }
 
-    followUpEintraege = ((followUps ?? []) as unknown as FollowUpRaw[]).map((e) => ({
-      id: e.id,
-      kundeId: e.kunden?.id ?? '',
-      kundenName: e.kunden?.name ?? '–',
-      typ: e.typ,
-      betreff: e.betreff,
+    followUpEintraege = ((r.data ?? []) as unknown as FollowUpRaw[]).map((e) => ({
+      id:              e.id,
+      kundeId:         e.kunden?.id ?? '',
+      kundenName:      e.kunden?.name ?? '–',
+      typ:             e.typ,
+      betreff:         e.betreff,
       follow_up_datum: e.follow_up_datum,
       tageVerbleibend: Math.floor((new Date(e.follow_up_datum).getTime() - Date.now()) / 86_400_000),
     }))
   } catch { /* tabelle existiert noch nicht */ }
 
-  // Letzte Aktivitäten (graceful)
+  // Letzte Aktivitäten (eigene try/catch – Tabelle evtl. nicht migriert)
   let aktivitaeten: AktivitaetsEintrag[] = []
   try {
-    const { data: logDaten } = await supabase
-      .from('audit_log')
-      .select('id, aktion, tabelle, created_at')
-      .order('created_at', { ascending: false })
-      .limit(8)
-    aktivitaeten = (logDaten ?? []) as AktivitaetsEintrag[]
+    const r = await safeQuery(() =>
+      supabase
+        .from('audit_log')
+        .select('id, aktion, tabelle, created_at')
+        .order('created_at', { ascending: false })
+        .limit(8)
+    )
+    aktivitaeten = ((r.data ?? []) as unknown as AktivitaetsEintrag[])
   } catch { /* tabelle existiert noch nicht */ }
 
   // ── Berechnungen ───────────────────────────────────────────
 
-  // Deadlines aufbereiten
   type DeadlineRaw = { id: string; name: string; deadline: string; kunden: { name: string } | null }
-  const naechsteDeadlines: DeadlineProjekt[] = ((deadlineProjekte ?? []) as unknown as DeadlineRaw[]).map((p) => ({
-    id: p.id,
-    name: p.name,
-    kundenName: p.kunden?.name ?? null,
-    deadline: p.deadline,
+  const naechsteDeadlines: DeadlineProjekt[] = (
+    (deadlineProjekteResult.data ?? []) as unknown as DeadlineRaw[]
+  ).map((p) => ({
+    id:              p.id,
+    name:            p.name,
+    kundenName:      p.kunden?.name ?? null,
+    deadline:        p.deadline,
     tageVerbleibend: tageDiff(p.deadline),
   }))
 
-  // Budget Ist-Kosten berechnen
   type KostenRaw = {
     menge: number
     verkaufspreis_override: number | null
-    raeume: { projekt_id: string } | null
+    raeume:   { projekt_id: string } | null
     produkte: { verkaufspreis: number | null } | null
   }
   const kostenByProjekt = new Map<string, number>()
-  for (const e of (produkteKostenRaw ?? []) as unknown as KostenRaw[]) {
+  for (const e of (produkteKostenResult.data ?? []) as unknown as KostenRaw[]) {
     if (!e.raeume) continue
-    const ep = e.verkaufspreis_override ?? e.produkte?.verkaufspreis ?? 0
-    const kosten = ep * e.menge
-    const prev = kostenByProjekt.get(e.raeume.projekt_id) ?? 0
-    kostenByProjekt.set(e.raeume.projekt_id, prev + kosten)
+    const ep    = e.verkaufspreis_override ?? e.produkte?.verkaufspreis ?? 0
+    const prev  = kostenByProjekt.get(e.raeume.projekt_id) ?? 0
+    kostenByProjekt.set(e.raeume.projekt_id, prev + ep * e.menge)
   }
 
-  const budgetProjekte: BudgetProjekt[] = (aktivProjekteBudget ?? [])
+  const budgetProjekte: BudgetProjekt[] = (
+    (aktivProjekteBudgetResult.data ?? []) as { id: string; name: string; gesamtbudget: number | null }[]
+  )
     .filter((p) => (p.gesamtbudget ?? 0) > 0)
     .map((p) => {
-      const ist = Math.round((kostenByProjekt.get(p.id) ?? 0) * 100) / 100
+      const ist    = Math.round((kostenByProjekt.get(p.id) ?? 0) * 100) / 100
       const budget = p.gesamtbudget ?? 0
       return {
-        id: p.id,
-        name: p.name,
+        id:        p.id,
+        name:      p.name,
         budget,
         istKosten: ist,
-        prozent: budget > 0 ? Math.min(Math.round((ist / budget) * 100), 999) : 0,
+        prozent:   budget > 0 ? Math.min(Math.round((ist / budget) * 100), 999) : 0,
       }
     })
 
-  // Letzte Projekte
-  const letzteProjekte: LetzesProjekt[] = ((letzteProjekteRaw ?? []) as ProjektMitKunde[]).map((p) => ({
-    id: p.id,
-    name: p.name,
-    kundenName: p.kunden?.name ?? null,
-    status: p.status,
+  const letzteProjekte: LetzesProjekt[] = (
+    (letzteProjekteResult.data ?? []) as ProjektMitKunde[]
+  ).map((p) => ({
+    id:           p.id,
+    name:         p.name,
+    kundenName:   p.kunden?.name ?? null,
+    status:       p.status,
     gesamtbudget: p.gesamtbudget ?? null,
-    deadline: p.deadline ?? null,
-    created_at: p.created_at,
+    deadline:     p.deadline ?? null,
+    created_at:   p.created_at,
   }))
 
   return {
-    aktiveKunden:     aktiveKunden    ?? 0,
-    laufendeProjekte: laufendeProjekte ?? 0,
-    offeneAngebote:   offeneAngebote  ?? 0,
+    aktiveKunden:     aktiveKundenResult.count     ?? 0,
+    laufendeProjekte: laufendeProjekteResult.count ?? 0,
+    offeneAngebote,
     monatsumsatz,
     naechsteDeadlines,
     followUpEintraege,
@@ -228,28 +274,28 @@ export default async function DashboardPage() {
 
   const kpis = [
     {
-      label:    'Aktive Kunden',
-      wert:     aktiveKunden,
-      href:     '/dashboard/kunden',
-      icon:     Users,
-      farbe:    'text-wellbeing-green',
-      bg:       'bg-wellbeing-cream',
+      label: 'Aktive Kunden',
+      wert:  aktiveKunden,
+      href:  '/dashboard/kunden',
+      icon:  Users,
+      farbe: 'text-wellbeing-green',
+      bg:    'bg-wellbeing-cream',
     },
     {
-      label:    'Laufende Projekte',
-      wert:     laufendeProjekte,
-      href:     '/dashboard/projekte',
-      icon:     FolderOpen,
-      farbe:    'text-blue-600',
-      bg:       'bg-blue-50',
+      label: 'Laufende Projekte',
+      wert:  laufendeProjekte,
+      href:  '/dashboard/projekte',
+      icon:  FolderOpen,
+      farbe: 'text-blue-600',
+      bg:    'bg-blue-50',
     },
     {
-      label:    'Offene Angebote',
-      wert:     offeneAngebote,
-      href:     '/dashboard/projekte',
-      icon:     ReceiptText,
-      farbe:    'text-violet-600',
-      bg:       'bg-violet-50',
+      label: 'Offene Angebote',
+      wert:  offeneAngebote,
+      href:  '/dashboard/projekte',
+      icon:  ReceiptText,
+      farbe: 'text-violet-600',
+      bg:    'bg-violet-50',
     },
     {
       label:    'Monatsumsatz',
