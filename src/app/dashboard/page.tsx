@@ -6,12 +6,10 @@ import {
   NaechsteDeadlines,
   OffeneFollowUps,
   BudgetUebersicht,
-  LetzteAktivitaeten,
   LetzteProjekte,
   type DeadlineProjekt,
   type FollowUpEintrag,
   type BudgetProjekt,
-  type AktivitaetsEintrag,
   type LetzesProjekt,
 } from '@/components/DashboardWidgets'
 
@@ -177,19 +175,6 @@ async function getDashboardData() {
     }))
   } catch { /* tabelle existiert noch nicht */ }
 
-  // Letzte Aktivitäten (eigene try/catch – Tabelle evtl. nicht migriert)
-  let aktivitaeten: AktivitaetsEintrag[] = []
-  try {
-    const r = await safeQuery(() =>
-      supabase
-        .from('audit_log')
-        .select('id, aktion, tabelle, created_at')
-        .order('created_at', { ascending: false })
-        .limit(8)
-    )
-    aktivitaeten = ((r.data ?? []) as unknown as AktivitaetsEintrag[])
-  } catch { /* tabelle existiert noch nicht */ }
-
   // ── Berechnungen ───────────────────────────────────────────
 
   type DeadlineRaw = { id: string; name: string; deadline: string; kunden: { name: string } | null }
@@ -253,7 +238,6 @@ async function getDashboardData() {
     naechsteDeadlines,
     followUpEintraege,
     budgetProjekte,
-    aktivitaeten,
     letzteProjekte,
   }
 }
@@ -264,7 +248,7 @@ export default async function DashboardPage() {
   const {
     aktiveKunden, laufendeProjekte, offeneAngebote, monatsumsatz,
     naechsteDeadlines, followUpEintraege,
-    budgetProjekte, aktivitaeten,
+    budgetProjekte,
     letzteProjekte,
   } = await getDashboardData()
 
@@ -307,10 +291,9 @@ export default async function DashboardPage() {
         <OffeneFollowUps eintraege={followUpEintraege} />
       </div>
 
-      {/* ROW 3: Budget-Übersicht + Letzte Aktivitäten */}
-      <div className="grid grid-cols-2 gap-4 min-h-[220px]">
+      {/* ROW 3: Budget-Übersicht */}
+      <div className="min-h-[220px]">
         <BudgetUebersicht projekte={budgetProjekte} />
-        <LetzteAktivitaeten eintraege={aktivitaeten} />
       </div>
 
       {/* ROW 4: Letzte Projekte */}
