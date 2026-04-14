@@ -7,6 +7,7 @@ import { getRaumProdukte } from '@/app/actions/raum-produkte'
 import FilterBar from '@/components/FilterBar'
 import SortableProduktTabelle from '@/components/SortableProduktTabelle'
 import type { RaumProduktMitDetails } from '@/lib/supabase/types'
+import { LayoutDashboard } from 'lucide-react'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
@@ -114,12 +115,21 @@ export default async function RaumDetailPage({
             <p className="text-sm text-gray-500 mt-0.5">{raum.beschreibung}</p>
           )}
         </div>
-        <Link
-          href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/neu`}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark hover:scale-[1.02] active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap"
-        >
-          + Produkt hinzufügen
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/planer`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors whitespace-nowrap border border-gray-700"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            Raumplaner
+          </Link>
+          <Link
+            href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/neu`}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark hover:scale-[1.02] active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap"
+          >
+            + Produkt hinzufügen
+          </Link>
+        </div>
       </div>
 
       {/* Filter Bar */}

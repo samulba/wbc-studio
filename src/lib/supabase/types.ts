@@ -120,9 +120,28 @@ export interface Raum {
   icon: string | null
   reihenfolge: number
   budget: number | null
+  // Raumplaner (Migration 045)
+  grundriss_json: Json | null
+  breite_m: number | null
+  laenge_m: number | null
+  hoehe_m: number | null
   deleted_at: string | null
   created_at: string
   updated_at: string
+}
+
+// ── Möbel-Symbole (Migration 045) ─────────────────────────────
+export interface MoebelSymbol {
+  id: string
+  organisation_id: string | null
+  name: string
+  kategorie_id: string | null
+  svg_path: string
+  breite_cm: number
+  tiefe_cm: number
+  farbe: string
+  ist_system: boolean
+  created_at: string
 }
 
 export type ProvisionsModell = 'Prozent' | 'Fix' | 'Individuell'
