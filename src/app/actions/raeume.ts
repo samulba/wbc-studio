@@ -19,17 +19,20 @@ export async function raumAnlegen(
   const budgetRaw = formData.get('budget') as string
   const budget = budgetRaw ? parseFloat(budgetRaw) : null
 
+  const raumtypId = (formData.get('raumtyp_id') as string) || null
+
   const { error } = await supabase.from('raeume').insert({
     projekt_id: projektId,
     name,
     beschreibung: (formData.get('beschreibung') as string) || null,
     icon: (formData.get('icon') as string) || null,
+    raumtyp_id: raumtypId,
     budget: budget && !isNaN(budget) ? budget : null,
     organisation_id: orgId,
   })
 
   if (error) {
-    return { fehler: 'Fehler beim Speichern.' }
+    return { fehler: `Fehler beim Speichern: ${error.message}` }
   }
 
   revalidatePath(`/dashboard/projekte/${projektId}`)
