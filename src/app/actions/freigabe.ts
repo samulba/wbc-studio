@@ -29,19 +29,18 @@ export async function freigabeStatusAendern(
     return { fehler: 'Dieser Freigabe-Link ist abgelaufen.' }
   }
 
-  // 2. Produkt gehört zum Projekt des Tokens
-  const { data: produkt } = await supabase
-    .from('produkte')
+  // 2. Produkt gehört zum Projekt des Tokens – Prüfung via raum_produkte,
+  //    damit auch Library-Produkte (raum_id=null auf produkte) korrekt behandelt werden.
+  const { data: rpEintraege } = await supabase
+    .from('raum_produkte')
     .select('id, raeume!inner(projekt_id)')
-    .eq('id', produktId)
-    .is('deleted_at', null)
-    .single()
+    .eq('produkt_id', produktId)
 
-  if (!produkt) return { fehler: 'Produkt nicht gefunden.' }
-  const raeume = produkt.raeume as unknown as { projekt_id: string }
-  if (raeume.projekt_id !== tokenData.projekt_id) {
-    return { fehler: 'Zugriff nicht erlaubt.' }
-  }
+  const gehoertZumProjekt = (rpEintraege ?? []).some(
+    (rp) => (rp.raeume as unknown as { projekt_id: string }).projekt_id === tokenData.projekt_id
+  )
+
+  if (!gehoertZumProjekt) return { fehler: 'Zugriff nicht erlaubt.' }
 
   // 3. Status aktualisieren
   const updates: Record<string, unknown> = {

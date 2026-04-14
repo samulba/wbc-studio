@@ -52,37 +52,44 @@ export default async function FreigabePage({ params }: Props) {
     return <Fehlerseite meldung="Für dieses Projekt wurden noch keine Räume oder Produkte angelegt." />
   }
 
-  // 4. Produkte laden – NUR öffentliche Felder, KEINE internen Preise
-  const { data: produkteDaten } = await supabase
-    .from('produkte')
+  // 4. Produkte via raum_produkte laden – erfasst sowohl direkt angelegte als auch
+  //    aus Bibliothek hinzugefügte Produkte. NUR öffentliche Felder, KEINE internen Preise.
+  const { data: rpDaten } = await supabase
+    .from('raum_produkte')
     .select(`
-      id,
       raum_id,
-      name,
-      beschreibung,
-      kategorie,
       menge,
-      einheit,
-      verkaufspreis,
-      bild_url,
-      produkt_url,
-      produktstatus ( status, kommentar )
+      verkaufspreis_override,
+      reihenfolge,
+      produkte!inner(
+        id, name, beschreibung, kategorie, einheit, verkaufspreis,
+        bild_url, produkt_url, deleted_at,
+        produktstatus ( status, kommentar )
+      )
     `)
-    .in(
-      'raum_id',
-      raeumeDaten.map((r) => r.id)
-    )
-    .is('deleted_at', null)
+    .in('raum_id', raeumeDaten.map((r) => r.id))
     .order('reihenfolge')
     .order('created_at')
 
   // 5. Struktur aufbauen: Räume mit Produkten
   const raeume: FreigabeRaum[] = raeumeDaten
     .map((raum) => {
-      const raumpProdukte = (produkteDaten ?? [])
-        .filter((p) => p.raum_id === raum.id)
-        .map((p): FreigabeProdukt => {
+      const raumpProdukte = (rpDaten ?? [])
+        .filter((rp) => {
+          if (rp.raum_id !== raum.id) return false
+          // Gelöschte Produkte ausblenden
+          const p = rp.produkte as unknown as { deleted_at: string | null }
+          return !p?.deleted_at
+        })
+        .map((rp): FreigabeProdukt => {
+          type ProdRaw = {
+            id: string; name: string; beschreibung: string | null; kategorie: string | null
+            einheit: string; verkaufspreis: number | null; bild_url: string | null
+            produkt_url: string | null
+            produktstatus: { status: string; kommentar: string | null } | { status: string; kommentar: string | null }[] | null
+          }
           type PS = { status: string; kommentar: string | null } | null
+          const p = rp.produkte as unknown as ProdRaw
           const psRaw = p.produktstatus as PS | PS[]
           const ps = Array.isArray(psRaw) ? psRaw[0] : psRaw
           return {
@@ -90,9 +97,10 @@ export default async function FreigabePage({ params }: Props) {
             name: p.name,
             beschreibung: p.beschreibung,
             kategorie: p.kategorie,
-            menge: p.menge,
+            menge: rp.menge,
             einheit: p.einheit,
-            verkaufspreis: p.verkaufspreis,
+            // Preis-Override aus raum_produkte hat Vorrang
+            verkaufspreis: (rp.verkaufspreis_override as number | null) ?? p.verkaufspreis,
             bild_url: p.bild_url,
             produkt_url: p.produkt_url,
             status: (ps?.status as ProduktStatus) ?? 'ausstehend',
