@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   MousePointer2, Minus, Plus, Grid3x3, Save,
   RotateCcw, RotateCw, Search, ChevronLeft, Pencil,
@@ -11,10 +12,18 @@ import {
   Copy, ArrowUpToLine, ArrowDownToLine, ArrowUp, ArrowDown,
   Magnet, Lock, LockOpen, Star, Share2, Image as ImageIcon, Check, Link2,
   LayoutTemplate, Upload, TriangleAlert,
+  Package, Tag, ExternalLink, Link2Off, FileText, StickyNote,
+  GitBranch, ArrowLeftRight, Download,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
-import { grundrissSpeichern, raumMasseAktualisieren, getCustomMoebel, customMoebelErstellen, getRaumFreigabeInfo, raumFreigabeAktualisieren, raumTexturenSpeichern } from '@/app/actions/raumplaner'
+import {
+  grundrissSpeichern, raumMasseAktualisieren, getCustomMoebel, customMoebelErstellen,
+  getRaumFreigabeInfo, raumFreigabeAktualisieren, raumTexturenSpeichern,
+  getAllProdukteForPlaner, raumplanVersionSpeichern, getRaumplanVersionen,
+  getRaumplanVersion, raumplanVersionLoeschen, raumplanAngebotErstellen,
+} from '@/app/actions/raumplaner'
 import type { MoebelSymbol, CustomMoebel as CustomMoebelType } from '@/lib/supabase/types'
+import GrundrissVorschau from './GrundrissVorschau'
 
 // ── Konstanten ────────────────────────────────────────────────
 
@@ -24,7 +33,7 @@ const MIN_ZOOM       = 0.1
 const MAX_ZOOM       = 5
 const AUTOSAVE_DELAY = 3000
 
-type Tool = 'select' | 'wall' | 'door' | 'window' | 'measure' | 'eraser'
+type Tool = 'select' | 'wall' | 'door' | 'window' | 'measure' | 'eraser' | 'note'
 type GridSize = 10 | 25 | 50 | 100
 
 const MOEBEL_GRUPPEN: { name: string; keys: string[] }[] = [
@@ -179,8 +188,14 @@ function createPatternCanvas(textur: string): HTMLCanvasElement | null {
 
 interface SelectedProps {
   x: number; y: number; w: number; h: number; angle: number; name: string; objType?: string
-  locked: boolean
+  locked: boolean; produkt_id?: string
 }
+interface ProduktForPlaner {
+  id: string; name: string; kategorie: string | null
+  artikelnummer: string | null; verkaufspreis_netto: number | null
+}
+interface RaumplanVersion { id: string; name: string; created_at: string }
+interface KostenItem { name: string; count: number; preis: number }
 interface NewMoebelForm {
   name: string; kategorie: string; breite_cm: number; laenge_cm: number; farbe: string
 }
@@ -248,6 +263,7 @@ function ShortcutOverlay({ onClose }: { onClose: () => void }) {
     { keys: ['F'],         desc: 'Fenster platzieren' },
     { keys: ['M'],         desc: 'Bemaßung' },
     { keys: ['E'],         desc: 'Radierer' },
+    { keys: ['N'],         desc: 'Notiz platzieren' },
     { keys: ['Esc'],       desc: 'Abbrechen / Auswahl' },
     { keys: ['Ctrl','Z'],  desc: 'Rückgängig' },
     { keys: ['Ctrl','Y'],  desc: 'Wiederholen' },
@@ -405,6 +421,7 @@ export default function RaumplanerEditor({
   bodenTextur: initialBodenTextur = 'none',
   wandfarbe: initialWandfarbe = '#1e293b',
 }: Props) {
+  const router = useRouter()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canvasRef     = useRef<HTMLCanvasElement>(null)
   const containerRef  = useRef<HTMLDivElement>(null)
@@ -465,6 +482,36 @@ export default function RaumplanerEditor({
   const [kollisionAnzahl,   setKollisionAnzahl]   = useState(0)
   const [showTemplatesModal, setShowTemplatesModal] = useState(false)
   const [showImportModal,   setShowImportModal]   = useState(false)
+
+  // ── Produkt-Verknüpfung ───────────────────────────────────────
+  const [showProduktModal,  setShowProduktModal]  = useState(false)
+  const [allProdukte,       setAllProdukte]       = useState<ProduktForPlaner[]>([])
+  const [produkteLoaded,    setProdukteLoaded]    = useState(false)
+  const [produktSuche,      setProduktSuche]      = useState('')
+  const [produktKatFilter,  setProduktKatFilter]  = useState('')
+  const allProdukteRef = useRef<ProduktForPlaner[]>([])
+
+  // ── Versionen ────────────────────────────────────────────────
+  const [versionen,         setVersionen]         = useState<RaumplanVersion[]>([])
+  const [showVersionModal,  setShowVersionModal]  = useState(false)
+  const [neueVersionName,   setNeueVersionName]   = useState('')
+  const [versionSaving,     setVersionSaving]     = useState(false)
+  const [showVergleichModal, setShowVergleichModal] = useState(false)
+  const [vergleichV1,       setVergleichV1]       = useState('')
+  const [vergleichV2,       setVergleichV2]       = useState('')
+  const [vergleichData,     setVergleichData]     = useState<{ v1: { json: string; name: string } | null; v2: { json: string; name: string } | null }>({ v1: null, v2: null })
+  const [vergleichLoading,  setVergleichLoading]  = useState(false)
+
+  // ── Notizen ──────────────────────────────────────────────────
+  const [notizen,           setNotizen]           = useState<{ text: string }[]>([])
+  const [noteModal,         setNoteModal]         = useState<{ mode: 'create'; canvasX: number; canvasY: number } | { mode: 'edit' } | null>(null)
+  const [noteModalText,     setNoteModalText]     = useState('')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const editingNoteRef = useRef<any>(null)
+
+  // ── Angebot ──────────────────────────────────────────────────
+  const [angebotCreating,   setAngebotCreating]   = useState(false)
+
   const showDimensionsRef   = useRef(false)
   const showKollisionRef    = useRef(false)
   const dimTimerRef         = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -516,6 +563,11 @@ export default function RaumplanerEditor({
   useEffect(() => { snapToGridRef.current = snapToGrid }, [snapToGrid])
   useEffect(() => { triggerDimUpdateRef.current() }, [showDimensions])
   useEffect(() => { triggerKollUpdateRef.current() }, [showKollision])
+
+  // Versionen beim Start laden
+  useEffect(() => {
+    getRaumplanVersionen(raumId).then(setVersionen).catch(() => {})
+  }, [raumId])
 
   // Fullscreen-Änderung beobachten
   useEffect(() => {
@@ -599,10 +651,11 @@ export default function RaumplanerEditor({
   const updateObjCount = useCallback(() => {
     const canvas = fabricRef.current; if (!canvas) return
     const SKIP_COUNT = new Set(['outline','preview','floor','dimension','collision'])
-    setObjCount(canvas.getObjects().filter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (o: any) => !SKIP_COUNT.has(o.data?.type)
-    ).length)
+    const allObjs = canvas.getObjects()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setObjCount(allObjs.filter((o: any) => !SKIP_COUNT.has(o.data?.type)).length)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setNotizen(allObjs.filter((o: any) => o.data?.type === 'note').map((o: any) => ({ text: o.data?.text ?? '' })))
   }, [])
 
   // ── Auto-Save ─────────────────────────────────────────────
@@ -789,7 +842,7 @@ export default function RaumplanerEditor({
       w: Math.round((obj.getScaledWidth?.() ?? 0) * 10) / 10,
       h: Math.round((obj.getScaledHeight?.() ?? 0) * 10) / 10,
       angle: Math.round(obj.angle ?? 0), name: obj.name ?? '', objType: obj.data?.type ?? '',
-      locked: obj.data?.locked === true,
+      locked: obj.data?.locked === true, produkt_id: obj.data?.produkt_id,
     }
   }
 
@@ -960,6 +1013,10 @@ export default function RaumplanerEditor({
             pushHistory(); triggerAutoSave(); updateObjCount(); canvas.requestRenderAll()
           }
         }
+        if (tool === 'note') {
+          setNoteModalText('')
+          setNoteModal({ mode: 'create', canvasX: snapped.x, canvasY: snapped.y })
+        }
       })
 
       canvas.on('selection:created', (e: any) => { const o = e.selected?.[0]; if (o) setSelectedProps(extractObjProps(o)) }) // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -978,6 +1035,16 @@ export default function RaumplanerEditor({
       })
       canvas.on('object:added', () => { triggerDimUpdateRef.current(); triggerKollUpdateRef.current() })
       canvas.on('object:removed', () => { triggerDimUpdateRef.current(); triggerKollUpdateRef.current() })
+
+      // Notiz doppelklick → Bearbeiten
+      canvas.on('mouse:dblclick', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        const t = opt.target as any // eslint-disable-line @typescript-eslint/no-explicit-any
+        if (t && t.data?.type === 'note') {
+          editingNoteRef.current = t
+          setNoteModalText(t.data?.text ?? '')
+          setNoteModal({ mode: 'edit' })
+        }
+      })
 
       // ── SNAP-TO-WALL + ALIGNMENT-HILFSLINIEN ──────────────
       canvas.on('object:moving', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -1203,7 +1270,7 @@ export default function RaumplanerEditor({
         if (ev.key === 'F11') { ev.preventDefault(); toggleFullscreenRef.current(); return }
         if (!ev.ctrlKey && !ev.metaKey) {
           if (ev.key.toLowerCase() === 'l') { toggleLockRef.current(); return }
-          const map: Record<string, Tool> = { v:'select', w:'wall', d:'door', f:'window', m:'measure', e:'eraser' }
+          const map: Record<string, Tool> = { v:'select', w:'wall', d:'door', f:'window', m:'measure', e:'eraser', n:'note' }
           if (map[ev.key.toLowerCase()]) switchToolRef.current(map[ev.key.toLowerCase()] as Tool)
         }
         if ((ev.ctrlKey || ev.metaKey) && ev.key === 'z' && !ev.shiftKey) { ev.preventDefault(); undo() }
@@ -1655,6 +1722,7 @@ export default function RaumplanerEditor({
   // Sync refs
   showDimensionsRef.current  = showDimensions
   showKollisionRef.current   = showKollision
+  allProdukteRef.current     = allProdukte
 
   // ── Templates laden ─────────────────────────────────────────
   function ladeTemplate(template: RaumTemplate) {
@@ -1678,6 +1746,188 @@ export default function RaumplanerEditor({
     })
     pushHistory(); triggerAutoSave(); updateObjCount(); canvas.requestRenderAll()
     setShowTemplatesModal(false)
+  }
+
+  // ── Produkt-Verknüpfung ──────────────────────────────────────
+
+  async function loadProdukte() {
+    if (produkteLoaded) return
+    const data = await getAllProdukteForPlaner()
+    setAllProdukte(data); allProdukteRef.current = data; setProdukteLoaded(true)
+  }
+
+  function openProduktModal() {
+    setProduktSuche(''); setProduktKatFilter('')
+    loadProdukte(); setShowProduktModal(true)
+  }
+
+  function linkProdukt(p: ProduktForPlaner) {
+    const canvas = fabricRef.current; if (!canvas) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const obj = canvas.getActiveObject() as any; if (!obj) return
+    obj.set('data', { ...obj.data, produkt_id: p.id })
+    canvas.requestRenderAll()
+    setSelectedProps(extractObjProps(obj))
+    pushHistory(); triggerAutoSave()
+    setShowProduktModal(false)
+  }
+
+  function unlinkProdukt() {
+    const canvas = fabricRef.current; if (!canvas) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const obj = canvas.getActiveObject() as any; if (!obj) return
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { produkt_id: _pid, ...restData } = obj.data ?? {}
+    obj.set('data', restData)
+    canvas.requestRenderAll()
+    setSelectedProps(extractObjProps(obj))
+    pushHistory(); triggerAutoSave()
+  }
+
+  // Inline Kosten-Berechnung aus Canvas (liest refs, kein State benötigt)
+  function getKostenUebersicht(): { items: KostenItem[]; gesamt: number } {
+    const canvas = fabricRef.current; if (!canvas) return { items: [], gesamt: 0 }
+    const produktMap = new Map(allProdukteRef.current.map(p => [p.id, p]))
+    const grouped = new Map<string, KostenItem>()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.getObjects().forEach((obj: any) => {
+      const pid = obj.data?.produkt_id; if (!pid) return
+      const prod = produktMap.get(pid); if (!prod) return
+      const existing = grouped.get(pid)
+      if (existing) existing.count++
+      else grouped.set(pid, { name: prod.name, count: 1, preis: prod.verkaufspreis_netto ?? 0 })
+    })
+    const items = Array.from(grouped.values())
+    return { items, gesamt: items.reduce((s, i) => s + i.preis * i.count, 0) }
+  }
+
+  function exportKostenCsv() {
+    const { items, gesamt } = getKostenUebersicht()
+    if (!items.length) return
+    const rows = [
+      ['Produkt', 'Menge', 'Einzelpreis Netto', 'Gesamt Netto'],
+      ...items.map(i => [i.name, String(i.count), i.preis.toFixed(2), (i.preis * i.count).toFixed(2)]),
+      ['', '', 'GESAMT', gesamt.toFixed(2)],
+    ]
+    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g,'""')}"`).join(';')).join('\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' }))
+    a.download = `Kosten-${raumName}.csv`; a.click()
+  }
+
+  async function createAngebotFromCanvas() {
+    if (allProdukteRef.current.length === 0) await loadProdukte()
+    const { items } = getKostenUebersicht()
+    if (!items.length) { alert('Keine Produkte mit Möbeln verknüpft.'); return }
+    setAngebotCreating(true)
+    try {
+      const positionen = items.map(i => ({ name: i.name, preis_netto: i.preis, menge: i.count }))
+      const res = await raumplanAngebotErstellen(projektId, positionen)
+      if ('id' in res) router.push(`/dashboard/projekte/${projektId}/angebote`)
+      else alert('Fehler: ' + res.fehler)
+    } finally { setAngebotCreating(false) }
+  }
+
+  // ── Versionen ────────────────────────────────────────────────
+
+  async function speichereVersion() {
+    if (!neueVersionName.trim()) return
+    setVersionSaving(true)
+    try {
+      const res = await raumplanVersionSpeichern(raumId, neueVersionName, getCanvasJson(), bodenTextur, wandfarbe)
+      if ('id' in res) {
+        const updated = await getRaumplanVersionen(raumId)
+        setVersionen(updated)
+        setShowVersionModal(false)
+        setNeueVersionName('')
+      }
+    } finally { setVersionSaving(false) }
+  }
+
+  async function ladeVersion(versionId: string) {
+    const data = await getRaumplanVersion(versionId)
+    if (!data) return
+    const canvas = fabricRef.current, imp = fabricImports.current
+    if (!canvas || !imp) return
+    canvas.clear()
+    try {
+      const parsed = JSON.parse(data.grundrissJson)
+      if (parsed.objects) {
+        const SKIP = new Set(['outline','preview','floor','dimension','collision'])
+        parsed.objects = parsed.objects.filter((o: any) => !SKIP.has(o.data?.type)) // eslint-disable-line @typescript-eslint/no-explicit-any
+      }
+      await canvas.loadFromJSON(parsed)
+    } catch { /* ignore */ }
+    if (breiteM && laengeM) { outlineRef.current = null; updateOutline(breiteM, laengeM) }
+    if (data.bodenTextur && data.bodenTextur !== 'none') applyFloorTexture(data.bodenTextur, canvas, breiteM, laengeM)
+    setBodenTextur(data.bodenTextur)
+    setWandfarbe(data.wandfarbe)
+    canvas.requestRenderAll()
+    updateObjCount()
+    fitToViewRef.current()
+    pushHistory(); triggerAutoSave()
+  }
+
+  async function loescheVersion(id: string) {
+    if (!confirm('Version löschen?')) return
+    await raumplanVersionLoeschen(id)
+    const updated = await getRaumplanVersionen(raumId)
+    setVersionen(updated)
+    if (vergleichV1 === id) setVergleichV1('')
+    if (vergleichV2 === id) setVergleichV2('')
+  }
+
+  async function ladeVergleich() {
+    if (!vergleichV1 || !vergleichV2) return
+    setVergleichLoading(true)
+    try {
+      const [d1, d2] = await Promise.all([getRaumplanVersion(vergleichV1), getRaumplanVersion(vergleichV2)])
+      setVergleichData({
+        v1: d1 ? { json: d1.grundrissJson, name: d1.name } : null,
+        v2: d2 ? { json: d2.grundrissJson, name: d2.name } : null,
+      })
+    } finally { setVergleichLoading(false) }
+  }
+
+  // ── Notiz platzieren / bearbeiten ────────────────────────────
+
+  function placeNote(canvasX: number, canvasY: number, text: string) {
+    const canvas = fabricRef.current, imp = fabricImports.current
+    if (!canvas || !imp || !text.trim()) return
+    const { Rect, Textbox, Group } = imp
+    const W = 150, H = 90
+    const bg = new Rect({
+      width: W, height: H, fill: '#fef9c3', stroke: '#fbbf24', strokeWidth: 1.5,
+      rx: 6, ry: 6, originX: 'left', originY: 'top',
+    })
+    const tb = new Textbox(text.trim(), {
+      width: W - 16, left: 8, top: 8, fontSize: 10, fill: '#78350f',
+      fontFamily: 'system-ui, sans-serif', originX: 'left', originY: 'top',
+    })
+    canvas.add(new Group([bg, tb], {
+      left: canvasX - W / 2, top: canvasY - H / 2,
+      data: { type: 'note', text: text.trim() }, name: 'Notiz',
+    }))
+    canvas.requestRenderAll(); pushHistory(); triggerAutoSave(); updateObjCount()
+    switchToolRef.current('select')
+  }
+
+  function confirmNote() {
+    if (!noteModal) return
+    if (noteModal.mode === 'create') {
+      placeNote(noteModal.canvasX, noteModal.canvasY, noteModalText)
+    } else if (noteModal.mode === 'edit') {
+      const canvas = fabricRef.current, obj = editingNoteRef.current
+      if (canvas && obj) {
+        obj.set('data', { ...obj.data, text: noteModalText.trim() })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const items = obj.getObjects?.() as any[]
+        if (items && items.length >= 2) items[1].set('text', noteModalText.trim())
+        obj.dirty = true; canvas.requestRenderAll()
+        pushHistory(); triggerAutoSave(); updateObjCount()
+      }
+    }
+    setNoteModal(null); setNoteModalText(''); editingNoteRef.current = null
   }
 
   // ── Datei-Import ────────────────────────────────────────────
@@ -1861,6 +2111,7 @@ export default function RaumplanerEditor({
     [
       { key: 'measure' as Tool, Icon: Ruler,         label: 'Bemaßung',  shortcut: 'M' },
       { key: 'eraser'  as Tool, Icon: Eraser,        label: 'Radierer',  shortcut: 'E' },
+      { key: 'note'    as Tool, Icon: StickyNote,    label: 'Notiz',     shortcut: 'N' },
     ],
   ]
   const allTools = toolGroups.flat()
@@ -2080,6 +2331,52 @@ export default function RaumplanerEditor({
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           <Upload className="w-4 h-4" />
         </button>
+
+        <div className={tbSep} style={{ background: C.border }} />
+
+        {/* Angebot aus Raumplan */}
+        <button type="button" title="Angebot aus Raumplan erstellen" onClick={createAngebotFromCanvas}
+          disabled={angebotCreating}
+          className={`${tbBtn} disabled:opacity-40`} style={{ color: C.textLt }}
+          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          <FileText className="w-4 h-4" />
+        </button>
+
+        <div className={tbSep} style={{ background: C.border }} />
+
+        {/* Versionen: Version speichern + Vergleich */}
+        <button type="button" title="Als Version speichern"
+          onClick={() => { setNeueVersionName(`Variante ${versionen.length + 1}`); setShowVersionModal(true) }}
+          className={tbBtn} style={{ color: C.textLt }}
+          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          <GitBranch className="w-4 h-4" />
+        </button>
+
+        {versionen.length >= 2 && (
+          <button type="button" title="Versionen vergleichen"
+            onClick={() => { setVergleichV1(versionen[0]?.id ?? ''); setVergleichV2(versionen[1]?.id ?? ''); setVergleichData({ v1: null, v2: null }); setShowVergleichModal(true) }}
+            className={tbBtn} style={{ color: C.textLt }}
+            onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+            <ArrowLeftRight className="w-4 h-4" />
+          </button>
+        )}
+
+        {versionen.length > 0 && (
+          <select
+            onChange={e => { if (e.target.value) { ladeVersion(e.target.value); e.target.value = '' } }}
+            defaultValue=""
+            className="text-[11px] rounded-lg px-1.5 py-1 h-7 cursor-pointer focus:outline-none"
+            style={{ background: 'rgba(0,0,0,0.2)', border: `1px solid ${C.border}`, color: C.textLt }}
+            title="Version laden">
+            <option value="" disabled>Version laden…</option>
+            {versionen.map(v => (
+              <option key={v.id} value={v.id}>{v.name}</option>
+            ))}
+          </select>
+        )}
 
         <div className="flex-1" />
 
@@ -2402,7 +2699,7 @@ export default function RaumplanerEditor({
                 </div>
 
                 {/* Duplizieren */}
-                <div className="px-3 py-2.5">
+                <div className="px-3 py-2.5" style={{ borderBottom: selectedProps.objType === 'moebel' ? `1px solid ${C.border}20` : 'none' }}>
                   <button type="button" onClick={duplicateSelected}
                     className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
                     style={{ background: C.input, border: `1px solid ${C.border}`, color: C.textMd }}
@@ -2411,6 +2708,57 @@ export default function RaumplanerEditor({
                     <Copy className="w-3 h-3" /> Duplizieren
                   </button>
                 </div>
+
+                {/* Produkt-Verknüpfung (nur für Möbel) */}
+                {selectedProps.objType === 'moebel' && (() => {
+                  const linkedProd = allProdukteRef.current.find(p => p.id === selectedProps.produkt_id)
+                  const isLinked = !!selectedProps.produkt_id
+                  return (
+                    <div className="px-3 py-3">
+                      <p className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: `${C.textLt}60` }}>Produkt</p>
+                      {isLinked ? (
+                        <div className="rounded-lg p-2.5" style={{ background: 'rgba(68,92,73,0.12)', border: `1px solid rgba(68,92,73,0.3)` }}>
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                            <Package className="w-3 h-3 shrink-0" style={{ color: '#94c1a4' }} />
+                            <span className="text-[10px] font-semibold truncate" style={{ color: C.textMd }}>
+                              {linkedProd?.name ?? selectedProps.produkt_id?.slice(0, 8) + '…'}
+                            </span>
+                          </div>
+                          {linkedProd?.artikelnummer && (
+                            <p className="text-[9px] mb-0.5" style={{ color: `${C.textLt}60` }}>Art. {linkedProd.artikelnummer}</p>
+                          )}
+                          {linkedProd?.verkaufspreis_netto != null && (
+                            <p className="text-[11px] font-semibold" style={{ color: '#94c1a4' }}>
+                              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(linkedProd.verkaufspreis_netto)} Netto
+                            </p>
+                          )}
+                          <div className="flex items-center gap-2 mt-2">
+                            {selectedProps.produkt_id && (
+                              <Link href={`/dashboard/produkte/${selectedProps.produkt_id}/bearbeiten`} target="_blank"
+                                className="flex items-center gap-1 text-[9px] transition-opacity hover:opacity-70"
+                                style={{ color: '#94c1a4' }}>
+                                <ExternalLink className="w-2.5 h-2.5" /> Öffnen
+                              </Link>
+                            )}
+                            <button type="button" onClick={unlinkProdukt}
+                              className="flex items-center gap-1 text-[9px] transition-opacity hover:opacity-70 ml-auto"
+                              style={{ color: '#f87171' }}>
+                              <Link2Off className="w-2.5 h-2.5" /> Entfernen
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={openProduktModal}
+                          className="w-full flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-lg text-[10px] transition-colors"
+                          style={{ border: `1px dashed ${C.border}`, color: C.textLt }}
+                          onMouseEnter={e => { e.currentTarget.style.background = C.hover; e.currentTarget.style.borderColor = '#445c49' }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = C.border }}>
+                          <Tag className="w-3 h-3" /> Produkt verknüpfen
+                        </button>
+                      )}
+                    </div>
+                  )
+                })()}
               </div>
             ) : (
               <div>
@@ -2509,6 +2857,61 @@ export default function RaumplanerEditor({
                     ))}
                   </div>
                 </div>
+
+                {/* Kostenübersicht */}
+                {produkteLoaded && (() => {
+                  const { items, gesamt } = getKostenUebersicht()
+                  return (
+                    <div className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: `${C.textLt}60` }}>Kostenübersicht</p>
+                        {items.length > 0 && (
+                          <button type="button" onClick={exportKostenCsv} title="Als CSV exportieren"
+                            className="transition-opacity hover:opacity-70" style={{ color: `${C.textLt}50` }}>
+                            <Download className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      {items.length > 0 ? (
+                        <>
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
+                            {items.map((item, i) => (
+                              <div key={i} className="flex items-center justify-between text-[10px]">
+                                <span className="truncate max-w-[100px]" style={{ color: `${C.textLt}70` }}>{item.count}× {item.name}</span>
+                                <span className="font-medium shrink-0" style={{ color: C.textMd }}>
+                                  {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(item.preis * item.count)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: `1px solid ${C.border}30` }}>
+                            <span className="text-[10px] font-semibold" style={{ color: C.textLt }}>Gesamt (Netto)</span>
+                            <span className="text-[11px] font-bold" style={{ color: '#94c1a4' }}>
+                              {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(gesamt)}
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-[10px]" style={{ color: `${C.textLt}40` }}>Keine Produkte verknüpft</p>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* Notizen-Liste */}
+                {notizen.length > 0 && (
+                  <div className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                    <p className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: `${C.textLt}60` }}>Notizen ({notizen.length})</p>
+                    <div className="space-y-1.5 max-h-28 overflow-y-auto">
+                      {notizen.map((n, i) => (
+                        <div key={i} className="rounded-lg px-2 py-1.5 text-[10px] leading-relaxed"
+                          style={{ background: 'rgba(254,243,195,0.08)', border: '1px solid rgba(251,191,36,0.2)', color: '#fef3c7' }}>
+                          {n.text}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Wandfarbe */}
                 <div className="px-3 py-3">
@@ -2850,6 +3253,249 @@ export default function RaumplanerEditor({
             <p className="text-[10px] text-gray-400 mt-3 text-center">
               Das Bild wird mit 50% Transparenz eingefügt und kann danach wie jedes andere Objekt verschoben werden.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Produkt-Suche Modal ── */}
+      {showProduktModal && (() => {
+        const kategorien = Array.from(new Set(allProdukte.map(p => p.kategorie).filter(Boolean))) as string[]
+        const gefiltert = allProdukte.filter(p => {
+          const matchSuche = p.name.toLowerCase().includes(produktSuche.toLowerCase()) ||
+            (p.artikelnummer?.toLowerCase().includes(produktSuche.toLowerCase()) ?? false)
+          const matchKat = !produktKatFilter || p.kategorie === produktKatFilter
+          return matchSuche && matchKat
+        })
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowProduktModal(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-[480px] max-w-[95vw] max-h-[80vh] flex flex-col"
+              onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 pt-5 pb-4 shrink-0">
+                <div>
+                  <h2 className="text-sm font-semibold text-gray-900">Produkt verknüpfen</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">Möbel mit einem Produkt aus der Bibliothek verbinden</p>
+                </div>
+                <button type="button" onClick={() => setShowProduktModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {/* Suche + Filter */}
+              <div className="px-5 pb-3 shrink-0 flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <input type="text" placeholder="Produktname oder Artikelnummer…" value={produktSuche}
+                    onChange={e => setProduktSuche(e.target.value)} autoFocus
+                    className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#445c49]/20 focus:border-[#445c49]" />
+                </div>
+                <select value={produktKatFilter} onChange={e => setProduktKatFilter(e.target.value)}
+                  className="text-sm border border-gray-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-[#445c49]/20 focus:border-[#445c49] text-gray-600">
+                  <option value="">Alle Kategorien</option>
+                  {kategorien.map(k => <option key={k} value={k}>{k}</option>)}
+                </select>
+              </div>
+              {/* Produktliste */}
+              <div className="flex-1 overflow-y-auto px-5 pb-4">
+                {gefiltert.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                    <Package className="w-8 h-8 mb-2 opacity-30" />
+                    <p className="text-sm">Keine Produkte gefunden</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {gefiltert.map(p => (
+                      <button key={p.id} type="button" onClick={() => linkProdukt(p)}
+                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border border-transparent hover:border-[#445c49]/30 hover:bg-[#f6faf7] transition-all group text-left">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 group-hover:text-[#445c49] truncate">{p.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {p.artikelnummer && <span className="text-[10px] text-gray-400">Art. {p.artikelnummer}</span>}
+                            {p.kategorie && <span className="text-[10px] text-gray-400 px-1.5 py-0.5 bg-gray-100 rounded-full">{p.kategorie}</span>}
+                          </div>
+                        </div>
+                        {p.verkaufspreis_netto != null && (
+                          <span className="text-sm font-semibold text-[#445c49] ml-3 shrink-0">
+                            {new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(p.verkaufspreis_netto)}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* ── Notiz-Text Modal ── */}
+      {noteModal !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => { setNoteModal(null); setNoteModalText(''); editingNoteRef.current = null }}>
+          <div className="bg-white rounded-2xl shadow-2xl p-5 w-80 max-w-full"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-900">
+                {noteModal.mode === 'create' ? 'Notiz hinzufügen' : 'Notiz bearbeiten'}
+              </h2>
+              <button type="button" onClick={() => { setNoteModal(null); setNoteModalText(''); editingNoteRef.current = null }}
+                className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <textarea
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#445c49]/20 focus:border-[#445c49] resize-none"
+              rows={4} placeholder="Notiz eingeben…" value={noteModalText}
+              onChange={e => setNoteModalText(e.target.value)} autoFocus
+              onKeyDown={e => { if (e.key === 'Enter' && e.ctrlKey) confirmNote() }} />
+            <p className="text-[10px] text-gray-400 mt-1.5">Ctrl+Enter zum Bestätigen</p>
+            <div className="flex gap-2 mt-4">
+              <button type="button" onClick={() => { setNoteModal(null); setNoteModalText(''); editingNoteRef.current = null }}
+                className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                Abbrechen
+              </button>
+              <button type="button" onClick={confirmNote} disabled={!noteModalText.trim()}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-40"
+                style={{ background: '#445c49' }}>
+                {noteModal.mode === 'create' ? 'Platzieren' : 'Speichern'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Version speichern Modal ── */}
+      {showVersionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowVersionModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-5 w-96 max-w-full"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Version speichern</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Aktuellen Grundriss als Variante archivieren</p>
+              </div>
+              <button type="button" onClick={() => setShowVersionModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="mb-4">
+              <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Name der Version</label>
+              <input type="text" value={neueVersionName}
+                onChange={e => setNeueVersionName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') speichereVersion() }}
+                placeholder="z.B. Variante A – Sofa links"
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#445c49]/20 focus:border-[#445c49]"
+                autoFocus />
+            </div>
+            {/* Vorhandene Versionen */}
+            {versionen.length > 0 && (
+              <div className="mb-4">
+                <p className="text-[11px] font-medium text-gray-500 mb-1.5">Vorhandene Versionen ({versionen.length})</p>
+                <div className="space-y-1 max-h-40 overflow-y-auto">
+                  {versionen.map(v => (
+                    <div key={v.id} className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-gray-50">
+                      <div>
+                        <span className="text-[11px] font-medium text-gray-700">{v.name}</span>
+                        <span className="text-[10px] text-gray-400 ml-2">
+                          {new Date(v.created_at).toLocaleDateString('de-DE')}
+                        </span>
+                      </div>
+                      <button type="button" onClick={() => loescheVersion(v.id)}
+                        className="text-gray-300 hover:text-red-400 transition-colors ml-2">
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setShowVersionModal(false)}
+                className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                Abbrechen
+              </button>
+              <button type="button" onClick={speichereVersion}
+                disabled={!neueVersionName.trim() || versionSaving}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-40"
+                style={{ background: '#445c49' }}>
+                {versionSaving ? 'Speichern…' : 'Als Version speichern'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Vergleichs-Modal ── */}
+      {showVergleichModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowVergleichModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-5 w-[900px] max-w-[97vw] max-h-[90vh] flex flex-col"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Versionen vergleichen</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Zwei Planungsvarianten nebeneinander vergleichen</p>
+              </div>
+              <button type="button" onClick={() => setShowVergleichModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {/* Auswahl */}
+            <div className="flex items-center gap-4 mb-4 shrink-0">
+              <div className="flex-1">
+                <label className="text-[11px] font-medium text-gray-500 block mb-1">Version 1</label>
+                <select value={vergleichV1} onChange={e => setVergleichV1(e.target.value)}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#445c49]/20 focus:border-[#445c49]">
+                  <option value="" disabled>Wählen…</option>
+                  {versionen.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+              <div className="shrink-0 flex items-end pb-1">
+                <ArrowLeftRight className="w-4 h-4 text-gray-300" />
+              </div>
+              <div className="flex-1">
+                <label className="text-[11px] font-medium text-gray-500 block mb-1">Version 2</label>
+                <select value={vergleichV2} onChange={e => setVergleichV2(e.target.value)}
+                  className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#445c49]/20 focus:border-[#445c49]">
+                  <option value="" disabled>Wählen…</option>
+                  {versionen.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+              <div className="shrink-0 flex items-end">
+                <button type="button" onClick={ladeVergleich}
+                  disabled={!vergleichV1 || !vergleichV2 || vergleichV1 === vergleichV2 || vergleichLoading}
+                  className="px-4 py-2 text-sm font-medium text-white rounded-lg disabled:opacity-40 transition-colors"
+                  style={{ background: '#445c49' }}>
+                  {vergleichLoading ? 'Lädt…' : 'Vergleichen'}
+                </button>
+              </div>
+            </div>
+            {/* Vergleichs-Ansicht */}
+            <div className="flex-1 overflow-hidden flex gap-3 min-h-0">
+              {[
+                { key: 'v1' as const, label: vergleichData.v1?.name ?? 'Version 1', data: vergleichData.v1 },
+                { key: 'v2' as const, label: vergleichData.v2?.name ?? 'Version 2', data: vergleichData.v2 },
+              ].map(({ label, data }) => (
+                <div key={label} className="flex-1 flex flex-col min-w-0">
+                  <p className="text-xs font-semibold text-gray-700 mb-2 truncate px-1">{label}</p>
+                  <div className="flex-1 rounded-xl border border-gray-200 overflow-hidden bg-gray-50 min-h-0">
+                    {data ? (
+                      <GrundrissVorschau
+                        grundrissJson={data.json}
+                        breiteM={breiteM}
+                        laengeM={laengeM}
+                        className="w-full h-full"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-gray-300 text-sm">
+                        {vergleichLoading ? 'Wird geladen…' : 'Version wählen und vergleichen'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

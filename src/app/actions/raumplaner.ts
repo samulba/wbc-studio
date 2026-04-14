@@ -157,6 +157,107 @@ export async function getRaumplanOeffentlich(token: string): Promise<{
   }
 }
 
+/** Alle Produkte für Raumplaner-Verknüpfung laden (inkl. Preis + Artikelnummer). */
+export async function getAllProdukteForPlaner(): Promise<Array<{
+  id: string; name: string; kategorie: string | null
+  artikelnummer: string | null; verkaufspreis_netto: number | null
+}>> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('produkte')
+    .select('id, name, kategorie, artikelnummer, verkaufspreis_netto')
+    .is('deleted_at', null)
+    .order('name')
+  return (data ?? []) as Array<{ id: string; name: string; kategorie: string | null; artikelnummer: string | null; verkaufspreis_netto: number | null }>
+}
+
+/** Raumplan-Version speichern. */
+export async function raumplanVersionSpeichern(
+  raumId: string, name: string, grundrissJson: string, bodenTextur: string, wandfarbe: string
+): Promise<{ id: string } | { fehler: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationIdOrNull()
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data, error } = await supabase
+    .from('raumplan_versionen')
+    .insert({
+      raum_id: raumId, organisation_id: orgId,
+      name: name.trim(), grundriss_json: JSON.parse(grundrissJson),
+      boden_textur: bodenTextur, wandfarbe, created_by: user?.id,
+    })
+    .select('id').single()
+  if (error || !data) return { fehler: 'Fehler beim Speichern.' }
+  return { id: data.id }
+}
+
+/** Alle Versionen eines Raums laden. */
+export async function getRaumplanVersionen(raumId: string): Promise<Array<{
+  id: string; name: string; created_at: string
+}>> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('raumplan_versionen')
+    .select('id, name, created_at')
+    .eq('raum_id', raumId)
+    .order('created_at', { ascending: false })
+  return (data ?? []) as Array<{ id: string; name: string; created_at: string }>
+}
+
+/** Eine Raumplan-Version laden. */
+export async function getRaumplanVersion(id: string): Promise<{
+  grundrissJson: string; bodenTextur: string; wandfarbe: string; name: string
+} | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('raumplan_versionen')
+    .select('grundriss_json, boden_textur, wandfarbe, name')
+    .eq('id', id).single()
+  if (!data) return null
+  return {
+    grundrissJson: JSON.stringify(data.grundriss_json),
+    bodenTextur: data.boden_textur ?? 'none',
+    wandfarbe: data.wandfarbe ?? '#1e293b',
+    name: data.name,
+  }
+}
+
+/** Version löschen. */
+export async function raumplanVersionLoeschen(id: string): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const { error } = await supabase.from('raumplan_versionen').delete().eq('id', id)
+  if (error) return { fehler: 'Fehler beim Löschen.' }
+  return {}
+}
+
+/** Angebot aus Raumplan-Canvas erstellen. */
+export async function raumplanAngebotErstellen(
+  projektId: string,
+  positionen: Array<{ name: string; preis_netto: number; menge: number }>
+): Promise<{ id: string } | { fehler: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationIdOrNull()
+  const { data: projekt } = await supabase
+    .from('projekte').select('name, kunde_id').eq('id', projektId).single()
+  const summeNetto = positionen.reduce((s, p) => s + p.preis_netto * p.menge, 0)
+  const { data: nummerData } = await supabase.rpc('naechste_angebotsnummer', { org_id: orgId })
+  const nummer = nummerData ?? `AG-${new Date().getFullYear()}-001`
+  const angebotPositionen = positionen.map((p, i) => ({
+    pos: i + 1, name: p.name, beschreibung: '', menge: p.menge,
+    einheit: 'Stk.', einzelpreis: p.preis_netto, gesamt: p.preis_netto * p.menge,
+  }))
+  const { data, error } = await supabase.from('angebote').insert({
+    organisation_id: orgId, projekt_id: projektId,
+    kunde_id: projekt?.kunde_id ?? null,
+    nummer, titel: `Raumplan – ${projekt?.name ?? ''}`,
+    einleitung: 'Dieses Angebot basiert auf dem Raumplan.',
+    positionen: angebotPositionen,
+    summe_netto: summeNetto, mwst_prozent: 19, summe_brutto: summeNetto * 1.19,
+    status: 'entwurf',
+  }).select('id').single()
+  if (error || !data) return { fehler: 'Fehler beim Erstellen.' }
+  return { id: data.id }
+}
+
 /** Neues Custom-Möbel speichern. */
 export async function customMoebelErstellen(input: {
   name: string; kategorie: string; breite_cm: number; laenge_cm: number; farbe: string
