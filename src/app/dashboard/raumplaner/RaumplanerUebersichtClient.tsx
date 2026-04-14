@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
-import { Search, LayoutDashboard, PenTool, FileDown } from 'lucide-react'
+import { Search, LayoutDashboard, PenTool, FileDown, LayoutGrid, List } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
 import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
 import type { RaumMitProjekt } from './page'
 
-type SortBy = 'name' | 'updated' | 'created'
+type SortBy   = 'name' | 'updated' | 'created'
+type ViewMode = 'grid' | 'list'
 
 interface Projekt {
   id: string
@@ -21,26 +22,29 @@ interface Props {
   projekte: Projekt[]
 }
 
+// ── Konstanten ─────────────────────────────────────────────────
+const POPUP_W = 340
+const POPUP_H = 280
+
+// ── Haupt-Komponente ───────────────────────────────────────────
+
 export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) {
-  const [searchQuery, setSearchQuery]       = useState('')
-  const [selectedProjekt, setSelectedProjekt] = useState('')
-  const [sortBy, setSortBy]                 = useState<SortBy>('updated')
+  const [searchQuery,      setSearchQuery]      = useState('')
+  const [selectedProjekt,  setSelectedProjekt]  = useState('')
+  const [sortBy,           setSortBy]           = useState<SortBy>('updated')
+  const [viewMode,         setViewMode]         = useState<ViewMode>('grid')
 
   const gefiltert = useMemo(() => {
     let result = [...raeume]
 
-    // Suche
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
       result = result.filter((r) => r.name.toLowerCase().includes(q))
     }
-
-    // Projekt-Filter
     if (selectedProjekt) {
       result = result.filter((r) => r.projekte?.id === selectedProjekt)
     }
 
-    // Sortierung
     if (sortBy === 'name') {
       result.sort((a, b) => a.name.localeCompare(b.name, 'de'))
     } else if (sortBy === 'updated') {
@@ -52,10 +56,9 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
     return result
   }, [raeume, searchQuery, selectedProjekt, sortBy])
 
-  const mitGrundriss  = gefiltert.filter((r) => r.grundriss_json)
-  const ohneGrundriss = gefiltert.filter((r) => !r.grundriss_json)
-
-  const totalGrundriss = raeume.filter((r) => r.grundriss_json).length
+  const mitGrundriss   = gefiltert.filter((r) =>  r.grundriss_json)
+  const ohneGrundriss  = gefiltert.filter((r) => !r.grundriss_json)
+  const totalGrundriss = raeume.filter((r) =>  r.grundriss_json).length
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
@@ -65,14 +68,12 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
         <h1 className="text-xl font-semibold text-gray-900">Raumplaner</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           {raeume.length} {raeume.length === 1 ? 'Raum' : 'Räume'} gesamt
-          {' · '}
-          {totalGrundriss} mit Grundriss
-          {' · '}
-          {raeume.length - totalGrundriss} ohne Grundriss
+          {' · '}{totalGrundriss} mit Grundriss
+          {' · '}{raeume.length - totalGrundriss} ohne Grundriss
         </p>
       </div>
 
-      {/* Suchfeld + Filter + Sortierung */}
+      {/* Toolbar: Suche + Filter + Sortierung + View-Toggle */}
       <div className="flex flex-wrap gap-2 mb-6">
         {/* Suchfeld */}
         <div className="relative flex-1 min-w-[200px]">
@@ -108,6 +109,32 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
           <option value="name">Name A–Z</option>
           <option value="created">Erstelldatum</option>
         </select>
+
+        {/* Grid / Listen-Toggle */}
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('grid')}
+            title="Kachelansicht"
+            className={`p-1.5 rounded-md transition-all ${
+              viewMode === 'grid'
+                ? 'bg-white shadow-sm text-gray-900'
+                : 'text-gray-400 hover:text-gray-700'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            title="Listenansicht"
+            className={`p-1.5 rounded-md transition-all ${
+              viewMode === 'list'
+                ? 'bg-white shadow-sm text-gray-900'
+                : 'text-gray-400 hover:text-gray-700'
+            }`}
+          >
+            <List className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Keine Räume insgesamt */}
@@ -118,10 +145,7 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
           </div>
           <p className="text-gray-500 text-sm font-medium">Noch keine Räume vorhanden</p>
           <p className="text-xs text-gray-400 mt-1">Lege zuerst ein Projekt mit Räumen an</p>
-          <Link
-            href="/dashboard/projekte"
-            className="inline-block mt-4 text-sm text-[#445c49] underline underline-offset-2"
-          >
+          <Link href="/dashboard/projekte" className="inline-block mt-4 text-sm text-[#445c49] underline underline-offset-2">
             Zu den Projekten
           </Link>
         </div>
@@ -141,42 +165,45 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
         </div>
       )}
 
-      {/* Räume mit Grundriss */}
-      {mitGrundriss.length > 0 && (
-        <section className="mb-8">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Grundrisse
-            <span className="ml-2 font-normal text-gray-400 normal-case tracking-normal">({mitGrundriss.length})</span>
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mitGrundriss.map((raum) => (
-              <RaumCard key={raum.id} raum={raum} />
-            ))}
-          </div>
-        </section>
+      {/* ── GRID-ANSICHT ── */}
+      {viewMode === 'grid' && (
+        <>
+          {mitGrundriss.length > 0 && (
+            <section className="mb-8">
+              <SektionsTitel label="Grundrisse" count={mitGrundriss.length} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {mitGrundriss.map((raum) => <RaumCard key={raum.id} raum={raum} />)}
+              </div>
+            </section>
+          )}
+          {ohneGrundriss.length > 0 && (
+            <section>
+              <SektionsTitel label="Ohne Grundriss" count={ohneGrundriss.length} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {ohneGrundriss.map((raum) => <RaumCard key={raum.id} raum={raum} />)}
+              </div>
+            </section>
+          )}
+        </>
       )}
 
-      {/* Räume ohne Grundriss */}
-      {ohneGrundriss.length > 0 && (
-        <section>
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Ohne Grundriss
-            <span className="ml-2 font-normal text-gray-400 normal-case tracking-normal">({ohneGrundriss.length})</span>
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ohneGrundriss.map((raum) => (
-              <RaumCard key={raum.id} raum={raum} />
-            ))}
-          </div>
-        </section>
+      {/* ── LISTEN-ANSICHT ── */}
+      {viewMode === 'list' && gefiltert.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          {gefiltert.map((raum, idx) => (
+            <RaumListRow
+              key={raum.id}
+              raum={raum}
+              isLast={idx === gefiltert.length - 1}
+            />
+          ))}
+        </div>
       )}
 
       {/* Projekte-Übersicht unten */}
       {projekte.length > 0 && gefiltert.length > 0 && (
         <section className="mt-10 pt-6 border-t border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-            Projekte
-          </h2>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Projekte</h2>
           <div className="flex flex-wrap gap-2">
             {projekte.map((p) => {
               const count = raeume.filter((r) => r.projekte?.id === p.id).length
@@ -194,9 +221,23 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
           </div>
         </section>
       )}
-
     </div>
   )
+}
+
+// ── Hilfsfunktionen ────────────────────────────────────────────
+
+function SektionsTitel({ label, count }: { label: string; count: number }) {
+  return (
+    <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+      {label}
+      <span className="ml-2 font-normal text-gray-400 normal-case tracking-normal">({count})</span>
+    </h2>
+  )
+}
+
+function bearbeitetText(updatedAt: string) {
+  return formatDistanceToNow(new Date(updatedAt), { addSuffix: true, locale: de })
 }
 
 // ── PDF-Export ─────────────────────────────────────────────────
@@ -204,19 +245,17 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
 async function grundrissPdfExport(raum: RaumMitProjekt) {
   if (!raum.grundriss_json) return
 
-  // Fabric.js + jsPDF dynamisch laden
   const [fabric, { default: jsPDF }] = await Promise.all([
     import('fabric'),
     import('jspdf'),
   ])
   const { Canvas, Rect } = fabric
 
-  // Temporäres unsichtbares Canvas-Element
   const el = document.createElement('canvas')
   el.style.display = 'none'
   document.body.appendChild(el)
 
-  const PDF_W = 1120  // ~A4-Querformat bei 96dpi
+  const PDF_W = 1120
   const PDF_H = 792
   el.width  = PDF_W
   el.height = PDF_H
@@ -229,7 +268,6 @@ async function grundrissPdfExport(raum: RaumMitProjekt) {
   })
 
   try {
-    // JSON laden (Outline + Preview herausfiltern)
     const parsed = raum.grundriss_json as Record<string, unknown>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const objects = ((parsed.objects ?? []) as any[]).filter(
@@ -238,7 +276,6 @@ async function grundrissPdfExport(raum: RaumMitProjekt) {
     )
     await canvas.loadFromJSON({ ...parsed, objects })
 
-    // Raum-Umriss hinzufügen
     const SCALE = 100
     if (raum.breite_m && raum.laenge_m) {
       const outline = new Rect({
@@ -251,14 +288,13 @@ async function grundrissPdfExport(raum: RaumMitProjekt) {
       canvas.sendObjectToBack(outline)
     }
 
-    // Fit-to-view
-    const allObjs = canvas.getObjects()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allObjs = canvas.getObjects() as any[]
     if (allObjs.length > 0) {
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      allObjs.forEach((o: any) => {
+      allObjs.forEach((o) => {
         const b = o.getBoundingRect()
-        minX = Math.min(minX, b.left);  minY = Math.min(minY, b.top)
+        minX = Math.min(minX, b.left);       minY = Math.min(minY, b.top)
         maxX = Math.max(maxX, b.left + b.width); maxY = Math.max(maxY, b.top + b.height)
       })
       const pad = 60
@@ -267,31 +303,24 @@ async function grundrissPdfExport(raum: RaumMitProjekt) {
         (PDF_H - pad * 2) / (maxY - minY || 1),
         1
       )
-      const cx = (minX + maxX) / 2
-      const cy = (minY + maxY) / 2
+      const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2
       canvas.setViewportTransform([z, 0, 0, z, PDF_W / 2 - cx * z, PDF_H / 2 - cy * z])
     }
 
     canvas.requestRenderAll()
-
-    // PNG → jsPDF
     const imgData = canvas.toDataURL({ format: 'png', multiplier: 1 })
 
-    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const pdf   = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
     const pageW = pdf.internal.pageSize.getWidth()
     const pageH = pdf.internal.pageSize.getHeight()
 
-    // Grüner Header-Streifen
     pdf.setFillColor(68, 92, 73)
     pdf.rect(0, 0, pageW, 14, 'F')
-
-    // Raumname
     pdf.setTextColor(255, 255, 255)
     pdf.setFontSize(11)
     pdf.setFont('helvetica', 'bold')
     pdf.text(raum.name, 10, 9.5)
 
-    // Maße rechts im Header
     if (raum.breite_m && raum.laenge_m) {
       pdf.setFontSize(8)
       pdf.setFont('helvetica', 'normal')
@@ -299,12 +328,8 @@ async function grundrissPdfExport(raum: RaumMitProjekt) {
       pdf.text(massText, pageW - 10, 9.5, { align: 'right' })
     }
 
-    // Grundriss-Bild zentriert unter dem Header
-    const imgMargin = 4
-    const imgY = 14 + imgMargin
-    const imgH = pageH - imgY - imgMargin
-    pdf.addImage(imgData, 'PNG', 0, imgY, pageW, imgH, undefined, 'FAST')
-
+    const imgY = 18
+    pdf.addImage(imgData, 'PNG', 0, imgY, pageW, pageH - imgY - 4, undefined, 'FAST')
     pdf.save(`Grundriss-${raum.name}.pdf`)
   } finally {
     canvas.dispose()
@@ -312,35 +337,51 @@ async function grundrissPdfExport(raum: RaumMitProjekt) {
   }
 }
 
-// ── Karte ──────────────────────────────────────────────────────
+// ── Karten-Ansicht ─────────────────────────────────────────────
 
 function RaumCard({ raum }: { raum: RaumMitProjekt }) {
   const [pdfLaden, setPdfLaden] = useState(false)
+  const [popup, setPopup]       = useState<{ top: number; left: number } | null>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
 
-  const projekt    = raum.projekte
   const planerHref = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}/planer`
   const raumHref   = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}`
+  const projekt    = raum.projekte
 
-  const bearbeitetVor = formatDistanceToNow(new Date(raum.updated_at), {
-    addSuffix: true,
-    locale: de,
-  })
+  function handleMouseEnter() {
+    if (!raum.grundriss_json || !cardRef.current) return
+    const r = cardRef.current.getBoundingClientRect()
+
+    // Horizontal: rechts neben der Karte, Fallback links
+    let left = r.right + 12
+    if (left + POPUP_W > window.innerWidth - 16) {
+      left = r.left - POPUP_W - 12
+    }
+    left = Math.max(16, left)
+
+    // Vertikal: vertikal zentriert zur Karte, innerhalb Viewport geklemmt
+    let top = r.top + r.height / 2 - POPUP_H / 2
+    top = Math.max(16, Math.min(top, window.innerHeight - POPUP_H - 16))
+
+    setPopup({ top, left })
+  }
+
+  function handleMouseLeave() { setPopup(null) }
 
   async function handlePdf(e: React.MouseEvent) {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault(); e.stopPropagation()
     if (pdfLaden) return
     setPdfLaden(true)
-    try {
-      await grundrissPdfExport(raum)
-    } finally {
-      setPdfLaden(false)
-    }
+    try { await grundrissPdfExport(raum) } finally { setPdfLaden(false) }
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-
+    <div
+      ref={cardRef}
+      className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       {/* Vorschau oder Platzhalter */}
       {raum.grundriss_json ? (
         <Link href={planerHref} className="block">
@@ -372,18 +413,11 @@ function RaumCard({ raum }: { raum: RaumMitProjekt }) {
       <div className="px-4 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <Link
-              href={raumHref}
-              className="text-sm font-medium text-gray-900 hover:text-[#445c49] transition-colors truncate block"
-            >
+            <Link href={raumHref} className="text-sm font-medium text-gray-900 hover:text-[#445c49] transition-colors truncate block">
               {raum.name}
             </Link>
-            {projekt && (
-              <p className="text-xs text-gray-400 mt-0.5 truncate">{projekt.name}</p>
-            )}
-            <p className="text-[10px] text-gray-400 mt-1">
-              Bearbeitet {bearbeitetVor}
-            </p>
+            {projekt && <p className="text-xs text-gray-400 mt-0.5 truncate">{projekt.name}</p>}
+            <p className="text-[10px] text-gray-400 mt-1">Bearbeitet {bearbeitetText(raum.updated_at)}</p>
             {(raum.breite_m || raum.laenge_m) && (
               <p className="text-[10px] text-gray-400 mt-0.5">
                 {raum.breite_m ?? '?'} m × {raum.laenge_m ?? '?'} m
@@ -392,7 +426,6 @@ function RaumCard({ raum }: { raum: RaumMitProjekt }) {
             )}
           </div>
 
-          {/* Buttons */}
           <div className="shrink-0 flex items-center gap-1.5">
             {raum.grundriss_json && (
               <button
@@ -414,6 +447,117 @@ function RaumCard({ raum }: { raum: RaumMitProjekt }) {
             </Link>
           </div>
         </div>
+      </div>
+
+      {/* Hover-Popup (fixed → bricht aus overflow:hidden aus) */}
+      {popup && raum.grundriss_json && (
+        <div
+          style={{ position: 'fixed', top: popup.top, left: popup.left, width: POPUP_W, zIndex: 50 }}
+          className="bg-white rounded-xl shadow-2xl border border-gray-200 p-3 pointer-events-none"
+        >
+          <GrundrissVorschau
+            grundrissJson={JSON.stringify(raum.grundriss_json)}
+            breiteM={raum.breite_m}
+            laengeM={raum.laenge_m}
+            vorschauBreite={POPUP_W - 24}
+            className="shadow-sm"
+          />
+          <p className="text-xs font-medium text-gray-700 mt-2 truncate">{raum.name}</p>
+          {raum.projekte && (
+            <p className="text-[10px] text-gray-400 mt-0.5 truncate">{raum.projekte.name}</p>
+          )}
+          {(raum.breite_m || raum.laenge_m) && (
+            <p className="text-[10px] text-gray-400 mt-0.5">
+              {raum.breite_m ?? '?'} m × {raum.laenge_m ?? '?'} m
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Listen-Ansicht ─────────────────────────────────────────────
+
+function RaumListRow({ raum, isLast }: { raum: RaumMitProjekt; isLast: boolean }) {
+  const [pdfLaden, setPdfLaden] = useState(false)
+
+  const planerHref = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}/planer`
+  const raumHref   = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}`
+  const projekt    = raum.projekte
+
+  async function handlePdf(e: React.MouseEvent) {
+    e.preventDefault(); e.stopPropagation()
+    if (pdfLaden) return
+    setPdfLaden(true)
+    try { await grundrissPdfExport(raum) } finally { setPdfLaden(false) }
+  }
+
+  return (
+    <div className={`flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors ${!isLast ? 'border-b border-gray-100' : ''}`}>
+
+      {/* Kleine Vorschau */}
+      <div className="shrink-0 w-16 h-12 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex items-center justify-center">
+        {raum.grundriss_json ? (
+          <GrundrissVorschau
+            grundrissJson={JSON.stringify(raum.grundriss_json)}
+            breiteM={raum.breite_m}
+            laengeM={raum.laenge_m}
+            vorschauBreite={64}
+            className="!rounded-none !border-0 !shadow-none"
+          />
+        ) : (
+          <PenTool className="w-4 h-4 text-gray-300" />
+        )}
+      </div>
+
+      {/* Infos */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-3">
+          <Link href={raumHref} className="text-sm font-medium text-gray-900 hover:text-[#445c49] transition-colors truncate">
+            {raum.name}
+          </Link>
+          {!raum.grundriss_json && (
+            <span className="shrink-0 text-[10px] text-gray-400 border border-gray-200 rounded px-1.5 py-0.5">
+              Kein Grundriss
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 mt-0.5">
+          {projekt && <p className="text-xs text-gray-400 truncate">{projekt.name}</p>}
+          {(raum.breite_m || raum.laenge_m) && (
+            <p className="text-xs text-gray-400 shrink-0">
+              {raum.breite_m ?? '?'} × {raum.laenge_m ?? '?'} m
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Datum */}
+      <p className="shrink-0 text-xs text-gray-400 hidden sm:block w-32 text-right">
+        {bearbeitetText(raum.updated_at)}
+      </p>
+
+      {/* Buttons */}
+      <div className="shrink-0 flex items-center gap-1.5">
+        {raum.grundriss_json && (
+          <button
+            onClick={handlePdf}
+            disabled={pdfLaden}
+            title="PDF exportieren"
+            className="inline-flex items-center gap-1 px-2 py-1.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 text-xs font-medium rounded-lg transition-colors"
+          >
+            <FileDown className="w-3 h-3" />
+            {pdfLaden ? '...' : 'PDF'}
+          </button>
+        )}
+        <Link
+          href={planerHref}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-[#445c49] hover:bg-[#354a3a] text-white text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+        >
+          <LayoutDashboard className="w-3 h-3" />
+          Planer
+        </Link>
       </div>
     </div>
   )
