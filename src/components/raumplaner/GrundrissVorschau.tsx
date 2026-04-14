@@ -38,6 +38,7 @@ export default function GrundrissVorschau({
         width: vorschauBreite, height: h,
         selection: false, interactive: false,
         renderOnAddRemove: false,
+        backgroundColor: '#ffffff',
       })
 
       // Gespeicherte Objekte laden
@@ -102,8 +103,8 @@ export default function GrundrissVorschau({
   const h = Math.round(vorschauBreite * aspect)
 
   return (
-    <div ref={containerRef} className={`overflow-hidden rounded-xl bg-[#e8ede9] border border-gray-200 shadow-sm ${className}`}
-      style={{ width: '100%', maxWidth: vorschauBreite, height: Math.min(h, 300), maxHeight: 300 }}>
+    <div ref={containerRef} className={`overflow-hidden rounded-xl border border-gray-200 shadow-sm ${className}`}
+      style={{ width: '100%', maxWidth: vorschauBreite, height: Math.min(h, 280), maxHeight: 280, background: '#ffffff' }}>
       <canvas ref={canvasRef} style={{ display: 'block' }} />
     </div>
   )
