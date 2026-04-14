@@ -9,9 +9,10 @@ import {
   HelpCircle, X, Maximize2, Minimize2, ChevronDown, ChevronRight,
   AlertCircle, Trash2, FileDown, PanelLeft,
   Copy, ArrowUpToLine, ArrowDownToLine, ArrowUp, ArrowDown,
-  Magnet, Lock, LockOpen, Star,
+  Magnet, Lock, LockOpen, Star, Share2, Image as ImageIcon, Check, Link2,
 } from 'lucide-react'
-import { grundrissSpeichern, raumMasseAktualisieren, getCustomMoebel, customMoebelErstellen } from '@/app/actions/raumplaner'
+import QRCode from 'react-qr-code'
+import { grundrissSpeichern, raumMasseAktualisieren, getCustomMoebel, customMoebelErstellen, getRaumFreigabeInfo, raumFreigabeAktualisieren } from '@/app/actions/raumplaner'
 import type { MoebelSymbol, CustomMoebel as CustomMoebelType } from '@/lib/supabase/types'
 
 // ── Konstanten ────────────────────────────────────────────────
@@ -49,6 +50,8 @@ interface Props {
   initialCanvasJson: string | null
   moebelSymbole: MoebelSymbol[]
   produkte: Array<{ id: string; name: string; kategorie: string | null }>
+  freigabeToken?: string | null
+  freigabeAktiv?: boolean
 }
 
 // ── Möbel SVG-Preview ─────────────────────────────────────────
@@ -185,6 +188,8 @@ export default function RaumplanerEditor({
   raumId, projektId, raumName,
   breiteM, laengeM, hoeheM,
   initialCanvasJson, moebelSymbole,
+  freigabeToken: initialFreigabeToken = null,
+  freigabeAktiv: initialFreigabeAktiv = false,
 }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const canvasRef     = useRef<HTMLCanvasElement>(null)
@@ -221,6 +226,19 @@ export default function RaumplanerEditor({
   const [newMoebel,     setNewMoebel]     = useState<NewMoebelForm>({
     name: '', kategorie: 'Wohnzimmer', breite_cm: 80, laenge_cm: 80, farbe: '#94c1a4',
   })
+
+  // Freigabe-Modal
+  const [showFreigabeModal, setShowFreigabeModal] = useState(false)
+  const [freigabeAktiv,     setFreigabeAktiv]     = useState(initialFreigabeAktiv)
+  const [freigabeToken,     setFreigabeToken]      = useState<string | null>(initialFreigabeToken)
+  const [freigabeSaving,    setFreigabeSaving]     = useState(false)
+  const [linkKopiert,       setLinkKopiert]        = useState(false)
+
+  // Bild-Export-Modal
+  const [showBildModal,     setShowBildModal]      = useState(false)
+  const [bildFormat,        setBildFormat]         = useState<'png' | 'jpg'>('png')
+  const [bildMultiplier,    setBildMultiplier]     = useState<1 | 2 | 4>(2)
+  const [bildTransparent,   setBildTransparent]    = useState(false)
 
   const [raumBreite, setRaumBreite] = useState(breiteM?.toString() ?? '')
   const [raumLaenge, setRaumLaenge] = useState(laengeM?.toString() ?? '')
@@ -1176,6 +1194,64 @@ export default function RaumplanerEditor({
     } finally { setCustomSaving(false) }
   }
 
+  // ── Freigabe-Toggle ─────────────────────────────────────────
+  async function toggleFreigabe() {
+    setFreigabeSaving(true)
+    try {
+      const naechsterZustand = !freigabeAktiv
+      const res = await raumFreigabeAktualisieren(raumId, naechsterZustand, projektId)
+      if (!res.fehler) {
+        setFreigabeAktiv(naechsterZustand)
+        if (res.token) setFreigabeToken(res.token)
+        if (!freigabeToken) {
+          // Token nachladen falls noch nicht vorhanden
+          const info = await getRaumFreigabeInfo(raumId)
+          if (info.token) setFreigabeToken(info.token)
+        }
+      }
+    } finally { setFreigabeSaving(false) }
+  }
+
+  async function kopiereFreigabeLink() {
+    if (!freigabeToken) return
+    const url = `${window.location.origin}/raumplan/${freigabeToken}`
+    await navigator.clipboard.writeText(url)
+    setLinkKopiert(true)
+    setTimeout(() => setLinkKopiert(false), 2000)
+  }
+
+  // ── Bild-Export ─────────────────────────────────────────────
+  function exportAsImage() {
+    const canvas = fabricRef.current; if (!canvas) return
+    // Grid-Objekte temporär ausblenden
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const gridObjs = canvas.getObjects().filter((o: any) => o.data?.type === 'grid')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    gridObjs.forEach((o: any) => o.set('visible', false))
+
+    // Hintergrund
+    const prevBg = canvas.backgroundColor
+    canvas.backgroundColor = bildTransparent && bildFormat === 'png' ? '' : '#ffffff'
+
+    canvas.requestRenderAll()
+    const dataUrl = canvas.toDataURL({
+      format: bildFormat,
+      multiplier: bildMultiplier,
+      quality: 0.95,
+    })
+
+    // Wiederherstellen
+    canvas.backgroundColor = prevBg
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    gridObjs.forEach((o: any) => o.set('visible', true))
+    canvas.requestRenderAll()
+
+    const a = document.createElement('a')
+    a.download = `Grundriss-${raumName}.${bildFormat}`
+    a.href = dataUrl; a.click()
+    setShowBildModal(false)
+  }
+
   function handleMinimapClick(e: React.MouseEvent<HTMLDivElement>) {
     const canvas = fabricRef.current; if (!canvas) return
     const rect = e.currentTarget.getBoundingClientRect()
@@ -1500,6 +1576,25 @@ export default function RaumplanerEditor({
           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
           <FileDown className="w-4 h-4" />
         </button>
+
+        {/* Bild-Export */}
+        <button type="button" title="Als Bild exportieren" onClick={() => setShowBildModal(true)}
+          className={tbBtn} style={{ color: C.textLt }}
+          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          <ImageIcon className="w-4 h-4" />
+        </button>
+
+        {/* Freigabe */}
+        <button type="button" title="Freigabe-Link" onClick={() => setShowFreigabeModal(true)}
+          className={tbBtn}
+          style={{ color: freigabeAktiv ? '#4ade80' : C.textLt, background: freigabeAktiv ? 'rgba(74,222,128,0.1)' : 'transparent' }}
+          onMouseEnter={e => { if (!freigabeAktiv) e.currentTarget.style.background = C.hover }}
+          onMouseLeave={e => { if (!freigabeAktiv) e.currentTarget.style.background = 'transparent' }}>
+          <Share2 className="w-4 h-4" />
+        </button>
+
+        <div className={tbSep} style={{ background: C.border }} />
 
         {/* Speichern */}
         <button type="button" onClick={saveNow}
@@ -1908,6 +2003,174 @@ export default function RaumplanerEditor({
                 className="flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50"
                 style={{ background: '#445c49' }}>
                 {customSaving ? 'Speichern…' : 'Erstellen'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Freigabe-Modal ── */}
+      {showFreigabeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowFreigabeModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-96 max-w-full"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">Freigabe-Link</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Grundriss öffentlich teilen</p>
+              </div>
+              <button onClick={() => setShowFreigabeModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Toggle */}
+            <div className="flex items-center justify-between p-3 rounded-xl mb-4"
+              style={{ background: freigabeAktiv ? 'rgba(74,222,128,0.08)' : '#f8fafc', border: `1px solid ${freigabeAktiv ? 'rgba(74,222,128,0.3)' : '#e2e8f0'}` }}>
+              <div>
+                <p className="text-sm font-medium text-gray-800">
+                  {freigabeAktiv ? 'Freigabe aktiv' : 'Freigabe inaktiv'}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {freigabeAktiv ? 'Link ist öffentlich zugänglich' : 'Link ist deaktiviert'}
+                </p>
+              </div>
+              <button type="button" onClick={toggleFreigabe} disabled={freigabeSaving}
+                className="relative w-12 h-6 rounded-full transition-all duration-200 disabled:opacity-50"
+                style={{ background: freigabeAktiv ? '#445c49' : '#d1d5db' }}>
+                <span className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
+                  style={{ transform: freigabeAktiv ? 'translateX(24px)' : 'translateX(0)' }} />
+              </button>
+            </div>
+
+            {freigabeAktiv && freigabeToken && (() => {
+              const url = `${typeof window !== 'undefined' ? window.location.origin : 'https://app.wellbeing-spaces.de'}/raumplan/${freigabeToken}`
+              return (
+                <>
+                  {/* Link */}
+                  <div className="mb-4">
+                    <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Freigabe-Link</label>
+                    <div className="flex gap-2">
+                      <div className="flex-1 flex items-center px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono text-gray-600 truncate">
+                        {url}
+                      </div>
+                      <button type="button" onClick={kopiereFreigabeLink}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-colors"
+                        style={{
+                          background: linkKopiert ? 'rgba(74,222,128,0.08)' : '#f8fafc',
+                          borderColor: linkKopiert ? 'rgba(74,222,128,0.4)' : '#e2e8f0',
+                          color: linkKopiert ? '#16a34a' : '#374151',
+                        }}>
+                        {linkKopiert ? <><Check className="w-3.5 h-3.5" /> Kopiert</> : <><Link2 className="w-3.5 h-3.5" /> Kopieren</>}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* QR-Code */}
+                  <div className="mb-4">
+                    <label className="text-[11px] font-medium text-gray-500 block mb-1.5">QR-Code</label>
+                    <div className="flex items-center gap-4">
+                      <div className="bg-white p-3 rounded-xl border border-gray-200 inline-block">
+                        <QRCode value={url} size={120} level="M" />
+                      </div>
+                      <div className="text-xs text-gray-400 leading-relaxed">
+                        QR-Code scannen<br />um den Grundriss<br />auf dem Handy<br />zu öffnen.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Vorschau-Button */}
+                  <a href={url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full py-2 text-sm font-medium rounded-xl transition-colors"
+                    style={{ background: '#445c49', color: '#fff' }}>
+                    Vorschau öffnen
+                  </a>
+                </>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── Bild-Export-Modal ── */}
+      {showBildModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowBildModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-80 max-w-full"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-semibold text-gray-900">Als Bild exportieren</h2>
+              <button onClick={() => setShowBildModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Format */}
+              <div>
+                <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Format</label>
+                <div className="flex gap-2">
+                  {(['png', 'jpg'] as const).map(f => (
+                    <button key={f} type="button" onClick={() => { setBildFormat(f); if (f === 'jpg') setBildTransparent(false) }}
+                      className="flex-1 py-1.5 text-sm font-medium rounded-lg border transition-all uppercase"
+                      style={{
+                        background: bildFormat === f ? '#445c49' : '#f8fafc',
+                        borderColor: bildFormat === f ? '#445c49' : '#e2e8f0',
+                        color: bildFormat === f ? '#fff' : '#374151',
+                      }}>
+                      {f}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Auflösung */}
+              <div>
+                <label className="text-[11px] font-medium text-gray-500 block mb-1.5">Auflösung</label>
+                <div className="flex gap-2">
+                  {([1, 2, 4] as const).map(m => (
+                    <button key={m} type="button" onClick={() => setBildMultiplier(m)}
+                      className="flex-1 py-1.5 text-sm font-medium rounded-lg border transition-all"
+                      style={{
+                        background: bildMultiplier === m ? '#445c49' : '#f8fafc',
+                        borderColor: bildMultiplier === m ? '#445c49' : '#e2e8f0',
+                        color: bildMultiplier === m ? '#fff' : '#374151',
+                      }}>
+                      {m}×
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">
+                  {bildMultiplier === 1 ? 'Normale Auflösung' : bildMultiplier === 2 ? 'Doppelte Auflösung (empfohlen)' : 'Vierfache Auflösung (Druck)'}
+                </p>
+              </div>
+
+              {/* Hintergrund (nur PNG) */}
+              {bildFormat === 'png' && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-gray-700">Transparenter Hintergrund</p>
+                    <p className="text-[10px] text-gray-400">Nur Möbel, kein weißer Hintergrund</p>
+                  </div>
+                  <button type="button" onClick={() => setBildTransparent(v => !v)}
+                    className="relative w-10 h-5 rounded-full transition-all duration-200"
+                    style={{ background: bildTransparent ? '#445c49' : '#d1d5db' }}>
+                    <span className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                      style={{ transform: bildTransparent ? 'translateX(20px)' : 'translateX(0)' }} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setShowBildModal(false)} className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                Abbrechen
+              </button>
+              <button onClick={exportAsImage}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors"
+                style={{ background: '#445c49' }}>
+                Exportieren
               </button>
             </div>
           </div>
