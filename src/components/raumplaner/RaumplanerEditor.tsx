@@ -7,7 +7,7 @@ import {
   RotateCcw, RotateCw, Search, ChevronLeft, Pencil,
   Eraser, CheckCircle, DoorOpen, AppWindow, Ruler,
   HelpCircle, X, Maximize2, ChevronDown, ChevronRight,
-  AlertCircle, Trash2, FileDown,
+  AlertCircle, Trash2, FileDown, PanelLeft,
 } from 'lucide-react'
 import { grundrissSpeichern, raumMasseAktualisieren } from '@/app/actions/raumplaner'
 import type { MoebelSymbol } from '@/lib/supabase/types'
@@ -200,6 +200,7 @@ export default function RaumplanerEditor({
   const [objCount,      setObjCount]      = useState(0)
   const [contextMenu,   setContextMenu]   = useState<ContextMenuState | null>(null)
   const [openGroups,    setOpenGroups]    = useState<Set<string>>(new Set(MOEBEL_GRUPPEN.map(g => g.name)))
+  const [sidebarOffen,  setSidebarOffen]  = useState(true)
 
   const [raumBreite, setRaumBreite] = useState(breiteM?.toString() ?? '')
   const [raumLaenge, setRaumLaenge] = useState(laengeM?.toString() ?? '')
@@ -522,11 +523,30 @@ export default function RaumplanerEditor({
       // Grid nach jedem Render zeichnen
       canvas.on('after:render', () => { if (showGridRef.current) renderGrid(canvas) })
 
-      // ── ZOOM (smooth, zoomToPoint) ──
+      // ── ZOOM (smooth, zoomToPoint) + Mac Trackpad Support ──
       canvas.on('mouse:wheel', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         const e = opt.e as WheelEvent
         e.preventDefault(); e.stopPropagation()
-        if (e.ctrlKey || e.metaKey) return  // Ctrl+Scroll nur abfangen, kein Canvas-Zoom
+
+        // Mac Trackpad Pinch-to-Zoom: Chrome/Firefox simulieren Pinch als wheel+ctrlKey
+        if (e.ctrlKey || e.metaKey) {
+          let z = canvas.getZoom()
+          z *= 0.99 ** e.deltaY   // Pinch braucht stärkere Sensitivität als Mausrad
+          z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z))
+          canvas.zoomToPoint(new Point(e.offsetX, e.offsetY), z)
+          setZoom(Math.round(z * 100) / 100)
+          canvas.requestRenderAll()
+          return
+        }
+
+        // Mac Trackpad Two-Finger-Pan (deltaX + deltaY gleichzeitig)
+        if (Math.abs(e.deltaX) > 1) {
+          canvas.relativePan(new Point(-e.deltaX, -e.deltaY))
+          canvas.requestRenderAll()
+          return
+        }
+
+        // Normales Mausrad = Zoom
         let z = canvas.getZoom()
         z *= 0.999 ** e.deltaY
         z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z))
@@ -534,6 +554,23 @@ export default function RaumplanerEditor({
         setZoom(Math.round(z * 100) / 100)
         canvas.requestRenderAll()
       })
+
+      // Safari Pinch-Gesture (gesturestart / gesturechange Events)
+      const upperEl = canvas.upperCanvasEl as HTMLElement
+      function onGestureStart(e: Event) { e.preventDefault() }
+      function onGestureChange(e: Event) {
+        e.preventDefault()
+        const ge = e as any // eslint-disable-line @typescript-eslint/no-explicit-any
+        const rect = upperEl.getBoundingClientRect()
+        // Safari liefert ge.scale als kumulativen Faktor ab letztem gesturestart
+        const factor = ge.scale > 1 ? 1.06 : 0.94
+        const z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, canvas.getZoom() * factor))
+        canvas.zoomToPoint(new Point(ge.clientX - rect.left, ge.clientY - rect.top), z)
+        setZoom(Math.round(z * 100) / 100)
+        canvas.requestRenderAll()
+      }
+      upperEl.addEventListener('gesturestart', onGestureStart)
+      upperEl.addEventListener('gesturechange', onGestureChange)
 
       // ── MAUS-BEWEGUNG (Wand/Bemaßungs-Preview + Maus-Koordinaten) ──
       canvas.on('mouse:move', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -861,6 +898,8 @@ export default function RaumplanerEditor({
         cont.removeEventListener('mousemove', onMouseMove)
         cont.removeEventListener('mouseup', onMouseUp)
         cont.removeEventListener('contextmenu', onContextMenu)
+        upperEl.removeEventListener('gesturestart', onGestureStart)
+        upperEl.removeEventListener('gesturechange', onGestureChange)
         ro.disconnect(); canvas.dispose()
       }
     })
@@ -1110,6 +1149,15 @@ export default function RaumplanerEditor({
           <span className="font-medium">{raumName}</span>
         </Link>
 
+        {/* Sidebar-Toggle */}
+        <button type="button" title="Möbel-Sidebar ein/ausblenden" onClick={() => setSidebarOffen(v => !v)}
+          className={tbBtn}
+          style={{ color: sidebarOffen ? '#fff' : C.textLt, background: sidebarOffen ? 'rgba(68,92,73,0.5)' : 'transparent' }}
+          onMouseEnter={e => { if (!sidebarOffen) e.currentTarget.style.background = C.hover }}
+          onMouseLeave={e => { if (!sidebarOffen) e.currentTarget.style.background = 'transparent' }}>
+          <PanelLeft className="w-4 h-4" />
+        </button>
+
         <div className={tbSep} style={{ background: C.border }} />
 
         {/* Tool-Gruppen */}
@@ -1241,8 +1289,8 @@ export default function RaumplanerEditor({
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── Linke Sidebar ── */}
-        <div className="w-56 flex flex-col overflow-hidden shrink-0"
-          style={{ background: C.sidebar, borderRight: `1px solid ${C.border}` }}>
+        <div className={`flex flex-col overflow-hidden shrink-0 transition-all duration-200 ${sidebarOffen ? 'w-56' : 'w-0'}`}
+          style={{ background: C.sidebar, borderRight: sidebarOffen ? `1px solid ${C.border}` : 'none' }}>
           <div className="px-2 py-2" style={{ borderBottom: `1px solid ${C.border}` }}>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3" style={{ color: `${C.textLt}60` }} />

@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import { Search, LayoutDashboard, PenTool, FileDown, LayoutGrid, List } from 'lucide-react'
+import { Search, LayoutDashboard, PenTool, FileDown, LayoutGrid, List, ChevronDown } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { de } from 'date-fns/locale'
 import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
@@ -21,10 +21,6 @@ interface Props {
   raeume: RaumMitProjekt[]
   projekte: Projekt[]
 }
-
-// ── Konstanten ─────────────────────────────────────────────────
-const POPUP_W = 340
-const POPUP_H = 280
 
 // ── Haupt-Komponente ───────────────────────────────────────────
 
@@ -63,18 +59,19 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
 
-      {/* Header */}
-      <div className="mb-5">
-        <h1 className="text-xl font-semibold text-gray-900">Raumplaner</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
-          {raeume.length} {raeume.length === 1 ? 'Raum' : 'Räume'} gesamt
-          {' · '}{totalGrundriss} mit Grundriss
-          {' · '}{raeume.length - totalGrundriss} ohne Grundriss
-        </p>
-      </div>
+      {/* Sticky Header + Toolbar */}
+      <div className="sticky top-0 z-10 bg-gray-50 pb-4 mb-2 border-b border-gray-100">
+        <div className="mb-4">
+          <h1 className="text-xl font-semibold text-gray-900">Raumplaner</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {raeume.length} {raeume.length === 1 ? 'Raum' : 'Räume'} gesamt
+            {' · '}{totalGrundriss} mit Grundriss
+            {' · '}{raeume.length - totalGrundriss} ohne Grundriss
+          </p>
+        </div>
 
-      {/* Toolbar: Suche + Filter + Sortierung + View-Toggle */}
-      <div className="flex flex-wrap gap-2 mb-6">
+        {/* Toolbar: Suche + Filter + Sortierung + View-Toggle */}
+        <div className="flex flex-wrap gap-2">
         {/* Suchfeld */}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
@@ -88,27 +85,33 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
         </div>
 
         {/* Projekt-Filter */}
-        <select
-          value={selectedProjekt}
-          onChange={(e) => setSelectedProjekt(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445c49]/30 focus:border-[#445c49] transition-colors"
-        >
-          <option value="">Alle Projekte</option>
-          {projekte.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </select>
+        <div className="relative">
+          <select
+            value={selectedProjekt}
+            onChange={(e) => setSelectedProjekt(e.target.value)}
+            className="appearance-none pl-3 pr-9 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445c49]/30 focus:border-[#445c49] transition-colors"
+          >
+            <option value="">Alle Projekte</option>
+            {projekte.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        </div>
 
         {/* Sortierung */}
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortBy)}
-          className="px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445c49]/30 focus:border-[#445c49] transition-colors"
-        >
-          <option value="updated">Zuletzt bearbeitet</option>
-          <option value="name">Name A–Z</option>
-          <option value="created">Erstelldatum</option>
-        </select>
+        <div className="relative">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortBy)}
+            className="appearance-none pl-3 pr-9 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#445c49]/30 focus:border-[#445c49] transition-colors"
+          >
+            <option value="updated">Zuletzt bearbeitet</option>
+            <option value="name">Name A–Z</option>
+            <option value="created">Erstelldatum</option>
+          </select>
+          <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+        </div>
 
         {/* Grid / Listen-Toggle */}
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
@@ -134,6 +137,7 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
           >
             <List className="w-4 h-4" />
           </button>
+        </div>
         </div>
       </div>
 
@@ -200,27 +204,6 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
         </div>
       )}
 
-      {/* Projekte-Übersicht unten */}
-      {projekte.length > 0 && gefiltert.length > 0 && (
-        <section className="mt-10 pt-6 border-t border-gray-200">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Projekte</h2>
-          <div className="flex flex-wrap gap-2">
-            {projekte.map((p) => {
-              const count = raeume.filter((r) => r.projekte?.id === p.id).length
-              return (
-                <Link
-                  key={p.id}
-                  href={`/dashboard/projekte/${p.id}`}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:border-[#445c49] hover:text-[#445c49] transition-colors"
-                >
-                  {p.name}
-                  <span className="text-xs text-gray-400">{count}</span>
-                </Link>
-              )
-            })}
-          </div>
-        </section>
-      )}
     </div>
   )
 }
@@ -341,32 +324,10 @@ async function grundrissPdfExport(raum: RaumMitProjekt) {
 
 function RaumCard({ raum }: { raum: RaumMitProjekt }) {
   const [pdfLaden, setPdfLaden] = useState(false)
-  const [popup, setPopup]       = useState<{ top: number; left: number } | null>(null)
-  const cardRef = useRef<HTMLDivElement>(null)
 
   const planerHref = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}/planer`
   const raumHref   = `/dashboard/projekte/${raum.projekt_id}/raeume/${raum.id}`
   const projekt    = raum.projekte
-
-  function handleMouseEnter() {
-    if (!raum.grundriss_json || !cardRef.current) return
-    const r = cardRef.current.getBoundingClientRect()
-
-    // Horizontal: rechts neben der Karte, Fallback links
-    let left = r.right + 12
-    if (left + POPUP_W > window.innerWidth - 16) {
-      left = r.left - POPUP_W - 12
-    }
-    left = Math.max(16, left)
-
-    // Vertikal: vertikal zentriert zur Karte, innerhalb Viewport geklemmt
-    let top = r.top + r.height / 2 - POPUP_H / 2
-    top = Math.max(16, Math.min(top, window.innerHeight - POPUP_H - 16))
-
-    setPopup({ top, left })
-  }
-
-  function handleMouseLeave() { setPopup(null) }
 
   async function handlePdf(e: React.MouseEvent) {
     e.preventDefault(); e.stopPropagation()
@@ -376,12 +337,7 @@ function RaumCard({ raum }: { raum: RaumMitProjekt }) {
   }
 
   return (
-    <div
-      ref={cardRef}
-      className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
       {/* Vorschau oder Platzhalter */}
       {raum.grundriss_json ? (
         <Link href={planerHref} className="block">
@@ -449,30 +405,6 @@ function RaumCard({ raum }: { raum: RaumMitProjekt }) {
         </div>
       </div>
 
-      {/* Hover-Popup (fixed → bricht aus overflow:hidden aus) */}
-      {popup && raum.grundriss_json && (
-        <div
-          style={{ position: 'fixed', top: popup.top, left: popup.left, width: POPUP_W, zIndex: 50 }}
-          className="bg-white rounded-xl shadow-2xl border border-gray-200 p-3 pointer-events-none"
-        >
-          <GrundrissVorschau
-            grundrissJson={JSON.stringify(raum.grundriss_json)}
-            breiteM={raum.breite_m}
-            laengeM={raum.laenge_m}
-            vorschauBreite={POPUP_W - 24}
-            className="shadow-sm"
-          />
-          <p className="text-xs font-medium text-gray-700 mt-2 truncate">{raum.name}</p>
-          {raum.projekte && (
-            <p className="text-[10px] text-gray-400 mt-0.5 truncate">{raum.projekte.name}</p>
-          )}
-          {(raum.breite_m || raum.laenge_m) && (
-            <p className="text-[10px] text-gray-400 mt-0.5">
-              {raum.breite_m ?? '?'} m × {raum.laenge_m ?? '?'} m
-            </p>
-          )}
-        </div>
-      )}
     </div>
   )
 }
