@@ -8,6 +8,7 @@ import FilterBar from '@/components/FilterBar'
 import SortableProduktTabelle from '@/components/SortableProduktTabelle'
 import type { RaumProduktMitDetails } from '@/lib/supabase/types'
 import { LayoutDashboard } from 'lucide-react'
+import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
@@ -18,6 +19,8 @@ type RaumMitProjekt = {
   id: string; name: string; beschreibung: string | null
   projekt_id: string; reihenfolge: number
   deleted_at: string | null; created_at: string; updated_at: string
+  grundriss_json: Record<string, unknown> | null
+  breite_m: number | null; laenge_m: number | null; hoehe_m: number | null
   projekte: { id: string; name: string; kunden: { id: string; name: string } | null } | null
 }
 
@@ -117,19 +120,66 @@ export default async function RaumDetailPage({
         </div>
         <div className="flex items-center gap-2">
           <Link
-            href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/planer`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors whitespace-nowrap border border-gray-700"
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            Raumplaner
-          </Link>
-          <Link
             href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/neu`}
             className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark hover:scale-[1.02] active:scale-[0.98] text-white text-sm font-medium rounded-lg transition-all duration-200 whitespace-nowrap"
           >
             + Produkt hinzufügen
           </Link>
         </div>
+      </div>
+
+      {/* Grundriss-Vorschau */}
+      <div className="mb-6">
+        {raum.grundriss_json ? (
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <div>
+                <p className="text-sm font-medium text-gray-800">Grundriss</p>
+                {(raum.breite_m || raum.laenge_m) && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {raum.breite_m ?? '?'} m × {raum.laenge_m ?? '?'} m
+                    {raum.hoehe_m ? ` · H ${raum.hoehe_m} m` : ''}
+                  </p>
+                )}
+              </div>
+              <Link
+                href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/planer`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-colors"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                Im Raumplaner bearbeiten
+              </Link>
+            </div>
+            <div className="p-4 bg-gray-50 flex justify-center">
+              <GrundrissVorschau
+                grundrissJson={JSON.stringify(raum.grundriss_json)}
+                breiteM={raum.breite_m}
+                laengeM={raum.laenge_m}
+                vorschauBreite={500}
+                className="shadow-sm"
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white border border-dashed border-gray-300 rounded-xl px-6 py-5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                <LayoutDashboard className="w-5 h-5 text-gray-400" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700">Noch kein Grundriss erstellt</p>
+                <p className="text-xs text-gray-400 mt-0.5">Plane den Raum mit dem interaktiven Raumplaner</p>
+              </div>
+            </div>
+            <Link
+              href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/planer`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors whitespace-nowrap border border-gray-700"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Raumplaner öffnen
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Filter Bar */}

@@ -6,7 +6,8 @@ import {
   MousePointer2, Minus, Plus, Grid3x3, Save, Trash2,
   RotateCcw, RotateCw, Search, ChevronLeft, Pencil,
   Eraser, CheckCircle, DoorOpen, AppWindow, Ruler,
-  HelpCircle, X,
+  HelpCircle, X, Maximize2, ChevronDown, ChevronRight,
+  AlertCircle,
 } from 'lucide-react'
 import { grundrissSpeichern, raumMasseAktualisieren } from '@/app/actions/raumplaner'
 import type { MoebelSymbol } from '@/lib/supabase/types'
@@ -22,10 +23,25 @@ const AUTOSAVE_DELAY  = 3000  // ms
 type Tool = 'select' | 'wall' | 'door' | 'window' | 'measure' | 'eraser'
 type GridOption = 10 | 25 | 50 | 100
 
+// Möbel-Kategorien (nach Name gematcht)
+const MOEBEL_GRUPPEN: { name: string; keys: string[] }[] = [
+  { name: 'Wohnzimmer',  keys: ['Sofa', 'Sessel', 'Couchtisch', 'Sideboard', 'Regal'] },
+  { name: 'Schlafzimmer',keys: ['Doppelbett', 'Einzelbett', 'Nachttisch', 'Kleiderschrank'] },
+  { name: 'Büro',        keys: ['Schreibtisch', 'Stuhl', 'Barhocker'] },
+  { name: 'Küche',       keys: ['Küchenzeile', 'Herd', 'Esstisch'] },
+  { name: 'Bad',         keys: ['Badewanne', 'Dusche', 'Waschbecken', 'Toilette'] },
+]
+
 interface SelectedProps {
   x: number; y: number; w: number; h: number
   angle: number; fill: string; name: string
   objType?: string
+}
+
+interface ContextMenuState {
+  x: number; y: number
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  target: any
 }
 
 interface Props {
@@ -40,29 +56,17 @@ interface Props {
   produkte: Array<{ id: string; name: string; kategorie: string | null }>
 }
 
-// ── Kleines SVG-Preview für Möbel-Kacheln ────────────────────
+// ── SVG-Preview für Möbel-Kacheln ────────────────────────────
 
 function MoebelPreview({ symbol }: { symbol: MoebelSymbol }) {
-  // Normalisierter viewport: Path ist in 100x100 Einheiten
-  // Box-Aspect aus tatsächlichen Maßen
   const aspect = symbol.tiefe_cm / symbol.breite_cm
   const vH = Math.round(100 * aspect)
   return (
-    <svg
-      viewBox={`0 0 100 ${vH}`}
-      className="w-full"
-      style={{ maxHeight: 56 }}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d={symbol.svg_path}
-        fill={symbol.farbe + 'cc'}
-        stroke={symbol.farbe}
-        strokeWidth="3"
-        strokeLinejoin="round"
-        transform={vH !== 100 ? `scale(1,${vH / 100})` : undefined}
-      />
+    <svg viewBox={`0 0 100 ${vH}`} className="w-full" style={{ maxHeight: 56 }}
+      fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d={symbol.svg_path} fill={symbol.farbe + 'cc'} stroke={symbol.farbe}
+        strokeWidth="3" strokeLinejoin="round"
+        transform={vH !== 100 ? `scale(1,${vH / 100})` : undefined} />
     </svg>
   )
 }
@@ -71,11 +75,8 @@ function MoebelPreview({ symbol }: { symbol: MoebelSymbol }) {
 
 function LoadingScreen({ visible }: { visible: boolean }) {
   return (
-    <div
-      className={`absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-950 transition-opacity duration-500 ${visible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-    >
+    <div className={`absolute inset-0 z-50 flex flex-col items-center justify-center bg-gray-950 transition-opacity duration-500 ${visible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
       <div className="flex flex-col items-center gap-6">
-        {/* Icon */}
         <div className="w-16 h-16 rounded-2xl bg-wellbeing-green/20 border border-wellbeing-green/30 flex items-center justify-center">
           <svg viewBox="0 0 32 32" className="w-8 h-8 text-wellbeing-green-light" fill="currentColor">
             <rect x="2" y="2" width="12" height="12" rx="2"/>
@@ -88,17 +89,11 @@ function LoadingScreen({ visible }: { visible: boolean }) {
           <p className="text-sm font-medium text-gray-200">Raumplaner wird geladen…</p>
           <p className="text-xs text-gray-500 mt-1">Fabric.js Canvas initialisiert</p>
         </div>
-        {/* Spinner */}
         <div className="w-48 h-1 bg-gray-800 rounded-full overflow-hidden">
           <div className="h-full bg-wellbeing-green rounded-full animate-[loading_1.4s_ease-in-out_infinite]" style={{ width: '60%' }} />
         </div>
       </div>
-      <style>{`
-        @keyframes loading {
-          0%   { transform: translateX(-100%); }
-          100% { transform: translateX(280%); }
-        }
-      `}</style>
+      <style>{`@keyframes loading{0%{transform:translateX(-100%)}100%{transform:translateX(280%)}}`}</style>
     </div>
   )
 }
@@ -136,9 +131,7 @@ function ShortcutOverlay({ onClose }: { onClose: () => void }) {
               <span className="text-xs text-gray-400">{s.desc}</span>
               <div className="flex items-center gap-1">
                 {s.keys.map((k) => (
-                  <kbd key={k} className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-800 border border-gray-600 rounded text-gray-300">
-                    {k}
-                  </kbd>
+                  <kbd key={k} className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-800 border border-gray-600 rounded text-gray-300">{k}</kbd>
                 ))}
               </div>
             </div>
@@ -156,55 +149,57 @@ export default function RaumplanerEditor({
   breiteM, laengeM, hoeheM,
   initialCanvasJson, moebelSymbole,
 }: Props) {
-  const canvasRef    = useRef<HTMLCanvasElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const canvasRef     = useRef<HTMLCanvasElement>(null)
+  const containerRef  = useRef<HTMLDivElement>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fabricRef    = useRef<any>(null)
+  const fabricRef     = useRef<any>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fabricImports = useRef<any>(null)
 
-  const [loading,      setLoading]      = useState(true)
-  const [activeTool,   setActiveTool]   = useState<Tool>('select')
-  const [showGrid,     setShowGrid]     = useState(true)
-  const [gridSize,     setGridSize]     = useState<GridOption>(25)
-  const [zoom,         setZoom]         = useState(1)
-  const [mousePos,     setMousePos]     = useState({ x: 0, y: 0 })
-  const [saveStatus,   setSaveStatus]   = useState<'saved'|'unsaved'|'saving'>('saved')
-  const [moebelSuche,  setMoebelSuche]  = useState('')
-  const [selectedProps,setSelectedProps]= useState<SelectedProps | null>(null)
-  const [showShortcuts,setShowShortcuts]= useState(false)
-  const [doorWidth,    setDoorWidth]    = useState(80)
-  const [windowWidth,  setWindowWidth]  = useState(100)
+  const [loading,       setLoading]       = useState(true)
+  const [activeTool,    setActiveTool]    = useState<Tool>('select')
+  const [showGrid,      setShowGrid]      = useState(true)
+  const [gridSize,      setGridSize]      = useState<GridOption>(25)
+  const [zoom,          setZoom]          = useState(1)
+  const [mousePos,      setMousePos]      = useState({ x: 0, y: 0 })
+  const [saveStatus,    setSaveStatus]    = useState<'saved'|'unsaved'|'saving'|'error'>('saved')
+  const [moebelSuche,   setMoebelSuche]   = useState('')
+  const [selectedProps, setSelectedProps] = useState<SelectedProps | null>(null)
+  const [showShortcuts, setShowShortcuts] = useState(false)
+  const [doorWidth,     setDoorWidth]     = useState(80)
+  const [windowWidth,   setWindowWidth]   = useState(100)
+  const [objCount,      setObjCount]      = useState(0)
+  const [contextMenu,   setContextMenu]   = useState<ContextMenuState | null>(null)
+  const [openGroups,    setOpenGroups]    = useState<Set<string>>(
+    new Set(MOEBEL_GRUPPEN.map(g => g.name))
+  )
 
   const [raumBreite, setRaumBreite] = useState(breiteM?.toString() ?? '')
   const [raumLaenge, setRaumLaenge] = useState(laengeM?.toString() ?? '')
   const [raumHoehe,  setRaumHoehe]  = useState(hoeheM?.toString() ?? '2.50')
 
-  // Refs (kein re-render bei Änderung nötig)
-  const activeToolRef   = useRef<Tool>('select')
-  const showGridRef     = useRef(true)
-  const gridSizeRef     = useRef<number>(25)
-  const saveTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isSpaceRef      = useRef(false)
-  const isPanningRef    = useRef(false)
-  const lastPanPosRef   = useRef({ x: 0, y: 0 })
-  const historyRef      = useRef<string[]>([])
-  const historyIdxRef   = useRef(-1)
-  const doorWidthRef    = useRef(80)
-  const windowWidthRef  = useRef(100)
-  // Wall state
+  // Refs
+  const activeToolRef    = useRef<Tool>('select')
+  const showGridRef      = useRef(true)
+  const gridSizeRef      = useRef<number>(25)
+  const saveTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isSpaceRef       = useRef(false)
+  const isPanningRef     = useRef(false)
+  const lastPanPosRef    = useRef({ x: 0, y: 0 })
+  const historyRef       = useRef<string[]>([])
+  const historyIdxRef    = useRef(-1)
+  const doorWidthRef     = useRef(80)
+  const windowWidthRef   = useRef(100)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const wallPreviewRef  = useRef<any>(null)
-  const wallStartRef    = useRef<{ x: number; y: number } | null>(null)
-  // Measure state
-  const measureStartRef = useRef<{ x: number; y: number } | null>(null)
+  const wallPreviewRef   = useRef<any>(null)
+  const wallStartRef     = useRef<{ x: number; y: number } | null>(null)
+  const measureStartRef  = useRef<{ x: number; y: number } | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const measurePreviewRef = useRef<any>(null)
-  // Outline Rect
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const outlineRef      = useRef<any>(null)
+  const outlineRef       = useRef<any>(null)
 
-  // ── Sync Refs ──────────────────────────────────────────────
+  // ── Ref-Sync ──────────────────────────────────────────────
 
   useEffect(() => { activeToolRef.current = activeTool }, [activeTool])
   useEffect(() => { showGridRef.current = showGrid; fabricRef.current?.requestRenderAll() }, [showGrid])
@@ -212,35 +207,26 @@ export default function RaumplanerEditor({
   useEffect(() => { doorWidthRef.current = doorWidth }, [doorWidth])
   useEffect(() => { windowWidthRef.current = windowWidth }, [windowWidth])
 
-  // ── Grid zeichnen (after:render) ──────────────────────────
+  // ── Grid ─────────────────────────────────────────────────
 
   function drawGrid(
-    ctx: CanvasRenderingContext2D,
-    vpt: number[], canvasW: number, canvasH: number,
-    gridPx: number, show: boolean
+    ctx: CanvasRenderingContext2D, vpt: number[],
+    canvasW: number, canvasH: number, gridPx: number, show: boolean
   ) {
     if (!show) return
     const z = vpt[0], ox = vpt[4], oy = vpt[5]
-    const minor = gridPx * z
-    const major = SCALE * z
-    ctx.save()
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    const minor = gridPx * z, major = SCALE * z
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0)
     if (minor > 4) {
-      ctx.strokeStyle = 'rgba(209,213,219,0.35)'
-      ctx.lineWidth = 0.5
-      ctx.beginPath()
-      const sx = ((ox % minor) + minor) % minor
-      const sy = ((oy % minor) + minor) % minor
+      ctx.strokeStyle = 'rgba(209,213,219,0.35)'; ctx.lineWidth = 0.5; ctx.beginPath()
+      const sx = ((ox % minor) + minor) % minor, sy = ((oy % minor) + minor) % minor
       for (let x = sx; x <= canvasW; x += minor) { ctx.moveTo(x, 0); ctx.lineTo(x, canvasH) }
       for (let y = sy; y <= canvasH; y += minor) { ctx.moveTo(0, y); ctx.lineTo(canvasW, y) }
       ctx.stroke()
     }
     if (major > 10) {
-      ctx.strokeStyle = 'rgba(156,163,175,0.55)'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      const mx = ((ox % major) + major) % major
-      const my = ((oy % major) + major) % major
+      ctx.strokeStyle = 'rgba(156,163,175,0.55)'; ctx.lineWidth = 1; ctx.beginPath()
+      const mx = ((ox % major) + major) % major, my = ((oy % major) + major) % major
       for (let x = mx; x <= canvasW; x += major) { ctx.moveTo(x, 0); ctx.lineTo(x, canvasH) }
       for (let y = my; y <= canvasH; y += major) { ctx.moveTo(0, y); ctx.lineTo(canvasW, y) }
       ctx.stroke()
@@ -248,45 +234,67 @@ export default function RaumplanerEditor({
     ctx.restore()
   }
 
+  // ── Canvas-JSON (ohne Outline/Preview) ───────────────────
+
+  const getCanvasJson = useCallback(() => {
+    const canvas = fabricRef.current
+    if (!canvas) return '{}'
+    const full = canvas.toJSON(['data', 'name'])
+    // Outline und Previews werden NICHT gespeichert – sie werden aus Raummaßen neu generiert
+    full.objects = (full.objects ?? []).filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview'
+    )
+    return JSON.stringify(full)
+  }, [])
+
+  // ── Objekt-Anzahl zählen ──────────────────────────────────
+
+  const updateObjCount = useCallback(() => {
+    const canvas = fabricRef.current; if (!canvas) return
+    const count = canvas.getObjects().filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview'
+    ).length
+    setObjCount(count)
+  }, [])
+
   // ── Auto-Save ─────────────────────────────────────────────
 
   const triggerAutoSave = useCallback(() => {
     setSaveStatus('unsaved')
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(async () => {
-      const canvas = fabricRef.current
-      if (!canvas) return
       setSaveStatus('saving')
-      const json = JSON.stringify(canvas.toJSON(['data', 'name']))
-      await grundrissSpeichern(raumId, json)
-      setSaveStatus('saved')
+      const json = getCanvasJson()
+      const res = await grundrissSpeichern(raumId, json)
+      setSaveStatus(res.fehler ? 'error' : 'saved')
     }, AUTOSAVE_DELAY)
-  }, [raumId])
+  }, [raumId, getCanvasJson])
 
   // ── History ───────────────────────────────────────────────
 
   const pushHistory = useCallback(() => {
-    const canvas = fabricRef.current
-    if (!canvas) return
-    const json = JSON.stringify(canvas.toJSON(['data', 'name']))
+    const json = getCanvasJson()
     historyRef.current = historyRef.current.slice(0, historyIdxRef.current + 1)
     historyRef.current.push(json)
     historyIdxRef.current = historyRef.current.length - 1
-    if (historyRef.current.length > 50) {
-      historyRef.current.shift()
-      historyIdxRef.current--
-    }
-  }, [])
+    if (historyRef.current.length > 50) { historyRef.current.shift(); historyIdxRef.current-- }
+  }, [getCanvasJson])
 
   const undo = useCallback(async () => {
     const canvas = fabricRef.current
     if (!canvas || historyIdxRef.current <= 0) return
     historyIdxRef.current--
     const json = historyRef.current[historyIdxRef.current]
+    const parsed = JSON.parse(json)
     canvas.clear()
-    await canvas.loadFromJSON(JSON.parse(json))
+    await canvas.loadFromJSON(parsed)
+    // Restore outline after undo
+    if (breiteM && laengeM) outlineRef.current = null
     canvas.requestRenderAll()
-  }, [])
+    updateObjCount()
+  }, [breiteM, laengeM, updateObjCount])
 
   const redo = useCallback(async () => {
     const canvas = fabricRef.current
@@ -296,36 +304,31 @@ export default function RaumplanerEditor({
     canvas.clear()
     await canvas.loadFromJSON(JSON.parse(json))
     canvas.requestRenderAll()
-  }, [])
+    updateObjCount()
+  }, [updateObjCount])
 
   const saveNow = useCallback(async () => {
-    const canvas = fabricRef.current
-    if (!canvas) return
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     setSaveStatus('saving')
-    const json = JSON.stringify(canvas.toJSON(['data', 'name']))
-    await grundrissSpeichern(raumId, json)
-    setSaveStatus('saved')
-  }, [raumId])
+    const json = getCanvasJson()
+    const res = await grundrissSpeichern(raumId, json)
+    setSaveStatus(res.fehler ? 'error' : 'saved')
+  }, [raumId, getCanvasJson])
 
-  // ── Raum-Umriss zeichnen/aktualisieren ───────────────────
+  // ── Raum-Umriss ──────────────────────────────────────────
 
   const updateOutline = useCallback((breite: number | null, laenge: number | null) => {
     const canvas = fabricRef.current
     const imp = fabricImports.current
     if (!canvas || !imp || !breite || !laenge) return
     const { Rect } = imp
-    const w = breite * SCALE
-    const h = laenge * SCALE
+    const w = breite * SCALE, h = laenge * SCALE
     if (outlineRef.current) canvas.remove(outlineRef.current)
     const outline = new Rect({
       left: 0, top: 0, width: w, height: h,
-      fill: 'transparent',
-      stroke: '#374151', strokeWidth: 20,
-      strokeUniform: false,
-      selectable: false, evented: false,
-      data: { type: 'outline' },
-      name: 'Raumumriss',
+      fill: 'transparent', stroke: '#374151', strokeWidth: 20,
+      strokeUniform: false, selectable: false, evented: false,
+      data: { type: 'outline' }, name: 'Raumumriss',
     })
     outlineRef.current = outline
     canvas.add(outline)
@@ -333,7 +336,7 @@ export default function RaumplanerEditor({
     canvas.requestRenderAll()
   }, [])
 
-  // ── Möbel platzieren ──────────────────────────────────────
+  // ── Möbel platzieren ─────────────────────────────────────
 
   const placeMoebel = useCallback((symbol: MoebelSymbol, canvasX: number, canvasY: number) => {
     const canvas = fabricRef.current
@@ -341,34 +344,24 @@ export default function RaumplanerEditor({
     if (!canvas || !imp) return
     const { Rect, Text, Group } = imp
     const w = symbol.breite_cm, h = symbol.tiefe_cm
-    const bg = new Rect({
-      width: w, height: h,
-      fill: symbol.farbe || '#94c1a4',
-      stroke: '#374151', strokeWidth: 1.5,
-      rx: 3, ry: 3,
-      originX: 'left', originY: 'top',
-    })
+    const bg = new Rect({ width: w, height: h, fill: symbol.farbe || '#94c1a4',
+      stroke: '#374151', strokeWidth: 1.5, rx: 3, ry: 3, originX: 'left', originY: 'top' })
     const label = new Text(symbol.name, {
       fontSize: Math.max(7, Math.min(11, w / Math.max(symbol.name.length, 4) * 1.4)),
-      fill: '#1f2937',
-      textAlign: 'center',
-      originX: 'center', originY: 'center',
-      left: w / 2, top: h / 2,
-      fontFamily: 'system-ui, sans-serif',
+      fill: '#1f2937', textAlign: 'center', originX: 'center', originY: 'center',
+      left: w / 2, top: h / 2, fontFamily: 'system-ui, sans-serif',
     })
     const group = new Group([bg, label], {
       left: canvasX - w / 2, top: canvasY - h / 2,
-      data: { type: 'moebel', symbolId: symbol.id, name: symbol.name },
-      name: symbol.name,
+      data: { type: 'moebel', symbolId: symbol.id, name: symbol.name }, name: symbol.name,
     })
     canvas.add(group)
     canvas.setActiveObject(group)
     canvas.requestRenderAll()
-    pushHistory()
-    triggerAutoSave()
-  }, [pushHistory, triggerAutoSave])
+    pushHistory(); triggerAutoSave(); updateObjCount()
+  }, [pushHistory, triggerAutoSave, updateObjCount])
 
-  // ── Wand platzieren ───────────────────────────────────────
+  // ── Wand ─────────────────────────────────────────────────
 
   const finishWall = useCallback((x2: number, y2: number) => {
     const canvas = fabricRef.current
@@ -383,73 +376,47 @@ export default function RaumplanerEditor({
       selectable: true, data: { type: 'wall' }, name: 'Wand',
     })
     canvas.add(wall)
-    pushHistory()
-    triggerAutoSave()
+    pushHistory(); triggerAutoSave(); updateObjCount()
     canvas.requestRenderAll()
-  }, [pushHistory, triggerAutoSave])
+  }, [pushHistory, triggerAutoSave, updateObjCount])
 
-  // ── Tür platzieren ────────────────────────────────────────
+  // ── Tür ──────────────────────────────────────────────────
 
   const placeDoor = useCallback((x: number, y: number) => {
     const canvas = fabricRef.current
     const imp = fabricImports.current
     if (!canvas || !imp) return
     const { Group, Rect, Path } = imp
-    const w = doorWidthRef.current
-    const thick = WALL_THICKNESS
-
-    // Rahmen (Lücke in der Wand symbolisiert, Hintergrund)
-    const frame = new Rect({
-      left: 0, top: 0, width: w, height: thick,
-      fill: '#f9fafb', stroke: '#6b7280', strokeWidth: 1,
-    })
-    // Bogen (Viertelkreis) - vereinfacht als Path
-    const arcPath = `M 0,${thick} A ${w},${w} 0 0 1 ${w},${thick + w} L ${w},${thick} Z`
-    const arc = new Path(arcPath, {
-      fill: 'transparent', stroke: '#445c49', strokeWidth: 1.5, strokeDashArray: [4, 3],
-    })
+    const w = doorWidthRef.current, thick = WALL_THICKNESS
+    const frame = new Rect({ left: 0, top: 0, width: w, height: thick, fill: '#f9fafb', stroke: '#6b7280', strokeWidth: 1 })
+    const arc = new Path(`M 0,${thick} A ${w},${w} 0 0 1 ${w},${thick + w} L ${w},${thick} Z`,
+      { fill: 'transparent', stroke: '#445c49', strokeWidth: 1.5, strokeDashArray: [4, 3] })
     const group = new Group([frame, arc], {
-      left: x - w / 2, top: y - thick / 2,
-      data: { type: 'door', breite: w }, name: 'Tür',
+      left: x - w / 2, top: y - thick / 2, data: { type: 'door', breite: w }, name: 'Tür',
     })
-    canvas.add(group)
-    canvas.setActiveObject(group)
-    canvas.requestRenderAll()
-    pushHistory()
-    triggerAutoSave()
-  }, [pushHistory, triggerAutoSave])
+    canvas.add(group); canvas.setActiveObject(group); canvas.requestRenderAll()
+    pushHistory(); triggerAutoSave(); updateObjCount()
+  }, [pushHistory, triggerAutoSave, updateObjCount])
 
-  // ── Fenster platzieren ────────────────────────────────────
+  // ── Fenster ───────────────────────────────────────────────
 
   const placeWindow = useCallback((x: number, y: number) => {
     const canvas = fabricRef.current
     const imp = fabricImports.current
     if (!canvas || !imp) return
     const { Group, Rect, Line } = imp
-    const w = windowWidthRef.current
-    const thick = WALL_THICKNESS
-
-    // Rahmen
-    const frame = new Rect({
-      left: 0, top: 0, width: w, height: thick,
-      fill: '#e0f2fe', stroke: '#6b7280', strokeWidth: 1,
-    })
-    // 2 Glaslinien
+    const w = windowWidthRef.current, thick = WALL_THICKNESS
+    const frame = new Rect({ left: 0, top: 0, width: w, height: thick, fill: '#e0f2fe', stroke: '#6b7280', strokeWidth: 1 })
     const l1 = new Line([w * 0.33, 2, w * 0.33, thick - 2], { stroke: '#94c1a4', strokeWidth: 1.5 })
     const l2 = new Line([w * 0.66, 2, w * 0.66, thick - 2], { stroke: '#94c1a4', strokeWidth: 1.5 })
-
     const group = new Group([frame, l1, l2], {
-      left: x - w / 2, top: y - thick / 2,
-      data: { type: 'window', breite: w }, name: 'Fenster',
+      left: x - w / 2, top: y - thick / 2, data: { type: 'window', breite: w }, name: 'Fenster',
     })
-    canvas.add(group)
-    canvas.setActiveObject(group)
-    canvas.requestRenderAll()
-    pushHistory()
-    triggerAutoSave()
-  }, [pushHistory, triggerAutoSave])
+    canvas.add(group); canvas.setActiveObject(group); canvas.requestRenderAll()
+    pushHistory(); triggerAutoSave(); updateObjCount()
+  }, [pushHistory, triggerAutoSave, updateObjCount])
 
-  // ── Bemaßung platzieren ───────────────────────────────────
+  // ── Bemaßung ─────────────────────────────────────────────
 
   const finishMeasure = useCallback((x2: number, y2: number) => {
     const canvas = fabricRef.current
@@ -458,47 +425,34 @@ export default function RaumplanerEditor({
     const { Group, Line, Text } = imp
     const { x: x1, y: y1 } = measureStartRef.current
     if (measurePreviewRef.current) { canvas.remove(measurePreviewRef.current); measurePreviewRef.current = null }
-
     const dx = x2 - x1, dy = y2 - y1
     const distPx = Math.sqrt(dx * dx + dy * dy)
     if (distPx < 5) { measureStartRef.current = null; return }
-
     const distM = distPx / SCALE
-    const label = distM >= 1
-      ? `${distM.toFixed(2)} m`
-      : `${Math.round(distM * 100)} cm`
-
+    const label = distM >= 1 ? `${distM.toFixed(2)} m` : `${Math.round(distM * 100)} cm`
     const angle = (Math.atan2(dy, dx) * 180) / Math.PI
     const mx = (x1 + x2) / 2, my = (y1 + y2) / 2
-
-    const mainLine = new Line([x1, y1, x2, y2], { stroke: '#f59e0b', strokeWidth: 1.5, selectable: false })
-    // Endpunkt-Ticks
-    const tickLen = 6
     const norm = { x: -dy / distPx, y: dx / distPx }
-    const t1a = new Line([x1 - norm.x * tickLen, y1 - norm.y * tickLen, x1 + norm.x * tickLen, y1 + norm.y * tickLen],
+    const tickLen = 6
+    const mainLine = new Line([x1, y1, x2, y2], { stroke: '#f59e0b', strokeWidth: 1.5, selectable: false })
+    const t1 = new Line([x1 - norm.x * tickLen, y1 - norm.y * tickLen, x1 + norm.x * tickLen, y1 + norm.y * tickLen],
       { stroke: '#f59e0b', strokeWidth: 1.5, selectable: false })
-    const t2a = new Line([x2 - norm.x * tickLen, y2 - norm.y * tickLen, x2 + norm.x * tickLen, y2 + norm.y * tickLen],
+    const t2 = new Line([x2 - norm.x * tickLen, y2 - norm.y * tickLen, x2 + norm.x * tickLen, y2 + norm.y * tickLen],
       { stroke: '#f59e0b', strokeWidth: 1.5, selectable: false })
     const txt = new Text(label, {
-      left: mx, top: my,
-      fontSize: 11, fill: '#f59e0b', fontFamily: 'system-ui, sans-serif',
-      backgroundColor: 'rgba(17,24,39,0.8)',
-      originX: 'center', originY: 'center',
-      angle: angle > 90 || angle < -90 ? angle + 180 : angle,
-      selectable: false,
+      left: mx, top: my, fontSize: 11, fill: '#f59e0b', fontFamily: 'system-ui, sans-serif',
+      backgroundColor: 'rgba(17,24,39,0.8)', originX: 'center', originY: 'center',
+      angle: angle > 90 || angle < -90 ? angle + 180 : angle, selectable: false,
     })
-
-    const group = new Group([mainLine, t1a, t2a, txt], {
+    const group = new Group([mainLine, t1, t2, txt], {
       selectable: true, data: { type: 'measure', distM }, name: `Maß ${label}`,
     })
-    canvas.add(group)
-    canvas.requestRenderAll()
-    pushHistory()
-    triggerAutoSave()
+    canvas.add(group); canvas.requestRenderAll()
+    pushHistory(); triggerAutoSave(); updateObjCount()
     measureStartRef.current = null
-  }, [pushHistory, triggerAutoSave])
+  }, [pushHistory, triggerAutoSave, updateObjCount])
 
-  // ── extractObjProps (Hilfsfunktion) ──────────────────────
+  // ── extractObjProps ───────────────────────────────────────
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function extractObjProps(obj: any): SelectedProps {
@@ -523,48 +477,47 @@ export default function RaumplanerEditor({
     import('fabric').then(async (fabric) => {
       if (disposed || !canvasRef.current) return
       fabricImports.current = fabric
-
       const { Canvas, Line, Point } = fabric
       const cont = containerRef.current!
+
       const canvas = new Canvas(canvasRef.current!, {
-        selection: true,
-        preserveObjectStacking: true,
-        stopContextMenu: true,
-        fireRightClick: true,
-        renderOnAddRemove: false,  // Performance
+        selection: true, preserveObjectStacking: true,
+        stopContextMenu: true, fireRightClick: true,
+        renderOnAddRemove: false,
       })
       fabricRef.current = canvas
+
+      // Fabric.js Selektions-Farbe auf Wellbeing Green setzen
+      canvas.selectionColor = 'rgba(68,92,73,0.08)'
+      canvas.selectionBorderColor = '#445c49'
+      canvas.selectionLineWidth = 1.5
 
       // Resize
       function resizeCanvas() {
         const w = cont.clientWidth, h = cont.clientHeight
-        canvas.setWidth(w); canvas.setHeight(h)
-        canvas.requestRenderAll()
+        canvas.setWidth(w); canvas.setHeight(h); canvas.requestRenderAll()
       }
       resizeCanvas()
       const ro = new ResizeObserver(resizeCanvas)
       ro.observe(cont)
 
-      // Grid after:render
+      // Grid
       canvas.on('after:render', ({ ctx }: { ctx: CanvasRenderingContext2D }) => {
         drawGrid(ctx, canvas.viewportTransform ?? [1,0,0,1,0,0],
           canvas.getWidth(), canvas.getHeight(), gridSizeRef.current, showGridRef.current)
       })
 
-      // Mausrad-Zoom
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      canvas.on('mouse:wheel', (opt: any) => {
+      // Zoom
+      canvas.on('mouse:wheel', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         const e = opt.e as WheelEvent
         let z = canvas.getZoom()
         z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z * (e.deltaY > 0 ? 0.94 : 1.06)))
         canvas.zoomToPoint(new Point(e.offsetX, e.offsetY), z)
-        setZoom(z)
-        e.preventDefault(); e.stopPropagation()
+        setZoom(z); e.preventDefault(); e.stopPropagation()
       })
 
       // Maus-Bewegung
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      canvas.on('mouse:move', (opt: any) => {
+      canvas.on('mouse:move', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         const e = opt.e as MouseEvent
         const p = canvas.getPointer(e)
         setMousePos({ x: Math.round(p.x / SCALE * 100) / 100, y: Math.round(p.y / SCALE * 100) / 100 })
@@ -580,7 +533,6 @@ export default function RaumplanerEditor({
         const tool = activeToolRef.current
         const grid = gridSizeRef.current
         const snapped = { x: Math.round(p.x / grid) * grid, y: Math.round(p.y / grid) * grid }
-
         if (tool === 'wall' && wallStartRef.current && wallPreviewRef.current) {
           wallPreviewRef.current.set({ x2: snapped.x, y2: snapped.y })
           canvas.requestRenderAll()
@@ -591,20 +543,23 @@ export default function RaumplanerEditor({
         }
       })
 
-      // Maus-Klick
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      canvas.on('mouse:down', (opt: any) => {
+      // Klick
+      canvas.on('mouse:down', (opt: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         const e = opt.e as MouseEvent
-        const tool = activeToolRef.current
+        setContextMenu(null)
 
+        // Rechtsklick → Kontextmenü
+        if (e.button === 2 && opt.target && opt.target.data?.type !== 'outline') {
+          setContextMenu({ x: e.clientX, y: e.clientY, target: opt.target })
+          return
+        }
+
+        const tool = activeToolRef.current
         if (isSpaceRef.current || e.button === 1) {
           isPanningRef.current = true
           lastPanPosRef.current = { x: e.clientX, y: e.clientY }
-          canvas.selection = false
-          canvas.setCursor('grabbing')
-          canvas.discardActiveObject()
-          canvas.requestRenderAll()
-          return
+          canvas.selection = false; canvas.setCursor('grabbing')
+          canvas.discardActiveObject(); canvas.requestRenderAll(); return
         }
 
         const p = canvas.getPointer(e)
@@ -624,8 +579,7 @@ export default function RaumplanerEditor({
               stroke: '#445c49', strokeWidth: WALL_THICKNESS, strokeLineCap: 'square',
               selectable: false, evented: false, opacity: 0.45, data: { type: 'preview' },
             })
-            wallPreviewRef.current = prev
-            canvas.add(prev); canvas.requestRenderAll()
+            wallPreviewRef.current = prev; canvas.add(prev); canvas.requestRenderAll()
           } else {
             finishWall(snapped.x, snapped.y)
             wallStartRef.current = snapped
@@ -633,22 +587,18 @@ export default function RaumplanerEditor({
               stroke: '#445c49', strokeWidth: WALL_THICKNESS, strokeLineCap: 'square',
               selectable: false, evented: false, opacity: 0.45, data: { type: 'preview' },
             })
-            wallPreviewRef.current = prev
-            canvas.add(prev); canvas.requestRenderAll()
+            wallPreviewRef.current = prev; canvas.add(prev); canvas.requestRenderAll()
           }
           return
         }
 
         if (tool === 'door') {
           placeDoor(snapped.x, snapped.y)
-          setActiveTool('select'); activeToolRef.current = 'select'
-          return
+          setActiveTool('select'); activeToolRef.current = 'select'; return
         }
-
         if (tool === 'window') {
           placeWindow(snapped.x, snapped.y)
-          setActiveTool('select'); activeToolRef.current = 'select'
-          return
+          setActiveTool('select'); activeToolRef.current = 'select'; return
         }
 
         if (tool === 'measure') {
@@ -658,8 +608,7 @@ export default function RaumplanerEditor({
               stroke: '#f59e0b', strokeWidth: 1.5, strokeDashArray: [5, 4],
               selectable: false, evented: false, data: { type: 'preview' },
             })
-            measurePreviewRef.current = prev
-            canvas.add(prev); canvas.requestRenderAll()
+            measurePreviewRef.current = prev; canvas.add(prev); canvas.requestRenderAll()
           } else {
             finishMeasure(snapped.x, snapped.y)
             setActiveTool('select'); activeToolRef.current = 'select'
@@ -668,13 +617,10 @@ export default function RaumplanerEditor({
         }
 
         if (tool === 'eraser') {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const target = opt.target as any
+          const target = opt.target as any // eslint-disable-line @typescript-eslint/no-explicit-any
           if (target && target.selectable !== false && target.data?.type !== 'outline') {
-            canvas.remove(target)
-            setSelectedProps(null)
-            pushHistory(); triggerAutoSave()
-            canvas.requestRenderAll()
+            canvas.remove(target); setSelectedProps(null)
+            pushHistory(); triggerAutoSave(); updateObjCount(); canvas.requestRenderAll()
           }
         }
       })
@@ -683,7 +629,8 @@ export default function RaumplanerEditor({
         if (isPanningRef.current) {
           isPanningRef.current = false
           canvas.selection = activeToolRef.current === 'select'
-          canvas.setCursor(activeToolRef.current === 'select' ? 'default' : 'crosshair')
+          const tool = activeToolRef.current
+          canvas.setCursor(tool === 'select' ? 'default' : 'crosshair')
         }
       })
 
@@ -696,10 +643,9 @@ export default function RaumplanerEditor({
       canvas.on('selection:cleared', () => setSelectedProps(null))
       canvas.on('object:modified', () => { pushHistory(); triggerAutoSave() })
 
-      // Drop Möbel
-      const dropTarget = cont
-      dropTarget.addEventListener('dragover', (e: DragEvent) => e.preventDefault())
-      dropTarget.addEventListener('drop', (e: DragEvent) => {
+      // Drop
+      cont.addEventListener('dragover', (e: DragEvent) => e.preventDefault())
+      cont.addEventListener('drop', (e: DragEvent) => {
         e.preventDefault()
         const symbolJson = e.dataTransfer?.getData('application/moebel-symbol')
         if (!symbolJson) return
@@ -709,25 +655,28 @@ export default function RaumplanerEditor({
         placeMoebel(symbol, p.x, p.y)
       })
 
-      // Canvas laden
+      // ── CANVAS LADEN (KRITISCHER FIX) ──
+      // Zuerst JSON laden, dabei Outline/Preview-Objekte herausfiltern
       if (initialCanvasJson) {
         try {
-          await canvas.loadFromJSON(JSON.parse(initialCanvasJson))
+          const parsed = JSON.parse(initialCanvasJson)
+          if (parsed.objects) {
+            parsed.objects = parsed.objects.filter(
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview'
+            )
+          }
+          await canvas.loadFromJSON(parsed)
+          canvas.requestRenderAll()
         } catch { /* ignore */ }
       }
 
-      // Raum-Umriss (nur wenn noch kein outline im gespeicherten State)
-      const b = breiteM, l = laengeM
-      if (b && l) {
-        const existing = canvas.getObjects().find((o: any) => o.data?.type === 'outline') // eslint-disable-line @typescript-eslint/no-explicit-any
-        if (!existing) updateOutline(b, l)
-        else { outlineRef.current = existing; canvas.sendObjectToBack(existing) }
-      }
+      // Raum-Umriss IMMER aus Raummaßen neu generieren (nie aus gespeichertem JSON)
+      if (breiteM && laengeM) updateOutline(breiteM, laengeM)
 
       canvas.requestRenderAll()
       pushHistory()
-
-      // Lade-Screen ausblenden
+      updateObjCount()
       setLoading(false)
 
       // Tastatur
@@ -740,7 +689,7 @@ export default function RaumplanerEditor({
           const obj = canvas.getActiveObject()
           if (obj && (obj as any).data?.type !== 'outline') { // eslint-disable-line @typescript-eslint/no-explicit-any
             canvas.remove(obj); setSelectedProps(null)
-            pushHistory(); triggerAutoSave(); canvas.requestRenderAll()
+            pushHistory(); triggerAutoSave(); updateObjCount(); canvas.requestRenderAll()
           }
         }
         if (!ev.ctrlKey && !ev.metaKey) {
@@ -770,13 +719,12 @@ export default function RaumplanerEditor({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // switchTool als ref damit keyboard-handler nicht veraltet
+  // switchToolRef
   const switchToolRef = useRef<(t: Tool) => void>(() => {})
 
   function switchTool(tool: Tool) {
     setActiveTool(tool); activeToolRef.current = tool
-    const canvas = fabricRef.current
-    if (!canvas) return
+    const canvas = fabricRef.current; if (!canvas) return
     if (wallPreviewRef.current)    { canvas.remove(wallPreviewRef.current);    wallPreviewRef.current = null }
     if (measurePreviewRef.current) { canvas.remove(measurePreviewRef.current); measurePreviewRef.current = null }
     wallStartRef.current = null; measureStartRef.current = null
@@ -787,20 +735,53 @@ export default function RaumplanerEditor({
   }
   switchToolRef.current = switchTool
 
-  function zoomIn() {
-    const c = fabricRef.current; if (!c) return
-    const z = Math.min(MAX_ZOOM, c.getZoom() * 1.2)
-    c.zoomToPoint({ x: c.getWidth() / 2, y: c.getHeight() / 2 }, z); setZoom(z)
+  // ── Zoom ─────────────────────────────────────────────────
+
+  function zoomIn()    { const c = fabricRef.current; if (!c) return; const z = Math.min(MAX_ZOOM, c.getZoom() * 1.2); c.zoomToPoint({ x: c.getWidth() / 2, y: c.getHeight() / 2 }, z); setZoom(z) }
+  function zoomOut()   { const c = fabricRef.current; if (!c) return; const z = Math.max(MIN_ZOOM, c.getZoom() / 1.2); c.zoomToPoint({ x: c.getWidth() / 2, y: c.getHeight() / 2 }, z); setZoom(z) }
+  function zoomReset() { const c = fabricRef.current; if (!c) return; c.setViewportTransform([1,0,0,1,0,0]); setZoom(1); c.requestRenderAll() }
+
+  // ── Fit to View ───────────────────────────────────────────
+
+  function fitToView() {
+    const canvas = fabricRef.current; if (!canvas) return
+    const objects = canvas.getObjects().filter((o: any) => o.data?.type !== 'outline' && o.data?.type !== 'preview') // eslint-disable-line @typescript-eslint/no-explicit-any
+    const targets = objects.length > 0 ? objects : canvas.getObjects()
+    if (!targets.length) { zoomReset(); return }
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    targets.forEach((o: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      const b = o.getBoundingRect()
+      minX = Math.min(minX, b.left); minY = Math.min(minY, b.top)
+      maxX = Math.max(maxX, b.left + b.width); maxY = Math.max(maxY, b.top + b.height)
+    })
+
+    const pad = 60
+    const scaleX = (canvas.getWidth() - pad * 2) / (maxX - minX)
+    const scaleY = (canvas.getHeight() - pad * 2) / (maxY - minY)
+    const newZ = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.min(scaleX, scaleY)))
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2
+    const tx = canvas.getWidth() / 2 - cx * newZ
+    const ty = canvas.getHeight() / 2 - cy * newZ
+    canvas.setViewportTransform([newZ, 0, 0, newZ, tx, ty])
+    setZoom(newZ); canvas.requestRenderAll()
   }
-  function zoomOut() {
-    const c = fabricRef.current; if (!c) return
-    const z = Math.max(MIN_ZOOM, c.getZoom() / 1.2)
-    c.zoomToPoint({ x: c.getWidth() / 2, y: c.getHeight() / 2 }, z); setZoom(z)
+
+  // ── Alle löschen ──────────────────────────────────────────
+
+  function clearAll() {
+    if (!confirm('Alle Objekte löschen? Diese Aktion kann rückgängig gemacht werden.')) return
+    const canvas = fabricRef.current; if (!canvas) return
+    const toRemove = canvas.getObjects().filter(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (o: any) => o.data?.type !== 'outline'
+    )
+    toRemove.forEach((o: any) => canvas.remove(o)) // eslint-disable-line @typescript-eslint/no-explicit-any
+    setSelectedProps(null); pushHistory(); triggerAutoSave(); updateObjCount()
+    canvas.requestRenderAll()
   }
-  function zoomReset() {
-    const c = fabricRef.current; if (!c) return
-    c.setViewportTransform([1,0,0,1,0,0]); setZoom(1); c.requestRenderAll()
-  }
+
+  // ── Löschen ───────────────────────────────────────────────
 
   function deleteSelected() {
     const c = fabricRef.current; if (!c) return
@@ -808,8 +789,39 @@ export default function RaumplanerEditor({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (!obj || (obj as any).data?.type === 'outline') return
     c.remove(obj); setSelectedProps(null)
-    pushHistory(); triggerAutoSave(); c.requestRenderAll()
+    pushHistory(); triggerAutoSave(); updateObjCount(); c.requestRenderAll()
   }
+
+  // ── Duplizieren ───────────────────────────────────────────
+
+  async function duplicateSelected() {
+    const c = fabricRef.current; if (!c) return
+    const obj = c.getActiveObject()
+    if (!obj) return
+    const clone = await obj.clone(['data', 'name'])
+    clone.set({ left: (obj.left ?? 0) + 20, top: (obj.top ?? 0) + 20 })
+    c.add(clone); c.setActiveObject(clone); c.requestRenderAll()
+    pushHistory(); triggerAutoSave(); updateObjCount()
+    setContextMenu(null)
+  }
+
+  // ── Z-Order ───────────────────────────────────────────────
+
+  function bringForward() {
+    const c = fabricRef.current; if (!c) return
+    const obj = c.getActiveObject(); if (!obj) return
+    c.bringObjectForward(obj); c.requestRenderAll(); setContextMenu(null)
+  }
+  function sendBackward() {
+    const c = fabricRef.current; if (!c) return
+    const obj = c.getActiveObject(); if (!obj) return
+    c.sendObjectBackwards(obj)
+    // Ensure outline stays at back
+    if (outlineRef.current) c.sendObjectToBack(outlineRef.current)
+    c.requestRenderAll(); setContextMenu(null)
+  }
+
+  // ── Raum-Maße speichern ───────────────────────────────────
 
   async function saveRaumMasse() {
     const b = parseFloat(raumBreite) || null
@@ -819,64 +831,122 @@ export default function RaumplanerEditor({
     updateOutline(b, l)
   }
 
-  const tools: { key: Tool; Icon: React.FC<{ className?: string }>; label: string; shortcut: string }[] = [
-    { key: 'select',  Icon: MousePointer2, label: 'Auswahl',   shortcut: 'V' },
-    { key: 'wall',    Icon: Pencil,        label: 'Wand',      shortcut: 'W' },
-    { key: 'door',    Icon: DoorOpen,      label: 'Tür',       shortcut: 'D' },
-    { key: 'window',  Icon: AppWindow,     label: 'Fenster',   shortcut: 'F' },
-    { key: 'measure', Icon: Ruler,         label: 'Bemaßung',  shortcut: 'M' },
-    { key: 'eraser',  Icon: Eraser,        label: 'Radierer',  shortcut: 'E' },
+  // ── Tool-Gruppen ──────────────────────────────────────────
+
+  const toolGroups = [
+    [
+      { key: 'select' as Tool,  Icon: MousePointer2, label: 'Auswahl',   shortcut: 'V' },
+    ],
+    [
+      { key: 'wall'   as Tool,  Icon: Pencil,        label: 'Wand',      shortcut: 'W' },
+      { key: 'door'   as Tool,  Icon: DoorOpen,      label: 'Tür',       shortcut: 'D' },
+      { key: 'window' as Tool,  Icon: AppWindow,     label: 'Fenster',   shortcut: 'F' },
+    ],
+    [
+      { key: 'measure' as Tool, Icon: Ruler,         label: 'Bemaßung',  shortcut: 'M' },
+      { key: 'eraser'  as Tool, Icon: Eraser,        label: 'Radierer',  shortcut: 'E' },
+    ],
   ]
+  const allTools = toolGroups.flat()
+
+  // ── Möbel-Gruppen ─────────────────────────────────────────
 
   const filteredMoebel = moebelSymbole.filter((s) =>
     s.name.toLowerCase().includes(moebelSuche.toLowerCase())
   )
 
+  // Gruppierung nur wenn keine Suche aktiv
+  const isSearching = moebelSuche.length > 0
+  const groupedMoebel = isSearching ? null : MOEBEL_GRUPPEN.map(g => ({
+    name: g.name,
+    items: moebelSymbole.filter(s => g.keys.some(k => s.name.includes(k))),
+  })).filter(g => g.items.length > 0)
+  const sonstige = isSearching ? [] : moebelSymbole.filter(s =>
+    !MOEBEL_GRUPPEN.some(g => g.keys.some(k => s.name.includes(k)))
+  )
+
+  function toggleGroup(name: string) {
+    setOpenGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name); else next.add(name)
+      return next
+    })
+  }
+
   // ── Render ────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col bg-gray-950 text-gray-200" style={{ height: '100vh' }}>
+    <div className="flex flex-col bg-gray-950 text-gray-200" style={{ height: '100vh' }}
+      onClick={() => setContextMenu(null)}>
 
-      {/* Loading */}
       <LoadingScreen visible={loading} />
-
-      {/* Shortcuts */}
       {showShortcuts && <ShortcutOverlay onClose={() => setShowShortcuts(false)} />}
+
+      {/* Kontext-Menü */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 bg-gray-900 border border-gray-700 rounded-lg shadow-2xl py-1 w-44"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button type="button" onClick={duplicateSelected}
+            className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+            Duplizieren
+          </button>
+          <button type="button" onClick={bringForward}
+            className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+            Ebene nach vorne
+          </button>
+          <button type="button" onClick={sendBackward}
+            className="w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-gray-800 hover:text-white transition-colors">
+            Ebene nach hinten
+          </button>
+          <div className="border-t border-gray-800 my-1" />
+          <button type="button"
+            onClick={() => {
+              const c = fabricRef.current; if (!c) return
+              c.remove(contextMenu.target); setSelectedProps(null)
+              pushHistory(); triggerAutoSave(); updateObjCount(); c.requestRenderAll()
+              setContextMenu(null)
+            }}
+            className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-gray-800 hover:text-red-300 transition-colors">
+            Löschen
+          </button>
+        </div>
+      )}
 
       {/* ── Toolbar ── */}
       <div className="flex items-center h-10 px-2 bg-gray-900 border-b border-gray-800 shrink-0 gap-1">
 
         {/* Zurück */}
-        <Link
-          href={`/dashboard/projekte/${projektId}/raeume/${raumId}`}
-          className="flex items-center gap-1 px-2 py-1 text-[11px] text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-md transition-colors"
-        >
+        <Link href={`/dashboard/projekte/${projektId}/raeume/${raumId}`}
+          className="flex items-center gap-1 px-2 py-1 text-[11px] text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-md transition-colors">
           <ChevronLeft className="w-3 h-3" /> {raumName}
         </Link>
 
         <div className="w-px h-5 bg-gray-800 mx-1" />
 
-        {/* Tools */}
-        <div className="flex items-center gap-0.5">
-          {tools.map(({ key, Icon, label, shortcut }) => (
-            <button
-              key={key}
-              type="button"
-              title={`${label} (${shortcut})`}
-              onClick={() => switchTool(key)}
-              className={`relative flex items-center justify-center w-8 h-8 rounded-md transition-all ${
-                activeTool === key
-                  ? 'bg-wellbeing-green/20 text-wellbeing-green-light ring-1 ring-wellbeing-green/50'
-                  : 'text-gray-500 hover:text-gray-200 hover:bg-gray-800'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              {activeTool === key && (
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-wellbeing-green" />
-              )}
-            </button>
-          ))}
-        </div>
+        {/* Tool-Gruppen */}
+        {toolGroups.map((group, gi) => (
+          <div key={gi} className="flex items-center gap-0.5">
+            {group.map(({ key, Icon, label, shortcut }) => (
+              <button key={key} type="button"
+                title={`${label} (${shortcut})`}
+                onClick={() => switchTool(key)}
+                className={`relative flex items-center justify-center w-8 h-8 rounded-md transition-all ${
+                  activeTool === key
+                    ? 'bg-wellbeing-green text-white shadow-sm'
+                    : 'text-gray-500 hover:text-gray-200 hover:bg-gray-800'
+                }`}>
+                <Icon className="w-3.5 h-3.5" />
+                {activeTool === key && (
+                  <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white/60" />
+                )}
+              </button>
+            ))}
+            {gi < toolGroups.length - 1 && <div className="w-px h-5 bg-gray-800 mx-0.5" />}
+          </div>
+        ))}
 
         <div className="w-px h-5 bg-gray-800 mx-1" />
 
@@ -892,16 +962,25 @@ export default function RaumplanerEditor({
 
         <div className="w-px h-5 bg-gray-800 mx-1" />
 
+        {/* Fit + Clear */}
+        <button type="button" title="Auf Fläche einpassen" onClick={fitToView}
+          className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-gray-800 rounded-md transition-colors">
+          <Maximize2 className="w-3.5 h-3.5" />
+        </button>
+        <button type="button" title="Alle löschen" onClick={clearAll}
+          className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-gray-800 rounded-md transition-colors">
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+
+        <div className="w-px h-5 bg-gray-800 mx-1" />
+
         {/* Grid */}
         <button type="button" title="Raster" onClick={() => setShowGrid((g) => !g)}
           className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${showGrid ? 'text-wellbeing-green-light bg-wellbeing-green/15' : 'text-gray-600 hover:text-gray-300 hover:bg-gray-800'}`}>
           <Grid3x3 className="w-3.5 h-3.5" />
         </button>
-        <select
-          value={gridSize}
-          onChange={(e) => setGridSize(Number(e.target.value) as GridOption)}
-          className="text-[10px] bg-gray-800 border border-gray-700 text-gray-400 rounded-md px-1.5 py-1 focus:outline-none focus:border-wellbeing-green h-7"
-        >
+        <select value={gridSize} onChange={(e) => setGridSize(Number(e.target.value) as GridOption)}
+          className="text-[10px] bg-gray-800 border border-gray-700 text-gray-400 rounded-md px-1.5 py-1 focus:outline-none focus:border-wellbeing-green h-7">
           <option value={10}>10cm</option>
           <option value={25}>25cm</option>
           <option value={50}>50cm</option>
@@ -911,18 +990,9 @@ export default function RaumplanerEditor({
         <div className="flex-1" />
 
         {/* Zoom */}
-        <button type="button" onClick={zoomOut}
-          className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-gray-800 rounded-md transition-colors">
-          <Minus className="w-3 h-3" />
-        </button>
-        <button type="button" onClick={zoomReset}
-          className="min-w-[44px] h-7 text-center text-[11px] text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-md px-1.5 transition-colors font-mono">
-          {Math.round(zoom * 100)}%
-        </button>
-        <button type="button" onClick={zoomIn}
-          className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-gray-800 rounded-md transition-colors">
-          <Plus className="w-3 h-3" />
-        </button>
+        <button type="button" onClick={zoomOut} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-gray-800 rounded-md transition-colors"><Minus className="w-3 h-3" /></button>
+        <button type="button" onClick={zoomReset} className="min-w-[44px] h-7 text-center text-[11px] text-gray-400 hover:text-gray-100 hover:bg-gray-800 rounded-md px-1.5 transition-colors font-mono">{Math.round(zoom * 100)}%</button>
+        <button type="button" onClick={zoomIn}  className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-200 hover:bg-gray-800 rounded-md transition-colors"><Plus  className="w-3 h-3" /></button>
 
         <div className="w-px h-5 bg-gray-800 mx-1" />
 
@@ -931,10 +1001,12 @@ export default function RaumplanerEditor({
           className={`flex items-center gap-1.5 h-7 px-2.5 text-[11px] font-medium rounded-md transition-all ${
             saveStatus === 'saved'   ? 'text-gray-500 hover:text-gray-200 hover:bg-gray-800' :
             saveStatus === 'saving'  ? 'text-gray-600 cursor-wait' :
+            saveStatus === 'error'   ? 'text-red-400 bg-red-500/10 ring-1 ring-red-500/30' :
             'text-wellbeing-green-light bg-wellbeing-green/15 ring-1 ring-wellbeing-green/30 hover:bg-wellbeing-green/25'
           }`}>
           {saveStatus === 'saved'  ? <><CheckCircle className="w-3 h-3" /> Gespeichert</> :
            saveStatus === 'saving' ? <><Save className="w-3 h-3 animate-pulse" /> Speichern…</> :
+           saveStatus === 'error'  ? <><AlertCircle className="w-3 h-3" /> Fehler</> :
                                      <><Save className="w-3 h-3" /> Speichern</>}
         </button>
 
@@ -949,67 +1021,65 @@ export default function RaumplanerEditor({
 
         {/* ── Linke Sidebar ── */}
         <div className="w-56 bg-gray-900 border-r border-gray-800 flex flex-col overflow-hidden shrink-0">
-          {/* Suche */}
           <div className="px-2 py-2 border-b border-gray-800">
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-600" />
-              <input
-                type="text"
-                placeholder="Möbel suchen…"
-                value={moebelSuche}
+              <input type="text" placeholder="Möbel suchen…" value={moebelSuche}
                 onChange={(e) => setMoebelSuche(e.target.value)}
-                className="w-full bg-gray-800 border border-gray-750 text-gray-300 text-[11px] rounded-md pl-7 pr-2 py-1.5 placeholder-gray-600 focus:outline-none focus:border-wellbeing-green/60 focus:ring-1 focus:ring-wellbeing-green/20"
-              />
+                className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-[11px] rounded-md pl-7 pr-2 py-1.5 placeholder-gray-600 focus:outline-none focus:border-wellbeing-green/60 focus:ring-1 focus:ring-wellbeing-green/20" />
             </div>
           </div>
 
-          {/* Möbel */}
-          <div className="flex-1 overflow-y-auto px-2 py-2">
-            <p className="text-[9px] text-gray-600 uppercase tracking-wider font-semibold px-1 mb-2">
-              Bibliothek · {filteredMoebel.length}
-            </p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {filteredMoebel.map((symbol) => (
-                <div
-                  key={symbol.id}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/moebel-symbol', JSON.stringify(symbol))
-                    e.dataTransfer.effectAllowed = 'copy'
-                  }}
-                  onClick={() => {
-                    const canvas = fabricRef.current; if (!canvas) return
-                    const vpt = canvas.viewportTransform ?? [1,0,0,1,0,0]
-                    const px = (canvas.getWidth() / 2 - vpt[4]) / vpt[0]
-                    const py = (canvas.getHeight() / 2 - vpt[5]) / vpt[3]
-                    placeMoebel(symbol, px, py)
-                  }}
-                  className="group bg-gray-850 hover:bg-gray-800 border border-gray-750 hover:border-wellbeing-green/40 rounded-lg p-1.5 cursor-grab active:cursor-grabbing transition-all select-none"
-                  title={`${symbol.name} – ${symbol.breite_cm}×${symbol.tiefe_cm}cm`}
-                >
-                  {/* SVG Preview */}
-                  <div className="w-full bg-white/5 rounded-md mb-1.5 overflow-hidden flex items-center justify-center p-1" style={{ minHeight: 36 }}>
-                    <MoebelPreview symbol={symbol} />
+          <div className="flex-1 overflow-y-auto">
+            {isSearching ? (
+              /* Suchergebnis flach */
+              <div className="px-2 py-2">
+                <p className="text-[9px] text-gray-600 uppercase tracking-wider font-semibold px-1 mb-2">
+                  {filteredMoebel.length} Treffer
+                </p>
+                <MoebelGrid symbols={filteredMoebel} fabricRef={fabricRef} placeMoebel={placeMoebel} />
+              </div>
+            ) : (
+              /* Gruppierte Ansicht */
+              <div>
+                {groupedMoebel?.map((group) => (
+                  <div key={group.name}>
+                    <button type="button" onClick={() => toggleGroup(group.name)}
+                      className="w-full flex items-center justify-between px-3 py-2 text-[10px] text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors border-b border-gray-800/50">
+                      <span className="uppercase tracking-wider font-semibold">{group.name}</span>
+                      {openGroups.has(group.name)
+                        ? <ChevronDown className="w-3 h-3" />
+                        : <ChevronRight className="w-3 h-3" />}
+                    </button>
+                    {openGroups.has(group.name) && (
+                      <div className="px-2 py-2 border-b border-gray-800/30">
+                        <MoebelGrid symbols={group.items} fabricRef={fabricRef} placeMoebel={placeMoebel} />
+                      </div>
+                    )}
                   </div>
-                  <p className="text-[10px] text-gray-400 group-hover:text-gray-200 font-medium leading-tight truncate transition-colors">
-                    {symbol.name}
-                  </p>
-                  <p className="text-[9px] text-gray-600 leading-tight">
-                    {symbol.breite_cm}×{symbol.tiefe_cm}cm
-                  </p>
-                </div>
-              ))}
-            </div>
+                ))}
+                {sonstige.length > 0 && (
+                  <div>
+                    <button type="button" onClick={() => toggleGroup('Sonstige')}
+                      className="w-full flex items-center justify-between px-3 py-2 text-[10px] text-gray-500 hover:text-gray-300 hover:bg-gray-800/50 transition-colors border-b border-gray-800/50">
+                      <span className="uppercase tracking-wider font-semibold">Sonstige</span>
+                      {openGroups.has('Sonstige') ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                    </button>
+                    {openGroups.has('Sonstige') && (
+                      <div className="px-2 py-2">
+                        <MoebelGrid symbols={sonstige} fabricRef={fabricRef} placeMoebel={placeMoebel} />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* ── Canvas ── */}
-        <div
-          ref={containerRef}
-          className="flex-1 relative overflow-hidden bg-gray-300"
-          style={{ cursor: activeTool === 'select' ? 'default' : 'crosshair' }}
-        >
-          {/* Subtiler Schatten um den Canvas-Bereich */}
+        <div ref={containerRef} className="flex-1 relative overflow-hidden bg-gray-300"
+          style={{ cursor: activeTool === 'select' ? 'default' : 'crosshair' }}>
           <div className="absolute inset-4 pointer-events-none rounded shadow-[0_0_40px_rgba(0,0,0,0.4)] z-0" />
           <canvas ref={canvasRef} className="absolute inset-0 z-10" />
         </div>
@@ -1017,19 +1087,16 @@ export default function RaumplanerEditor({
         {/* ── Rechte Sidebar ── */}
         <div className="w-60 bg-gray-900 border-l border-gray-800 flex flex-col overflow-hidden shrink-0">
           <div className="flex-1 overflow-y-auto">
-
             {selectedProps ? (
-              /* ── Objekt-Eigenschaften ── */
               <div>
-                {/* Header */}
                 <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-800">
                   <div>
                     <p className="text-[10px] text-gray-500 uppercase tracking-wider">
-                      {selectedProps.objType === 'wall' ? 'Wand' :
-                       selectedProps.objType === 'door' ? 'Tür' :
-                       selectedProps.objType === 'window' ? 'Fenster' :
+                      {selectedProps.objType === 'wall'    ? 'Wand' :
+                       selectedProps.objType === 'door'    ? 'Tür' :
+                       selectedProps.objType === 'window'  ? 'Fenster' :
                        selectedProps.objType === 'measure' ? 'Bemaßung' :
-                       selectedProps.objType === 'moebel' ? 'Möbel' : 'Objekt'}
+                       selectedProps.objType === 'moebel'  ? 'Möbel' : 'Objekt'}
                     </p>
                     <p className="text-xs font-medium text-gray-200 truncate max-w-[140px]">
                       {selectedProps.name || '–'}
@@ -1040,8 +1107,6 @@ export default function RaumplanerEditor({
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-
-                {/* Position */}
                 <div className="px-3 py-3 border-b border-gray-800">
                   <p className="text-[9px] text-gray-600 uppercase tracking-wider font-semibold mb-2">Position</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -1049,8 +1114,6 @@ export default function RaumplanerEditor({
                     <PropField label="Y" value={`${selectedProps.y} px`} />
                   </div>
                 </div>
-
-                {/* Größe */}
                 <div className="px-3 py-3 border-b border-gray-800">
                   <p className="text-[9px] text-gray-600 uppercase tracking-wider font-semibold mb-2">Größe</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -1058,50 +1121,37 @@ export default function RaumplanerEditor({
                     <PropField label="Tiefe" value={`${Math.round(selectedProps.h)} px`} />
                   </div>
                 </div>
-
-                {/* Rotation */}
                 <div className="px-3 py-3 border-b border-gray-800">
                   <p className="text-[9px] text-gray-600 uppercase tracking-wider font-semibold mb-2">Rotation</p>
                   <PropField label="Winkel" value={`${selectedProps.angle}°`} />
                 </div>
-
-                {/* Tool-spezifisch: Tür/Fenster Breite */}
-                {(selectedProps.objType === 'door') && (
+                {selectedProps.objType === 'door' && (
                   <div className="px-3 py-3 border-b border-gray-800">
                     <p className="text-[9px] text-gray-600 uppercase tracking-wider font-semibold mb-2">Tür-Breite</p>
-                    <select
-                      value={doorWidth}
-                      onChange={(e) => setDoorWidth(Number(e.target.value))}
-                      className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-wellbeing-green"
-                    >
+                    <select value={doorWidth} onChange={(e) => setDoorWidth(Number(e.target.value))}
+                      className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-wellbeing-green">
                       {[60,70,80,90,100].map(v => <option key={v} value={v}>{v} cm</option>)}
                     </select>
                   </div>
                 )}
-                {(selectedProps.objType === 'window') && (
+                {selectedProps.objType === 'window' && (
                   <div className="px-3 py-3 border-b border-gray-800">
                     <p className="text-[9px] text-gray-600 uppercase tracking-wider font-semibold mb-2">Fenster-Breite</p>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={windowWidth}
-                        onChange={(e) => setWindowWidth(Number(e.target.value))}
+                      <input type="number" value={windowWidth} onChange={(e) => setWindowWidth(Number(e.target.value))}
                         min={60} max={300} step={10}
-                        className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-wellbeing-green"
-                      />
+                        className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-md px-2 py-1.5 focus:outline-none focus:border-wellbeing-green" />
                       <span className="text-[10px] text-gray-500 shrink-0">cm</span>
                     </div>
                   </div>
                 )}
               </div>
             ) : (
-              /* ── Raum-Eigenschaften ── */
               <div>
                 <div className="px-3 py-2.5 border-b border-gray-800">
                   <p className="text-[10px] text-gray-500 uppercase tracking-wider">Kein Objekt gewählt</p>
                   <p className="text-xs font-medium text-gray-200">Raum-Einstellungen</p>
                 </div>
-
                 <div className="px-3 py-3 border-b border-gray-800">
                   <p className="text-[9px] text-gray-600 uppercase tracking-wider font-semibold mb-3">Raummaße</p>
                   <div className="space-y-2.5">
@@ -1112,18 +1162,13 @@ export default function RaumplanerEditor({
                     ].map(({ label, val, set }) => (
                       <div key={label}>
                         <label className="text-[10px] text-gray-500 block mb-1">{label}</label>
-                        <input
-                          type="number" step="0.1" min="0.5" max="50"
-                          value={val}
-                          onChange={(e) => set(e.target.value)}
-                          onBlur={saveRaumMasse}
-                          className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-md px-2.5 py-1.5 focus:outline-none focus:border-wellbeing-green/60 focus:ring-1 focus:ring-wellbeing-green/20"
-                        />
+                        <input type="number" step="0.1" min="0.5" max="50" value={val}
+                          onChange={(e) => set(e.target.value)} onBlur={saveRaumMasse}
+                          className="w-full bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-md px-2.5 py-1.5 focus:outline-none focus:border-wellbeing-green/60 focus:ring-1 focus:ring-wellbeing-green/20" />
                       </div>
                     ))}
                   </div>
                 </div>
-
                 <div className="px-3 py-3">
                   <p className="text-[9px] text-gray-600 uppercase tracking-wider font-semibold mb-2">Tür / Fenster</p>
                   <div className="space-y-2.5">
@@ -1145,7 +1190,6 @@ export default function RaumplanerEditor({
                     </div>
                   </div>
                 </div>
-
                 <div className="px-3 py-3 border-t border-gray-800">
                   <p className="text-[9px] text-gray-600 leading-relaxed">
                     Klicke ein Möbel an oder ziehe es auf die Fläche.<br />
@@ -1165,7 +1209,6 @@ export default function RaumplanerEditor({
           <span>Y {mousePos.y.toFixed(2)} m</span>
         </div>
         <div className="flex items-center gap-3 text-[10px] text-gray-600">
-          <span>1m = {SCALE}px</span>
           <span className={
             activeTool === 'wall'    ? 'text-amber-500' :
             activeTool === 'eraser'  ? 'text-red-400' :
@@ -1174,11 +1217,51 @@ export default function RaumplanerEditor({
             activeTool === 'measure' ? 'text-amber-400' :
             'text-wellbeing-green-light'
           }>
-            {tools.find(t => t.key === activeTool)?.label}
+            {allTools.find(t => t.key === activeTool)?.label}
           </span>
+          <span>Raster {gridSize}cm</span>
+          <span>{objCount} Objekte</span>
           <span className="text-gray-700">{Math.round(zoom * 100)}%</span>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── MoebelGrid (Wiederverwendbar) ─────────────────────────────
+
+function MoebelGrid({
+  symbols, fabricRef, placeMoebel
+}: {
+  symbols: MoebelSymbol[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  fabricRef: React.MutableRefObject<any>
+  placeMoebel: (s: MoebelSymbol, x: number, y: number) => void
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-1.5">
+      {symbols.map((symbol) => (
+        <div key={symbol.id} draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData('application/moebel-symbol', JSON.stringify(symbol))
+            e.dataTransfer.effectAllowed = 'copy'
+          }}
+          onClick={() => {
+            const canvas = fabricRef.current; if (!canvas) return
+            const vpt = canvas.viewportTransform ?? [1,0,0,1,0,0]
+            const px = (canvas.getWidth() / 2 - vpt[4]) / vpt[0]
+            const py = (canvas.getHeight() / 2 - vpt[5]) / vpt[3]
+            placeMoebel(symbol, px, py)
+          }}
+          className="group bg-gray-850 hover:bg-gray-800 border border-gray-750 hover:border-wellbeing-green/40 rounded-lg p-1.5 cursor-grab active:cursor-grabbing transition-all select-none"
+          title={`${symbol.name} – ${symbol.breite_cm}×${symbol.tiefe_cm}cm`}>
+          <div className="w-full bg-white/5 rounded-md mb-1.5 overflow-hidden flex items-center justify-center p-1" style={{ minHeight: 36 }}>
+            <MoebelPreview symbol={symbol} />
+          </div>
+          <p className="text-[10px] text-gray-400 group-hover:text-gray-200 font-medium leading-tight truncate transition-colors">{symbol.name}</p>
+          <p className="text-[9px] text-gray-600 leading-tight">{symbol.breite_cm}×{symbol.tiefe_cm}cm</p>
+        </div>
+      ))}
     </div>
   )
 }
@@ -1189,9 +1272,7 @@ function PropField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-[9px] text-gray-600 mb-0.5">{label}</p>
-      <div className="bg-gray-800 border border-gray-750 text-gray-400 text-[11px] rounded-md px-2 py-1 font-mono truncate">
-        {value}
-      </div>
+      <div className="bg-gray-800 border border-gray-750 text-gray-400 text-[11px] rounded-md px-2 py-1 font-mono truncate">{value}</div>
     </div>
   )
 }
