@@ -534,7 +534,7 @@ function RaumCard({ raum, onExport }: { raum: RaumMitProjekt; onExport: (r: Raum
   const projekt    = raum.projekte
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden hover:shadow-md hover:border-[#445c49]/30 transition-all duration-200">
       {/* Vorschau oder Platzhalter */}
       {raum.grundriss_json ? (
         <Link href={planerHref} className="block">

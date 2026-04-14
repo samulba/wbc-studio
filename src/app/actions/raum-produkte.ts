@@ -21,6 +21,7 @@ export async function produktZuRaumHinzufuegen(
     produkt_id: produktId,
     menge,
     verkaufspreis_override: verkaufspreisOverride,
+    reihenfolge: 0,
   })
 
   if (error) {
@@ -40,7 +41,8 @@ export async function produktAusRaumEntfernen(
   projektId: string
 ): Promise<void> {
   const supabase = await createClient()
-  await supabase.from('raum_produkte').delete().eq('id', raumProduktId)
+  const orgId = await getOrganisationId()
+  await supabase.from('raum_produkte').delete().eq('id', raumProduktId).eq('organisation_id', orgId)
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
 }
 
@@ -54,12 +56,13 @@ export async function raumProdukteAktualisieren(
   }
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const update: Record<string, unknown> = {}
   if (daten.menge !== undefined) update.menge = daten.menge
   if ('verkaufspreisOverride' in daten) update.verkaufspreis_override = daten.verkaufspreisOverride
   if ('notizen' in daten) update.notizen = daten.notizen
 
-  const { error } = await supabase.from('raum_produkte').update(update).eq('id', raumProduktId)
+  const { error } = await supabase.from('raum_produkte').update(update).eq('id', raumProduktId).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
   return {}
 }
@@ -71,9 +74,10 @@ export async function updateRaumProduktPositionen(
   positionen: { id: string; reihenfolge: number }[]
 ): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await Promise.all(
     positionen.map(({ id, reihenfolge }) =>
-      supabase.from('raum_produkte').update({ reihenfolge }).eq('id', id)
+      supabase.from('raum_produkte').update({ reihenfolge }).eq('id', id).eq('organisation_id', orgId)
     )
   )
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)

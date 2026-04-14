@@ -92,20 +92,24 @@ export async function onboardingStatusAendern(
   status: OnboardingStatus
 ): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('onboarding_anfragen')
     .update({ status })
     .eq('id', id)
+    .eq('organisation_id', orgId)
   revalidatePath('/dashboard/onboarding')
 }
 
 /** Einen Onboarding-Link löschen. */
 export async function onboardingLinkLoeschen(id: string): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('onboarding_anfragen')
     .delete()
     .eq('id', id)
+    .eq('organisation_id', orgId)
   revalidatePath('/dashboard/onboarding')
 }
 
@@ -161,6 +165,7 @@ export async function kundeAusOnboardingAnlegen(anfrageId: string): Promise<void
     .from('onboarding_anfragen')
     .update({ status: 'abgeschlossen' })
     .eq('id', anfrageId)
+    .eq('organisation_id', orgId)
 
   revalidatePath('/dashboard/onboarding')
   revalidatePath('/dashboard/kunden')
@@ -239,23 +244,27 @@ export async function vorlageSpeichern(
   sektionen: OnboardingSektion[] = []
 ): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('onboarding_vorlagen')
     .update({ name, beschreibung: beschreibung || null, fragen, sektionen, updated_at: new Date().toISOString() })
     .eq('id', id)
+    .eq('organisation_id', orgId)
   revalidatePath('/dashboard/onboarding/vorlagen')
 }
 
 /** Vorlage löschen (Standard-Vorlage kann nicht gelöscht werden). */
 export async function vorlageLoeschen(id: string): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   // Sicherheitscheck: Standard-Vorlage nicht löschen
   const { data } = await supabase
     .from('onboarding_vorlagen')
     .select('ist_standard')
     .eq('id', id)
+    .eq('organisation_id', orgId)
     .single()
   if (data?.ist_standard) return
-  await supabase.from('onboarding_vorlagen').delete().eq('id', id)
+  await supabase.from('onboarding_vorlagen').delete().eq('id', id).eq('organisation_id', orgId)
   revalidatePath('/dashboard/onboarding/vorlagen')
 }

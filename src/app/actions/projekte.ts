@@ -46,6 +46,7 @@ export async function projektAktualisieren(
   formData: FormData
 ): Promise<ProjektActionState> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const serviceModell = (formData.get('service_modell') as string) || null
 
@@ -68,6 +69,7 @@ export async function projektAktualisieren(
       status: formData.get('status') as ProjektStatus,
     })
     .eq('id', id)
+    .eq('organisation_id', orgId)
     .is('deleted_at', null)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren. Bitte erneut versuchen.' }
@@ -82,10 +84,12 @@ export async function projektStatusAendern(
   status: ProjektStatus
 ): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('projekte')
     .update({ status })
     .eq('id', id)
+    .eq('organisation_id', orgId)
     .is('deleted_at', null)
 
   revalidatePath(`/dashboard/projekte/${id}`)
@@ -94,10 +98,12 @@ export async function projektStatusAendern(
 
 export async function projektSoftDelete(id: string): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('projekte')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   revalidatePath('/dashboard/projekte')
   redirect('/dashboard/projekte')
@@ -107,10 +113,12 @@ export async function projektSoftDelete(id: string): Promise<void> {
 
 export async function projektArchivieren(id: string): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('projekte')
     .update({ archiviert: true, archiviert_am: new Date().toISOString() })
     .eq('id', id)
+    .eq('organisation_id', orgId)
     .is('deleted_at', null)
   revalidatePath('/dashboard/projekte')
   revalidatePath(`/dashboard/projekte/${id}`)
@@ -118,10 +126,12 @@ export async function projektArchivieren(id: string): Promise<void> {
 
 export async function projektWiederherstellen(id: string): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('projekte')
     .update({ archiviert: false, archiviert_am: null })
     .eq('id', id)
+    .eq('organisation_id', orgId)
     .is('deleted_at', null)
   revalidatePath('/dashboard/projekte')
   revalidatePath(`/dashboard/projekte/${id}`)
@@ -253,10 +263,12 @@ export async function projektDuplizieren(
 /** PIN setzen (4-6 Ziffern) oder entfernen (null). */
 export async function pinSetzen(projektId: string, pin: string | null): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('projekte')
     .update({ freigabe_pin: pin })
     .eq('id', projektId)
+    .eq('organisation_id', orgId)
     .is('deleted_at', null)
   revalidatePath(`/dashboard/projekte/${projektId}`)
 }

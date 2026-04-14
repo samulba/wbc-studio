@@ -29,8 +29,7 @@ export async function raumAnlegen(
   })
 
   if (error) {
-    console.error('raumAnlegen error:', error)
-    return { fehler: 'Fehler beim Speichern: ' + error.message }
+    return { fehler: 'Fehler beim Speichern.' }
   }
 
   revalidatePath(`/dashboard/projekte/${projektId}`)
@@ -42,10 +41,12 @@ export async function raumSoftDelete(
   projektId: string
 ): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('raeume')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', raumId)
+    .eq('organisation_id', orgId)
 
   revalidatePath(`/dashboard/projekte/${projektId}`)
 }
@@ -55,9 +56,10 @@ export async function updateRaumPositionen(
   positionen: { id: string; reihenfolge: number }[]
 ): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await Promise.all(
     positionen.map(({ id, reihenfolge }) =>
-      supabase.from('raeume').update({ reihenfolge }).eq('id', id)
+      supabase.from('raeume').update({ reihenfolge }).eq('id', id).eq('organisation_id', orgId)
     )
   )
   revalidatePath(`/dashboard/projekte/${projektId}`)

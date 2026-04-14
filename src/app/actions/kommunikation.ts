@@ -58,6 +58,7 @@ export async function kommunikationAktualisieren(
   daten: Partial<KommunikationDaten>
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { error } = await supabase
     .from('kommunikation')
@@ -74,6 +75,7 @@ export async function kommunikationAktualisieren(
       ...(daten.projekt_id     !== undefined && { projekt_id: daten.projekt_id || null }),
     })
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
 
@@ -86,11 +88,13 @@ export async function kommunikationLoeschen(
   kundeId: string
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { error } = await supabase
     .from('kommunikation')
     .delete()
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   if (error) return { fehler: 'Fehler beim Löschen.' }
 
@@ -132,11 +136,13 @@ export async function followUpErledigen(
   kundeId: string
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { error } = await supabase
     .from('kommunikation')
     .update({ erledigt: true })
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
 

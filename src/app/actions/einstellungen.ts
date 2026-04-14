@@ -298,10 +298,12 @@ export async function updateKategorie(
   const trimmed = name.trim()
   if (!trimmed) return { fehler: 'Name darf nicht leer sein.' }
 
+  const orgId = await getOrganisationId()
   const { error } = await supabase
     .from('kategorien')
     .update({ name: trimmed, icon: icon || 'Package' })
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   if (error) {
     if (error.code === '23505') return { fehler: `„${trimmed}" existiert bereits.` }
@@ -316,7 +318,8 @@ export async function updateKategorie(
 /** Kategorie löschen. */
 export async function deleteKategorie(id: string): Promise<{ fehler?: string }> {
   const supabase = await createClient()
-  const { error } = await supabase.from('kategorien').delete().eq('id', id)
+  const orgId = await getOrganisationId()
+  const { error } = await supabase.from('kategorien').delete().eq('id', id).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Löschen.' }
   revalidatePath('/dashboard/kategorien')
   revalidatePath('/dashboard/einstellungen')

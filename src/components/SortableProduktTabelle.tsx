@@ -250,9 +250,11 @@ function SortableProduktZeile({ eintrag, mwst, isLast, onBestellstatusChange, on
 
       {/* Aktionen */}
       <td className="px-3 py-3.5">
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
           <Link
             href={`/dashboard/produkte/${p.id}/bearbeiten`}
+            aria-label="Produkt bearbeiten"
+            title="Bearbeiten"
             className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors whitespace-nowrap"
           >
             Bearb.
@@ -260,6 +262,8 @@ function SortableProduktZeile({ eintrag, mwst, isLast, onBestellstatusChange, on
           <button
             type="button"
             onClick={() => onDeleteRequest(eintrag.id, p.name)}
+            aria-label="Produkt entfernen"
+            title="Produkt entfernen"
             className="text-xs text-red-400/60 hover:text-red-500 transition-colors"
           >
             ✕
@@ -351,7 +355,7 @@ export default function SortableProduktTabelle({
       >
         <SortableContext items={eintraege.map((e) => e.id)} strategy={verticalListSortingStrategy}>
           <div className="overflow-x-auto overflow-y-auto max-h-[52vh]">
-            <table className="w-full text-sm min-w-[1120px]">
+            <table className="w-full text-sm min-w-[900px]">
               <thead className="sticky top-0 z-10">
                 <tr className="border-b border-gray-100 bg-gray-50">
                   <th className="w-8 px-2 py-3" />

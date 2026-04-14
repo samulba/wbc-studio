@@ -82,7 +82,7 @@ const LISTE_CFG = [
   { key: 'freigegeben',    label: 'Freigegeben',   icon: CheckCircle2, farbe: '#10B981', bg: 'bg-emerald-50',  ring: 'ring-emerald-400', text: 'text-emerald-700' },
   { key: 'ausstehend',     label: 'Ausstehend',    icon: Clock,        farbe: '#F59E0B', bg: 'bg-amber-50',    ring: 'ring-amber-400',   text: 'text-amber-700'   },
   { key: 'abgelehnt',      label: 'Abgelehnt',     icon: XCircle,      farbe: '#EF4444', bg: 'bg-red-50',      ring: 'ring-red-400',     text: 'text-red-600'     },
-  { key: 'ueberarbeitung', label: 'Überarbeitung', icon: RotateCcw,    farbe: '#445c49', bg: 'bg-wellbeing-cream',   ring: 'ring-wellbeing-green-light',  text: 'text-wellbeing-green-dark'  },
+  { key: 'ueberarbeitung', label: 'Überarbeitung', icon: RotateCcw,    farbe: '#F59E0B', bg: 'bg-amber-50',          ring: 'ring-amber-400',              text: 'text-amber-700'             },
 ]
 
 // Mapping Tile-Key → Tab-Wert (1:1, jeder Status hat seinen eigenen Filter)
@@ -202,7 +202,7 @@ function FreigabeChart({
               <Bar dataKey="freigegeben"    name="Freigegeben"   stackId="a" fill="#10B981" radius={[0,0,0,0]} />
               <Bar dataKey="ausstehend"     name="Ausstehend"    stackId="a" fill="#F59E0B" radius={[0,0,0,0]} />
               <Bar dataKey="abgelehnt"      name="Abgelehnt"     stackId="a" fill="#EF4444" radius={[0,0,0,0]} />
-              <Bar dataKey="ueberarbeitung" name="Überarbeitung" stackId="a" fill="#445c49" radius={[3,3,0,0]} />
+              <Bar dataKey="ueberarbeitung" name="Überarbeitung" stackId="a" fill="#F59E0B" radius={[3,3,0,0]} />
             </BarChart>
           </ResponsiveContainer>
           <div className="flex items-center gap-5 mt-2 flex-wrap">

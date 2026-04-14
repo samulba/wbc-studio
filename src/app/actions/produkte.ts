@@ -137,6 +137,7 @@ export async function produktAktualisieren(
   formData: FormData
 ): Promise<ProduktActionState> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const [{ error: produktError }] = await Promise.all([
     supabase
@@ -158,6 +159,7 @@ export async function produktAktualisieren(
         ...neueFelder(formData),
       })
       .eq('id', produktId)
+      .eq('organisation_id', orgId)
       .is('deleted_at', null),
   ])
 
@@ -184,6 +186,7 @@ export async function produktAktualisierenBibliothek(
   formData: FormData
 ): Promise<ProduktActionState> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { error } = await supabase
     .from('produkte')
@@ -204,6 +207,7 @@ export async function produktAktualisierenBibliothek(
       ...neueFelder(formData),
     })
     .eq('id', produktId)
+    .eq('organisation_id', orgId)
     .is('deleted_at', null)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren. Bitte erneut versuchen.' }
@@ -218,10 +222,12 @@ export async function produktSoftDelete(
   projektId: string
 ): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('produkte')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', produktId)
+    .eq('organisation_id', orgId)
 
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
 }
@@ -282,9 +288,10 @@ export async function updateProduktPositionen(
   positionen: { id: string; reihenfolge: number }[]
 ): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await Promise.all(
     positionen.map(({ id, reihenfolge }) =>
-      supabase.from('produkte').update({ reihenfolge }).eq('id', id)
+      supabase.from('produkte').update({ reihenfolge }).eq('id', id).eq('organisation_id', orgId)
     )
   )
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
@@ -297,10 +304,12 @@ export async function bestellstatusAendern(
   neuerStatus: BestellStatus
 ): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('produkte')
     .update({ bestellstatus: neuerStatus })
     .eq('id', produktId)
+    .eq('organisation_id', orgId)
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
 }
 
@@ -459,11 +468,13 @@ export async function variantenDefinitionLoeschen(
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
 
+  const orgId = await getOrganisationId()
   const { error } = await supabase
     .from('varianten_definitionen')
     .delete()
     .eq('id', id)
     .eq('produkt_id', produktId)
+    .eq('organisation_id', orgId)
 
   if (error) return { fehler: 'Fehler beim Löschen der Definition.' }
 

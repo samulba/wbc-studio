@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { getMwstSatz } from '@/app/actions/einstellungen'
 import { NextResponse } from 'next/server'
 const r2 = (n: number) => Math.round(n * 100) / 100
@@ -29,10 +29,17 @@ export async function GET(
 ) {
   const [supabase, MWST] = await Promise.all([createClient(), getMwstSatz()])
 
+  // ── Auth prüfen ───────────────────────────────────────────
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return new NextResponse('Unauthorized', { status: 401 })
+
+  const orgId = await getOrganisationId()
+
   const { data: projekt } = await supabase
     .from('projekte')
     .select('name')
     .eq('id', params.id)
+    .eq('organisation_id', orgId)
     .single()
 
   if (!projekt) return new NextResponse('Nicht gefunden', { status: 404 })

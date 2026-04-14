@@ -35,6 +35,7 @@ export async function kundeAktualisieren(
   formData: FormData
 ): Promise<KundeActionState> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { error } = await supabase
     .from('kunden')
@@ -47,6 +48,7 @@ export async function kundeAktualisieren(
       notizen: (formData.get('notizen') as string) || null,
     })
     .eq('id', id)
+    .eq('organisation_id', orgId)
     .is('deleted_at', null)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren. Bitte erneut versuchen.' }
@@ -58,11 +60,13 @@ export async function kundeAktualisieren(
 
 export async function kundeSoftDelete(id: string): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   await supabase
     .from('kunden')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   revalidatePath('/dashboard/kunden')
   redirect('/dashboard/kunden')

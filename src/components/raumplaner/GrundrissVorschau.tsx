@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 interface Props {
   grundrissJson: string   // serialisiertes Fabric.js-JSON
@@ -17,6 +17,7 @@ export default function GrundrissVorschau({
 }: Props) {
   const canvasRef    = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const el = canvasRef.current
@@ -100,6 +101,7 @@ export default function GrundrissVorschau({
       }
 
       canvas.requestRenderAll()
+      if (!disposed) setIsLoading(false)
 
       return () => { disposed = true; canvas.dispose() }
     })
@@ -112,9 +114,14 @@ export default function GrundrissVorschau({
   const visH = Math.min(Math.round(vorschauBreite * aspect), 280)
 
   return (
-    <div ref={containerRef} className={`overflow-hidden rounded-xl border border-gray-200 shadow-sm ${className}`}
+    <div ref={containerRef} className={`relative overflow-hidden rounded-xl border border-gray-200 shadow-sm ${className}`}
       style={{ width: '100%', maxWidth: vorschauBreite, height: visH, background: '#ffffff' }}>
-      <canvas ref={canvasRef} style={{ display: 'block' }} />
+      {isLoading && (
+        <div className="absolute inset-0 bg-gray-100 rounded-xl animate-pulse flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-[#445c49]/30 border-t-[#445c49] rounded-full animate-spin" />
+        </div>
+      )}
+      <canvas ref={canvasRef} className={isLoading ? 'opacity-0' : 'opacity-100 transition-opacity duration-300'} style={{ display: 'block' }} />
     </div>
   )
 }

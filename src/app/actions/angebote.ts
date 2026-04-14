@@ -33,7 +33,7 @@ export async function getAngebote(projektId?: string): Promise<Angebot[]> {
 
 export async function getAngebot(id: string): Promise<Angebot | null> {
   const supabase = await createClient()
-  const { data } = await supabase.from('angebote').select('*').eq('id', id).single()
+  const { data } = await supabase.from('angebote').select('*').eq('id', id).maybeSingle()
   if (!data) return null
   return { ...data, positionen: (data.positionen ?? []) as AngebotPosition[] } as Angebot
 }
@@ -126,7 +126,7 @@ export async function angebotAusProduktliste(
   if (positionen.length === 0) return { fehler: 'Keine Produkte im Projekt gefunden.' }
 
   // Projekt-Name als Titel
-  const { data: projekt } = await supabase.from('projekte').select('name').eq('id', projektId).single()
+  const { data: projekt } = await supabase.from('projekte').select('name').eq('id', projektId).maybeSingle()
 
   return angebotErstellen({
     projekt_id: projektId,
@@ -147,6 +147,7 @@ export async function angebotAktualisieren(
   daten: Partial<AngebotDaten>
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const update: Record<string, unknown> = {}
   if (daten.titel        !== undefined) update.titel        = daten.titel
@@ -167,7 +168,7 @@ export async function angebotAktualisieren(
   if (daten.anmerkungen    !== undefined) update.anmerkungen    = daten.anmerkungen
   if (daten.agb_text       !== undefined) update.agb_text       = daten.agb_text
 
-  const { error } = await supabase.from('angebote').update(update).eq('id', id)
+  const { error } = await supabase.from('angebote').update(update).eq('id', id).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
 
   revalidatePath('/dashboard/projekte')
@@ -180,7 +181,8 @@ export async function angebotStatusAendern(
   projektId?: string | null
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
-  const { error } = await supabase.from('angebote').update({ status }).eq('id', id)
+  const orgId = await getOrganisationId()
+  const { error } = await supabase.from('angebote').update({ status }).eq('id', id).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
   if (projektId) revalidatePath(`/dashboard/projekte/${projektId}/angebote`)
   return {}
@@ -191,7 +193,8 @@ export async function angebotLoeschen(
   projektId?: string | null
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
-  const { error } = await supabase.from('angebote').delete().eq('id', id)
+  const orgId = await getOrganisationId()
+  const { error } = await supabase.from('angebote').delete().eq('id', id).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Löschen.' }
   if (projektId) revalidatePath(`/dashboard/projekte/${projektId}/angebote`)
   return {}

@@ -409,10 +409,10 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
       </div>
 
       {/* ── 2-Spalten Content ──────────────────────────────────── */}
-      <div className="flex-1 overflow-hidden flex">
+      <div className="flex-1 overflow-y-auto xl:overflow-hidden flex flex-col xl:flex-row">
 
         {/* ── Linke Spalte (60%) ─────────────────────────────── */}
-        <div className="flex-[3] overflow-y-auto border-r border-gray-100">
+        <div className="xl:flex-[3] xl:overflow-y-auto border-b xl:border-b-0 xl:border-r border-gray-100">
 
           {/* ── Räume ────────────────────────────────────────── */}
           <div className="px-6 py-4 border-b border-gray-50">
@@ -446,7 +446,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
         </div>
 
         {/* ── Rechte Spalte (40%) ────────────────────────────── */}
-        <div className="flex-[2] overflow-y-auto px-5 py-4 space-y-4">
+        <div className="xl:flex-[2] xl:overflow-y-auto px-5 py-4 space-y-4">
 
           {/* Budget-Karte: Produkte + Service */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">

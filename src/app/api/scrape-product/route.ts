@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { load } from 'cheerio'
+import { createClient } from '@/lib/supabase/server'
 
 export type ScraperErgebnis = {
   title:        string | null
@@ -28,9 +29,35 @@ function parsePreis(val: string | null | undefined): number | null {
   return isNaN(n) ? null : n
 }
 
+const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254']
+const BLOCKED_PREFIXES = ['10.', '172.16.', '172.17.', '172.18.', '172.19.', '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.', '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.', '192.168.']
+
+function isSafeUrl(raw: string): boolean {
+  try {
+    const parsed = new URL(raw)
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false
+    const h = parsed.hostname
+    if (BLOCKED_HOSTS.includes(h)) return false
+    if (BLOCKED_PREFIXES.some(p => h.startsWith(p))) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function GET(req: Request) {
+  // Auth check
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const url = new URL(req.url).searchParams.get('url')
   if (!url) return NextResponse.json({ error: 'URL fehlt' }, { status: 400 })
+
+  // SSRF protection
+  if (!isSafeUrl(url)) {
+    return NextResponse.json({ error: 'URL nicht erlaubt' }, { status: 403 })
+  }
 
   try {
     const response = await fetch(url, {

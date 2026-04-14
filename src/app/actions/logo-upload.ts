@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export type LogoUploadState = { fehler?: string; url?: string } | null
@@ -27,10 +27,12 @@ export async function kundeLogoHochladen(
   const { data: urlData } = supabase.storage.from('kunden-logos').getPublicUrl(path)
   const logo_url = `${urlData.publicUrl}?t=${Date.now()}`
 
+  const orgId = await getOrganisationId()
   const { error: dbError } = await supabase
     .from('kunden')
     .update({ logo_url })
     .eq('id', kundeId)
+    .eq('organisation_id', orgId)
 
   if (dbError) return { fehler: 'URL konnte nicht gespeichert werden.' }
 
@@ -61,10 +63,12 @@ export async function partnerLogoHochladen(
   const { data: urlData } = supabase.storage.from('partner-logos').getPublicUrl(path)
   const logo_url = `${urlData.publicUrl}?t=${Date.now()}`
 
+  const orgId = await getOrganisationId()
   const { error: dbError } = await supabase
     .from('partner')
     .update({ logo_url })
     .eq('id', partnerId)
+    .eq('organisation_id', orgId)
 
   if (dbError) return { fehler: 'URL konnte nicht gespeichert werden.' }
 

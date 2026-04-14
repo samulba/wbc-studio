@@ -1,10 +1,9 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId, getOrganisationIdOrNull } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import type { MoebelSymbol, CustomMoebel } from '@/lib/supabase/types'
-import { getOrganisationIdOrNull } from '@/lib/supabase/server'
 
 /** Canvas-State (Fabric.js JSON) in der DB speichern. */
 export async function grundrissSpeichern(
@@ -13,10 +12,12 @@ export async function grundrissSpeichern(
   projektId?: string
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const { error } = await supabase
     .from('raeume')
     .update({ grundriss_json: JSON.parse(canvasJson) })
     .eq('id', raumId)
+    .eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Speichern.' }
   if (projektId) {
     revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
@@ -51,10 +52,12 @@ export async function raumMasseAktualisieren(
   projektId: string
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const { error } = await supabase
     .from('raeume')
     .update({ breite_m: breiteM, laenge_m: laengeM, hoehe_m: hoeheM })
     .eq('id', raumId)
+    .eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Speichern der Maße.' }
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}/planer`)
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
@@ -105,12 +108,14 @@ export async function raumFreigabeAktualisieren(
   projektId: string
 ): Promise<{ token?: string; fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const updates: Record<string, unknown> = { freigabe_aktiv: aktiv }
   if (aktiv) updates.freigabe_erstellt_am = new Date().toISOString()
   const { data, error } = await supabase
     .from('raeume')
     .update(updates)
     .eq('id', raumId)
+    .eq('organisation_id', orgId)
     .select('freigabe_token')
     .single()
   if (error || !data) return { fehler: 'Fehler beim Aktualisieren.' }
@@ -128,10 +133,12 @@ export async function raumTexturenSpeichern(
   projektId: string
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const { error } = await supabase
     .from('raeume')
     .update({ boden_textur: bodenTextur, wandfarbe })
     .eq('id', raumId)
+    .eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Speichern.' }
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}/planer`)
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
@@ -245,7 +252,8 @@ export async function getRaumplanVersion(id: string): Promise<{
 /** Version löschen. */
 export async function raumplanVersionLoeschen(id: string): Promise<{ fehler?: string }> {
   const supabase = await createClient()
-  const { error } = await supabase.from('raumplan_versionen').delete().eq('id', id)
+  const orgId = await getOrganisationId()
+  const { error } = await supabase.from('raumplan_versionen').delete().eq('id', id).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Löschen.' }
   return {}
 }
@@ -330,10 +338,12 @@ export async function etageSpeichern(
   grundrissJson: string
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const { error } = await supabase
     .from('raumplan_etagen')
     .update({ grundriss_json: JSON.parse(grundrissJson) })
     .eq('id', etageId)
+    .eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Speichern.' }
   return {}
 }
@@ -341,10 +351,12 @@ export async function etageSpeichern(
 /** Etage löschen. */
 export async function etageLoeschen(etageId: string): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const { error } = await supabase
     .from('raumplan_etagen')
     .delete()
     .eq('id', etageId)
+    .eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Löschen.' }
   return {}
 }

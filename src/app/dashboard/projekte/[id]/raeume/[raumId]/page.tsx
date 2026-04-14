@@ -230,7 +230,7 @@ export default async function RaumDetailPage({
 
             {/* Summenzeile */}
             <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
-              <div className="flex items-center gap-8 justify-end min-w-[960px] overflow-x-auto">
+              <div className="flex flex-wrap items-center gap-x-8 gap-y-2 justify-end">
                 <SummeZelle label="EP gesamt"        wert={eur(r2(sumEpGesamt))}         intern />
                 <SummeZelle label="Provision gesamt" wert={eur(r2(sumProvisionGesamt))}  intern />
                 <SummeZelle label="VP netto gesamt"  wert={eur(r2(sumVpNettoGesamt))} />

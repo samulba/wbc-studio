@@ -313,7 +313,7 @@ export default function KommunikationBlock({ kundeId, initialEintraege }: Props)
                   type="button"
                   onClick={() => handleLoeschen(e.id)}
                   title="Eintrag löschen"
-                  className="shrink-0 opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-all mt-0.5"
+                  className="shrink-0 opacity-0 group-hover:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-opacity duration-150 mt-0.5"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>

@@ -137,8 +137,9 @@ export async function middleware(request: NextRequest) {
       const supabase = createSupabaseMiddleware(request, response)
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        const redirectTo = request.nextUrl.searchParams.get('redirect') ?? '/dashboard'
-        return NextResponse.redirect(new URL(redirectTo, request.url))
+        const raw = request.nextUrl.searchParams.get('redirect') ?? '/dashboard'
+        const safeRedirect = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/dashboard'
+        return NextResponse.redirect(new URL(safeRedirect, request.url))
       }
     }
 
@@ -170,8 +171,9 @@ export async function middleware(request: NextRequest) {
     const supabase = createSupabaseMiddleware(request, response)
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      const redirectTo = request.nextUrl.searchParams.get('redirect') ?? '/dashboard'
-      return NextResponse.redirect(new URL(redirectTo, request.url))
+      const raw = request.nextUrl.searchParams.get('redirect') ?? '/dashboard'
+      const safeRedirect = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/dashboard'
+      return NextResponse.redirect(new URL(safeRedirect, request.url))
     }
   }
 

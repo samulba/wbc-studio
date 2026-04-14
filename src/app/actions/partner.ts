@@ -60,6 +60,7 @@ export async function partnerAktualisieren(
   const bewertungRaw = formData.get('bewertung') as string
   const zahlungszielRaw = formData.get('zahlungsziel_tage') as string
 
+  const orgId = await getOrganisationId()
   const { error } = await supabase
     .from('partner')
     .update({
@@ -82,6 +83,7 @@ export async function partnerAktualisieren(
       bewertung: bewertungRaw ? parseInt(bewertungRaw) : null,
     })
     .eq('id', id)
+    .eq('organisation_id', orgId)
     .is('deleted_at', null)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren. Bitte erneut versuchen.' }
@@ -93,10 +95,12 @@ export async function partnerAktualisieren(
 
 export async function partnerSoftDelete(id: string): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('partner')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   revalidatePath('/dashboard/partner')
   redirect('/dashboard/partner')
@@ -155,11 +159,13 @@ export async function konditionAktualisieren(
   daten: Partial<KonditionDaten>
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { error } = await supabase
     .from('partner_konditionen')
     .update(daten)
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren der Kondition.' }
 
@@ -172,11 +178,13 @@ export async function konditionLoeschen(
   partnerId: string
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { error } = await supabase
     .from('partner_konditionen')
     .delete()
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   if (error) return { fehler: 'Fehler beim Löschen der Kondition.' }
 

@@ -1,7 +1,7 @@
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Vertrag } from '@/lib/supabase/types'
 import { randomBytes } from 'crypto'
@@ -96,11 +96,13 @@ export async function firmaUnterschreiben(
   }
 
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { data: vertrag, error: ladeErr } = await supabase
     .from('vertraege')
     .select('id, signatur_firma_datum, signatur_kunde_datum, projekt_id')
     .eq('id', vertragId)
+    .eq('organisation_id', orgId)
     .single()
 
   if (ladeErr || !vertrag) return { fehler: 'Vertrag nicht gefunden.' }
@@ -115,6 +117,7 @@ export async function firmaUnterschreiben(
       status: neuerStatus,
     })
     .eq('id', vertragId)
+    .eq('organisation_id', orgId)
 
   if (error) return { fehler: 'Fehler beim Speichern der Unterschrift.' }
 
@@ -135,10 +138,13 @@ export async function signaturTokenErstellen(
   const gueltigBis = new Date()
   gueltigBis.setDate(gueltigBis.getDate() + 30)
 
+  const orgId = await getOrganisationId()
+
   const { data: vertrag, error: ladeErr } = await supabase
     .from('vertraege')
     .select('id, projekt_id')
     .eq('id', vertragId)
+    .eq('organisation_id', orgId)
     .single()
 
   if (ladeErr || !vertrag) return { fehler: 'Vertrag nicht gefunden.' }
@@ -151,6 +157,7 @@ export async function signaturTokenErstellen(
       status: 'gesendet',
     })
     .eq('id', vertragId)
+    .eq('organisation_id', orgId)
 
   if (error) return { fehler: 'Fehler beim Erstellen des Tokens.' }
 

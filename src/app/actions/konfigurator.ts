@@ -83,7 +83,7 @@ export async function konfiguratorAbrufen(token: string): Promise<KonfiguratorDa
     .from('konfigurator_sessions')
     .select('*')
     .eq('token', token)
-    .single()
+    .maybeSingle()
 
   if (!session) return null
 
@@ -95,7 +95,7 @@ export async function konfiguratorAbrufen(token: string): Promise<KonfiguratorDa
     .select('name, kunden(name)')
     .eq('id', session.projekt_id)
     .is('deleted_at', null)
-    .single()
+    .maybeSingle()
 
   if (!projekt) return null
 
@@ -170,7 +170,7 @@ export async function produktAuswahlSpeichern(
     .from('konfigurator_sessions')
     .select('id, status')
     .eq('token', token)
-    .single()
+    .maybeSingle()
 
   if (!session || session.status !== 'aktiv') return { erfolg: false }
 
@@ -197,7 +197,7 @@ export async function konfiguratorAbschliessen(
     .from('konfigurator_sessions')
     .select('id')
     .eq('token', token)
-    .single()
+    .maybeSingle()
 
   if (!session) return { erfolg: false }
 
@@ -235,7 +235,7 @@ export async function konfiguratorErgebnisAbrufen(sessionId: string): Promise<{
     .from('konfigurator_sessions')
     .select('*')
     .eq('id', sessionId)
-    .single()
+    .maybeSingle()
 
   if (!session) return null
 

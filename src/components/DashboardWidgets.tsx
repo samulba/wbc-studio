@@ -132,13 +132,13 @@ export function KpiKartenReihe({ aktiveKunden, laufendeProjekte, offeneAngebote,
 }) {
   const kpis: KpiDaten[] = [
     { label: 'Aktive Kunden',      wert: aktiveKunden,                                    href: '/dashboard/kunden',   icon: Users,       farbe: 'text-wellbeing-green', bg: 'bg-wellbeing-cream' },
-    { label: 'Laufende Projekte',  wert: laufendeProjekte,                                href: '/dashboard/projekte', icon: FolderOpen,  farbe: 'text-blue-600',        bg: 'bg-blue-50'         },
+    { label: 'Laufende Projekte',  wert: laufendeProjekte,                                href: '/dashboard/projekte', icon: FolderOpen,  farbe: 'text-[#445c49]',       bg: 'bg-wellbeing-cream' },
     { label: 'Offene Angebote',    wert: offeneAngebote,                                  href: '/dashboard/projekte', icon: ReceiptText, farbe: 'text-violet-600',      bg: 'bg-violet-50'       },
     { label: 'Monatsumsatz',       wert: monatsumsatz > 0 ? eur(monatsumsatz) : '–',     href: '/dashboard/projekte', icon: TrendingUp,  farbe: 'text-emerald-600',     bg: 'bg-emerald-50',
       subLabel: 'Angenommene Angebote' },
   ]
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       {kpis.map((kpi) => <KpiKarte key={kpi.label} {...kpi} />)}
     </div>
   )

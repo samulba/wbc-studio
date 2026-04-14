@@ -21,8 +21,8 @@ import { ROLLEN_CONFIG } from '@/lib/permissions'
 
 // ── Avatar-Hilfsfunktionen ───────────────────────────────────
 const avatarFarben = [
-  'bg-wellbeing-green', 'bg-violet-500', 'bg-blue-500',
-  'bg-emerald-500', 'bg-rose-500', 'bg-amber-500',
+  'bg-[#445c49]', 'bg-[#cba178]', 'bg-[#823509]',
+  'bg-[#94c1a4]', 'bg-[#2d3e31]', 'bg-[#445c49]',
 ]
 
 function avatarFarbe(s: string) {
@@ -172,6 +172,7 @@ export default function NavSidebar({
           </Link>
           <button
             onClick={handleLogout}
+            aria-label="Abmelden"
             title="Abmelden"
             className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors duration-150"
           >

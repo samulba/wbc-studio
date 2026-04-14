@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Check, X, RefreshCw, ExternalLink, ChevronDown, Lock } from 'lucide-react'
+import { Check, X, RefreshCw, ExternalLink, ChevronDown, Lock, Package } from 'lucide-react'
 import { freigabeStatusAendern } from '@/app/actions/freigabe'
 import { pinPruefen } from '@/app/actions/projekte'
 import type { FreigabeRaum, FreigabeProdukt, ProduktStatus, Branding } from '@/lib/supabase/types'
@@ -139,7 +139,7 @@ function PinEingabe({ token, projektName, onErfolg, brandingBg, brandingPrim, fi
           <button
             onClick={pruefe}
             disabled={gesperrt || isPending || pin.length < 4}
-            className="w-full py-3 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-40 text-white text-sm font-semibold rounded-xl transition-all"
+            className="w-full py-3 bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all"
           >
             {isPending ? 'Wird geprüft…' : 'Bestätigen'}
           </button>
@@ -417,8 +417,8 @@ function ProduktKarte({
     <div className={`border ${cfg.rand} ${cfg.bg} rounded-2xl overflow-hidden shadow-sm transition-all`}>
 
       {/* ── Produktbild (groß, oben) ──────────────────────── */}
-      {produkt.bild_url && (
-        <div className="w-full aspect-[16/9] sm:aspect-[2/1] overflow-hidden bg-gray-100">
+      <div className="w-full aspect-[16/9] sm:aspect-[2/1] overflow-hidden bg-gray-100">
+        {produkt.bild_url ? (
           <Image
             src={produkt.bild_url}
             alt={produkt.name}
@@ -427,8 +427,12 @@ function ProduktKarte({
             className="w-full h-full object-cover"
             unoptimized
           />
-        </div>
-      )}
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Package className="w-10 h-10 text-gray-300" />
+          </div>
+        )}
+      </div>
 
       <div className="p-5">
         {/* ── Kopf: Name + Status ───────────────────────── */}

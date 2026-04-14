@@ -70,11 +70,13 @@ export async function zeitAktualisieren(
   }
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { error } = await supabase
     .from('zeiterfassung')
     .update(daten)
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
   revalidatePath(`/dashboard/projekte/${projektId}`)
@@ -86,11 +88,13 @@ export async function zeitLoeschen(
   projektId: string
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
 
   const { error } = await supabase
     .from('zeiterfassung')
     .delete()
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   if (error) return { fehler: 'Fehler beim Löschen.' }
   revalidatePath(`/dashboard/projekte/${projektId}`)

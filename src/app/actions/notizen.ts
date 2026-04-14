@@ -63,10 +63,12 @@ export async function notizAktualisieren(
   if (!inhalt) return { fehler: 'Inhalt darf nicht leer sein.' }
 
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   const { error } = await supabase
     .from('notizen')
     .update({ inhalt, bearbeitet_am: new Date().toISOString() })
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
 
@@ -80,10 +82,12 @@ export async function notizLoeschen(
   referenzId: string
 ): Promise<void> {
   const supabase = await createClient()
+  const orgId = await getOrganisationId()
   await supabase
     .from('notizen')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
+    .eq('organisation_id', orgId)
 
   revalidatePath(await pfadFuer(typ, referenzId))
 }

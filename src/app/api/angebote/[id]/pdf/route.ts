@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import {
   pdfEur, pdfDatum, pdfHeute,
   logoAlsBase64,
@@ -18,12 +18,14 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const orgId = await getOrganisationId()
+
   // ── Daten laden ───────────────────────────────────────────
   const [
     { data: angebot },
     { data: branding },
   ] = await Promise.all([
-    supabase.from('angebote').select('*').eq('id', id).single(),
+    supabase.from('angebote').select('*').eq('id', id).eq('organisation_id', orgId).single(),
     supabase.from('branding').select('*').maybeSingle(),
   ])
 

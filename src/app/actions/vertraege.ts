@@ -93,7 +93,8 @@ export async function vorlageAktualisieren(
   daten: Partial<VorlageDaten>
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
-  const { error } = await supabase.from('vertrags_vorlagen').update(daten).eq('id', id)
+  const orgId = await getOrganisationId()
+  const { error } = await supabase.from('vertrags_vorlagen').update(daten).eq('id', id).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
   revalidatePath('/dashboard/einstellungen')
   return {}
@@ -101,7 +102,8 @@ export async function vorlageAktualisieren(
 
 export async function vorlageLoeschen(id: string): Promise<{ fehler?: string }> {
   const supabase = await createClient()
-  const { error } = await supabase.from('vertrags_vorlagen').delete().eq('id', id)
+  const orgId = await getOrganisationId()
+  const { error } = await supabase.from('vertrags_vorlagen').delete().eq('id', id).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Löschen.' }
   revalidatePath('/dashboard/einstellungen')
   return {}
@@ -163,7 +165,8 @@ export async function vertragAktualisieren(
   daten: { titel?: string; inhalt_html?: string; gesamtwert?: number | null; gueltig_bis?: string | null }
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
-  const { error } = await supabase.from('vertraege').update(daten).eq('id', id)
+  const orgId = await getOrganisationId()
+  const { error } = await supabase.from('vertraege').update(daten).eq('id', id).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
   revalidatePath('/dashboard/projekte')
   return {}
@@ -175,7 +178,8 @@ export async function vertragStatusAendern(
   projektId?: string | null
 ): Promise<{ fehler?: string }> {
   const supabase = await createClient()
-  const { error } = await supabase.from('vertraege').update({ status }).eq('id', id)
+  const orgId = await getOrganisationId()
+  const { error } = await supabase.from('vertraege').update({ status }).eq('id', id).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Aktualisieren.' }
   if (projektId) revalidatePath(`/dashboard/projekte/${projektId}/vertraege`)
   return {}
@@ -183,7 +187,8 @@ export async function vertragStatusAendern(
 
 export async function vertragLoeschen(id: string, projektId?: string | null): Promise<{ fehler?: string }> {
   const supabase = await createClient()
-  const { error } = await supabase.from('vertraege').delete().eq('id', id)
+  const orgId = await getOrganisationId()
+  const { error } = await supabase.from('vertraege').delete().eq('id', id).eq('organisation_id', orgId)
   if (error) return { fehler: 'Fehler beim Löschen.' }
   if (projektId) revalidatePath(`/dashboard/projekte/${projektId}/vertraege`)
   return {}

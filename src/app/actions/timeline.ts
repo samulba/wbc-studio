@@ -57,7 +57,8 @@ export async function eventAktualisieren(
   daten: Partial<TimelineEventDaten>
 ): Promise<void> {
   const supabase = await createClient()
-  await supabase.from('timeline_events').update(daten).eq('id', eventId)
+  const orgId = await getOrganisationId()
+  await supabase.from('timeline_events').update(daten).eq('id', eventId).eq('organisation_id', orgId)
   revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
   revalidatePath(`/dashboard/projekte/${projektId}`)
   if (daten.raum_id) {
@@ -72,7 +73,8 @@ export async function eventLoeschen(
   raumId?: string | null
 ): Promise<void> {
   const supabase = await createClient()
-  await supabase.from('timeline_events').delete().eq('id', eventId)
+  const orgId = await getOrganisationId()
+  await supabase.from('timeline_events').delete().eq('id', eventId).eq('organisation_id', orgId)
   revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
   revalidatePath(`/dashboard/projekte/${projektId}`)
   if (raumId) {

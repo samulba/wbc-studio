@@ -18,7 +18,7 @@ import {
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   AlignHorizontalSpaceBetween, AlignVerticalSpaceBetween,
   Group, Ungroup, List, PenLine, Sheet, Layers,
-  Eye, EyeOff, Shapes, Circle, ArrowRight, Square,
+  Eye, EyeOff, Shapes, Circle, ArrowRight, Square, Monitor,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -3249,7 +3249,30 @@ export default function RaumplanerEditor({
   // ── Render ────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col" style={{ height: '100vh', background: C.toolbar, color: C.textMd }}
+    <>
+    {/* Mobile-Hinweis: nur auf kleinen Screens */}
+    <div className="md:hidden fixed inset-0 z-50 flex flex-col items-center justify-center p-8 text-center"
+      style={{ background: '#f8faf8' }}>
+      <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+        style={{ background: 'rgba(68,92,73,0.1)' }}>
+        <Monitor className="w-8 h-8" style={{ color: '#445c49' }} />
+      </div>
+      <h2 className="text-xl font-semibold text-gray-900 mb-2">Desktop empfohlen</h2>
+      <p className="text-gray-500 text-sm max-w-xs leading-relaxed">
+        Der Raumplaner ist für die Nutzung am Computer optimiert.
+        Bitte öffne diese Seite auf einem Desktop oder Laptop.
+      </p>
+      <Link
+        href="/dashboard/raumplaner"
+        className="mt-6 px-5 py-2.5 rounded-lg text-sm font-medium text-white"
+        style={{ background: '#445c49' }}
+      >
+        Zurück zur Übersicht
+      </Link>
+    </div>
+
+    {/* Desktop Editor */}
+    <div className="hidden md:flex flex-col" style={{ height: '100vh', background: C.toolbar, color: C.textMd }}
       onClick={() => { setContextMenu(null); setShowZoomDropdown(false) }}>
 
       <LoadingScreen visible={loading} />
@@ -5382,6 +5405,7 @@ export default function RaumplanerEditor({
         </div>
       </div>
     </div>
+    </>
   )
 }
 
