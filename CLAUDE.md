@@ -86,5 +86,7 @@ Farbpalette: wellbeing-green (#445c49), wellbeing-green-light (#94c1a4), wellbei
 
 - S55: Raumplaner Tür/Fenster-Varianten, Etagen, Stückliste & Kurven: TEIL 1 – Neue Sidebar-Sektion "TÜREN & FENSTER" mit 6 Türvarianten (Standard L/R/Doppel/Schiebe/Falt/Glas) und 6 Fenstervarianten (Standard/Breit/Bodentief/Dachfenster/Bogenfenster/Rundfenster), je mit SVG-Preview und spezieller Fabric.js-Gruppe, Klick- und Drag-Platzierung. TEIL 2 – Stockwerke/Etagen (Migration 050 raumplan_etagen, 4 Server Actions, Etagen-Tabs in Toolbar, AutoSave schreibt in aktive Etage). TEIL 3 – Stückliste (Sheet-Button, Modal mit Tabelle Nr/Bezeichnung/Maße/Menge/EP/Gesamt, CSV + XLSX Export via xlsx-Paket). TEIL 4 – Gebogene Wände (Kurven-Tool PenLine, Taste K, 3-Klick quadratische Bézier, Live-Preview, ESC/Rechtsklick abbricht, data.type='wall' wallType='curved'). Build sauber.
 
+- S56: Raumplaner Deep-Dive Audit & Bug Fix: 5 Bugs behoben – saveNow (Ctrl+S) ignorierte aktive Etage und schrieb immer in grundriss_json (jetzt via aktiveEtageIdRef korrekt in Etagen-Tabelle); onContextMenu-Handler stoppte Kurven-Tool nicht per Rechtsklick (ergänzt); Duplikat-Import 'Plus as PlusIcon' entfernt; loescheEtage in Etagen-Tabs eingebaut (× Button, nur sichtbar wenn >1 Etage); eslint-disable-Kommentar für loescheEtage entfernt. Build sauber.
+
 ## Anweisung
 Am Ende jeder Session den Session-Log mit einem kurzen Eintrag aktualisieren.
