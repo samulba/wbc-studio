@@ -6,12 +6,13 @@ import {
   MousePointer2, Minus, Plus, Grid3x3, Save,
   RotateCcw, RotateCw, Search, ChevronLeft, Pencil,
   Eraser, CheckCircle, DoorOpen, AppWindow, Ruler,
-  HelpCircle, X, Maximize2, ChevronDown, ChevronRight,
+  HelpCircle, X, Maximize2, Minimize2, ChevronDown, ChevronRight,
   AlertCircle, Trash2, FileDown, PanelLeft,
   Copy, ArrowUpToLine, ArrowDownToLine, ArrowUp, ArrowDown,
+  Magnet, Lock, LockOpen, Star,
 } from 'lucide-react'
-import { grundrissSpeichern, raumMasseAktualisieren } from '@/app/actions/raumplaner'
-import type { MoebelSymbol } from '@/lib/supabase/types'
+import { grundrissSpeichern, raumMasseAktualisieren, getCustomMoebel, customMoebelErstellen } from '@/app/actions/raumplaner'
+import type { MoebelSymbol, CustomMoebel as CustomMoebelType } from '@/lib/supabase/types'
 
 // ── Konstanten ────────────────────────────────────────────────
 
@@ -34,6 +35,10 @@ const MOEBEL_GRUPPEN: { name: string; keys: string[] }[] = [
 
 interface SelectedProps {
   x: number; y: number; w: number; h: number; angle: number; name: string; objType?: string
+  locked: boolean
+}
+interface NewMoebelForm {
+  name: string; kategorie: string; breite_cm: number; laenge_cm: number; farbe: string
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface ContextMenuState { x: number; y: number; target: any }
@@ -100,8 +105,11 @@ function ShortcutOverlay({ onClose }: { onClose: () => void }) {
     { keys: ['Ctrl','Y'],  desc: 'Wiederholen' },
     { keys: ['Ctrl','S'],  desc: 'Speichern' },
     { keys: ['Del'],       desc: 'Löschen' },
+    { keys: ['L'],         desc: 'Sperren / Entsperren' },
+    { keys: ['F11'],       desc: 'Vollbild' },
     { keys: ['Space','↖'], desc: 'Pan (Verschieben)' },
     { keys: ['Scroll'],    desc: 'Zoom' },
+    { keys: ['Magnet'],    desc: 'Snap an Raster' },
     { keys: ['?'],         desc: 'Shortcuts' },
   ]
   return (
@@ -204,6 +212,15 @@ export default function RaumplanerEditor({
   const [sidebarOffen,  setSidebarOffen]  = useState(true)
   const [minimapImage,  setMinimapImage]  = useState('')
   const [viewportRect,  setViewportRect]  = useState({ x: 0, y: 0, w: 150, h: 100 })
+  const [isFullscreen,  setIsFullscreen]  = useState(false)
+  const [snapToGrid,    setSnapToGrid]    = useState(false)
+  const [favoriten,     setFavoriten]     = useState<Set<string>>(new Set())
+  const [customMoebel,  setCustomMoebel]  = useState<CustomMoebelType[]>([])
+  const [showCustomModal, setShowCustomModal] = useState(false)
+  const [customSaving,  setCustomSaving]  = useState(false)
+  const [newMoebel,     setNewMoebel]     = useState<NewMoebelForm>({
+    name: '', kategorie: 'Wohnzimmer', breite_cm: 80, laenge_cm: 80, farbe: '#94c1a4',
+  })
 
   const [raumBreite, setRaumBreite] = useState(breiteM?.toString() ?? '')
   const [raumLaenge, setRaumLaenge] = useState(laengeM?.toString() ?? '')
@@ -235,6 +252,9 @@ export default function RaumplanerEditor({
   const minimapThrottleRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateMinimapRef     = useRef<() => void>(() => {})
+  const snapToGridRef        = useRef(false)
+  const fitToViewRef         = useRef<() => void>(() => {})
+  const toggleLockRef        = useRef(() => {})
 
   // ── Ref-Sync ──────────────────────────────────────────────
 
@@ -243,6 +263,27 @@ export default function RaumplanerEditor({
   useEffect(() => { gridSizeRef.current = gridSize; fabricRef.current?.requestRenderAll() }, [gridSize])
   useEffect(() => { doorWidthRef.current = doorWidth }, [doorWidth])
   useEffect(() => { windowWidthRef.current = windowWidth }, [windowWidth])
+  useEffect(() => { snapToGridRef.current = snapToGrid }, [snapToGrid])
+
+  // Fullscreen-Änderung beobachten
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', handler)
+    return () => document.removeEventListener('fullscreenchange', handler)
+  }, [])
+
+  // Favoriten aus localStorage laden
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('raumplaner-favoriten')
+      if (raw) setFavoriten(new Set(JSON.parse(raw)))
+    } catch { /* ignore */ }
+  }, [])
+
+  // Custom-Möbel aus DB laden
+  useEffect(() => {
+    getCustomMoebel().then(data => setCustomMoebel(data)).catch(() => {})
+  }, [])
 
   // ── Grid (world-coordinate approach, bewegt sich korrekt mit Zoom/Pan) ──
 
@@ -494,6 +535,7 @@ export default function RaumplanerEditor({
       w: Math.round((obj.getScaledWidth?.() ?? 0) * 10) / 10,
       h: Math.round((obj.getScaledHeight?.() ?? 0) * 10) / 10,
       angle: Math.round(obj.angle ?? 0), name: obj.name ?? '', objType: obj.data?.type ?? '',
+      locked: obj.data?.locked === true,
     }
   }
 
@@ -685,6 +727,13 @@ export default function RaumplanerEditor({
         const obj = opt.target as any // eslint-disable-line @typescript-eslint/no-explicit-any
         if (!obj) return
 
+        // ── SNAP-TO-GRID ──────────────────────────────────
+        if (snapToGridRef.current) {
+          const grid = gridSizeRef.current
+          obj.set({ left: Math.round(obj.left / grid) * grid, top: Math.round(obj.top / grid) * grid })
+          obj.setCoords()
+        }
+
         // Alignment-Linien aus letztem Frame entfernen
         alignmentLinesRef.current.forEach((l: any) => { try { canvas.remove(l) } catch { /* ignore */ } }) // eslint-disable-line @typescript-eslint/no-explicit-any
         alignmentLinesRef.current = []
@@ -861,6 +910,8 @@ export default function RaumplanerEditor({
           }
           await canvas.loadFromJSON(parsed)
           canvas.requestRenderAll()
+          // Auto-Fit: Grundriss zentriert anzeigen
+          setTimeout(() => fitToViewRef.current(), 150)
         } catch { /* ignore */ }
       }
       if (breiteM && laengeM) updateOutline(breiteM, laengeM)
@@ -887,7 +938,9 @@ export default function RaumplanerEditor({
             pushHistory(); triggerAutoSave(); updateObjCount(); canvas.requestRenderAll()
           }
         }
+        if (ev.key === 'F11') { ev.preventDefault(); toggleFullscreenRef.current(); return }
         if (!ev.ctrlKey && !ev.metaKey) {
+          if (ev.key.toLowerCase() === 'l') { toggleLockRef.current(); return }
           const map: Record<string, Tool> = { v:'select', w:'wall', d:'door', f:'window', m:'measure', e:'eraser' }
           if (map[ev.key.toLowerCase()]) switchToolRef.current(map[ev.key.toLowerCase()] as Tool)
         }
@@ -975,6 +1028,7 @@ export default function RaumplanerEditor({
     canvas.setViewportTransform([z, 0, 0, z, canvas.getWidth() / 2 - cx * z, canvas.getHeight() / 2 - cy * z])
     setZoom(Math.round(z * 100) / 100); canvas.requestRenderAll()
   }
+  fitToViewRef.current = fitToView
 
   // ── Alle löschen ──────────────────────────────────────────
 
@@ -1026,6 +1080,100 @@ export default function RaumplanerEditor({
     c.sendObjectToBack(obj)
     if (outlineRef.current) c.sendObjectToBack(outlineRef.current)
     c.requestRenderAll(); setContextMenu(null)
+  }
+
+  // ── Fullscreen ─────────────────────────────────────────────
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {})
+    } else {
+      document.exitFullscreen?.().catch(() => {})
+    }
+  }
+  const toggleFullscreenRef = useRef(toggleFullscreen)
+  toggleFullscreenRef.current = toggleFullscreen
+
+  // ── Objekt sperren/entsperren ─────────────────────────────
+  function toggleLock() {
+    const c = fabricRef.current; if (!c) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const obj = c.getActiveObject() as any; if (!obj || obj.data?.type === 'outline') return
+    const locked = !obj.data?.locked
+    obj.set({
+      lockMovementX: locked, lockMovementY: locked,
+      lockScalingX: locked,  lockScalingY: locked,
+      lockRotation: locked,
+      data: { ...obj.data, locked },
+    })
+    c.requestRenderAll()
+    setSelectedProps(extractObjProps(obj))
+    triggerAutoSave()
+  }
+  toggleLockRef.current = toggleLock
+
+  // ── Objekt-Eigenschaft live updaten ──────────────────────
+  function applyObjProp(field: 'x'|'y'|'angle'|'name', raw: string) {
+    const canvas = fabricRef.current; if (!canvas) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const obj = canvas.getActiveObject() as any; if (!obj) return
+    const num = parseFloat(raw)
+    if (field === 'x')     { obj.set({ left:  isNaN(num) ? obj.left  : num }); obj.setCoords?.() }
+    if (field === 'y')     { obj.set({ top:   isNaN(num) ? obj.top   : num }); obj.setCoords?.() }
+    if (field === 'angle') { obj.set({ angle: isNaN(num) ? obj.angle : num }); obj.setCoords?.() }
+    if (field === 'name')  { obj.name = raw }
+    canvas.requestRenderAll()
+    setSelectedProps(extractObjProps(obj))
+    triggerAutoSave()
+  }
+
+  // ── Favoriten-Toggle (localStorage) ──────────────────────
+  function toggleFavorit(id: string) {
+    setFavoriten(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      localStorage.setItem('raumplaner-favoriten', JSON.stringify(Array.from(next)))
+      return next
+    })
+  }
+
+  // ── Custom-Möbel platzieren ───────────────────────────────
+  function placeCustomMoebel(cm: CustomMoebelType, x: number, y: number) {
+    const canvas = fabricRef.current, imp = fabricImports.current
+    if (!canvas || !imp) return
+    const { Group, Rect, Text } = imp
+    const w = cm.breite_cm, h = cm.laenge_cm
+    const bg = new Rect({
+      width: w, height: h, fill: cm.farbe, stroke: '#1e293b', strokeWidth: 1.5,
+      rx: 3, ry: 3, originX: 'left', originY: 'top',
+    })
+    const label = new Text(cm.name, {
+      fontSize: Math.max(7, Math.min(11, w / Math.max(cm.name.length, 4) * 1.4)),
+      fill: '#1e293b', textAlign: 'center', originX: 'center', originY: 'center',
+      left: w / 2, top: h / 2, fontFamily: 'system-ui, sans-serif',
+    })
+    const group = new Group([bg, label], {
+      left: x - w / 2, top: y - h / 2,
+      data: { type: 'moebel', customId: cm.id, name: cm.name }, name: cm.name,
+    })
+    canvas.add(group); canvas.setActiveObject(group); canvas.requestRenderAll()
+    pushHistory(); triggerAutoSave(); updateObjCount()
+  }
+
+  // ── Custom-Möbel in DB speichern ─────────────────────────
+  async function saveCustomMoebel() {
+    if (!newMoebel.name.trim()) return
+    setCustomSaving(true)
+    try {
+      const res = await customMoebelErstellen(newMoebel)
+      if ('id' in res) {
+        const created: CustomMoebelType = {
+          ...newMoebel, id: res.id, ist_favorit: false, created_by: null, created_at: new Date().toISOString(), organisation_id: null,
+        }
+        setCustomMoebel(prev => [created, ...prev])
+        setShowCustomModal(false)
+        setNewMoebel({ name: '', kategorie: 'Wohnzimmer', breite_cm: 80, laenge_cm: 80, farbe: '#94c1a4' })
+      }
+    } finally { setCustomSaving(false) }
   }
 
   function handleMinimapClick(e: React.MouseEvent<HTMLDivElement>) {
@@ -1298,6 +1446,15 @@ export default function RaumplanerEditor({
           onMouseLeave={e => { if (!showGrid) e.currentTarget.style.background = 'transparent' }}>
           <Grid3x3 className="w-4 h-4" />
         </button>
+        {/* Snap-to-Grid Toggle */}
+        <button type="button" title={`Einrasten ${snapToGrid ? 'aus' : 'ein'}schalten`}
+          onClick={() => setSnapToGrid(v => !v)}
+          className={tbBtn}
+          style={{ color: snapToGrid ? '#fff' : C.textLt, background: snapToGrid ? 'rgba(68,92,73,0.5)' : 'transparent' }}
+          onMouseEnter={e => { if (!snapToGrid) e.currentTarget.style.background = C.hover }}
+          onMouseLeave={e => { if (!snapToGrid) e.currentTarget.style.background = 'transparent' }}>
+          <Magnet className="w-4 h-4" />
+        </button>
         {/* Grid-Größe: 4 Toggle-Buttons */}
         <div className="flex items-center gap-0.5 rounded-lg p-0.5" style={{ background: 'rgba(0,0,0,0.2)' }}>
           {([10, 25, 50, 100] as GridSize[]).map(v => (
@@ -1358,6 +1515,14 @@ export default function RaumplanerEditor({
                                      <><Save className="w-3.5 h-3.5" /> Speichern</>}
         </button>
 
+        {/* Fullscreen */}
+        <button type="button" title={isFullscreen ? 'Vollbild beenden' : 'Vollbild (F11)'}
+          onClick={toggleFullscreen} className={tbBtn} style={{ color: C.textLt }}
+          onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </button>
+
         <button type="button" title="Tastaturkürzel (?)" onClick={() => setShowShortcuts(true)}
           className={`${tbBtn} ml-0.5`} style={{ color: C.textLt }}
           onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
@@ -1380,16 +1545,50 @@ export default function RaumplanerEditor({
                 className="w-full text-[11px] rounded-lg pl-7 pr-2 py-1.5 focus:outline-none"
                 style={{ background: C.input, border: `1px solid ${C.border}`, color: C.textMd }} />
             </div>
+            <button type="button" onClick={() => setShowCustomModal(true)}
+              className="w-full mt-2 flex items-center justify-center gap-1.5 px-2 py-1.5 text-[11px] rounded-lg transition-colors"
+              style={{ border: `1px dashed ${C.border}`, color: C.textLt }}
+              onMouseEnter={e => { e.currentTarget.style.background = C.hover; e.currentTarget.style.borderColor = '#445c49' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = C.border }}>
+              <Plus className="w-3 h-3" /> Eigenes Möbel
+            </button>
           </div>
 
           <div className="flex-1 overflow-y-auto">
             {isSearching ? (
               <div className="px-2 py-2">
                 <p className="text-[9px] uppercase tracking-wider font-semibold px-1 mb-2" style={{ color: `${C.textLt}60` }}>{filteredMoebel.length} Treffer</p>
-                <MoebelGrid symbols={filteredMoebel} fabricRef={fabricRef} placeMoebel={placeMoebel} colors={C} />
+                <MoebelGrid symbols={filteredMoebel} fabricRef={fabricRef} placeMoebel={placeMoebel} colors={C} starredIds={favoriten} onStar={toggleFavorit} />
               </div>
             ) : (
               <div>
+                {/* ⭐ Favoriten */}
+                {favoriten.size > 0 && (() => {
+                  const favSym = moebelSymbole.filter(s => favoriten.has(s.id))
+                  const favCustom = customMoebel.filter(cm => favoriten.has(cm.id))
+                  if (favSym.length === 0 && favCustom.length === 0) return null
+                  return (
+                    <div>
+                      <button type="button"
+                        onClick={() => setOpenGroups(prev => { const n = new Set(prev); if (n.has('⭐ Favoriten')) n.delete('⭐ Favoriten'); else n.add('⭐ Favoriten'); return n })}
+                        className="w-full flex items-center justify-between px-3 py-2 text-[10px] transition-colors"
+                        style={{ color: '#fbbf24', borderBottom: `1px solid ${C.border}20` }}
+                        onMouseEnter={e => (e.currentTarget.style.background = `${C.hover}80`)}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                        <span className="uppercase tracking-wider font-semibold flex items-center gap-1"><Star className="w-3 h-3 fill-[#fbbf24]" /> Favoriten</span>
+                        {openGroups.has('⭐ Favoriten') ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                      </button>
+                      {openGroups.has('⭐ Favoriten') && (
+                        <div className="px-2 py-2" style={{ borderBottom: `1px solid ${C.border}15` }}>
+                          {favSym.length > 0 && <MoebelGrid symbols={favSym} fabricRef={fabricRef} placeMoebel={placeMoebel} colors={C} starredIds={favoriten} onStar={toggleFavorit} />}
+                          {favCustom.length > 0 && <CustomMoebelGrid items={favCustom} colors={C} onPlace={placeCustomMoebel} starredIds={favoriten} onStar={toggleFavorit} />}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* System-Möbel Gruppen */}
                 {groupedMoebel.map(group => (
                   <div key={group.name}>
                     <button type="button"
@@ -1403,7 +1602,7 @@ export default function RaumplanerEditor({
                     </button>
                     {openGroups.has(group.name) && (
                       <div className="px-2 py-2" style={{ borderBottom: `1px solid ${C.border}15` }}>
-                        <MoebelGrid symbols={group.items} fabricRef={fabricRef} placeMoebel={placeMoebel} colors={C} />
+                        <MoebelGrid symbols={group.items} fabricRef={fabricRef} placeMoebel={placeMoebel} colors={C} starredIds={favoriten} onStar={toggleFavorit} />
                       </div>
                     )}
                   </div>
@@ -1420,8 +1619,28 @@ export default function RaumplanerEditor({
                       {openGroups.has('Sonstige') ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                     </button>
                     {openGroups.has('Sonstige') && (
+                      <div className="px-2 py-2" style={{ borderBottom: `1px solid ${C.border}15` }}>
+                        <MoebelGrid symbols={sonstige} fabricRef={fabricRef} placeMoebel={placeMoebel} colors={C} starredIds={favoriten} onStar={toggleFavorit} />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Eigene Möbel */}
+                {customMoebel.length > 0 && (
+                  <div>
+                    <button type="button"
+                      onClick={() => setOpenGroups(prev => { const n = new Set(prev); if (n.has('Eigene Möbel')) n.delete('Eigene Möbel'); else n.add('Eigene Möbel'); return n })}
+                      className="w-full flex items-center justify-between px-3 py-2 text-[10px] transition-colors"
+                      style={{ color: C.textLt, borderBottom: `1px solid ${C.border}20` }}
+                      onMouseEnter={e => (e.currentTarget.style.background = `${C.hover}80`)}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                      <span className="uppercase tracking-wider font-semibold">Eigene Möbel</span>
+                      {openGroups.has('Eigene Möbel') ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                    </button>
+                    {openGroups.has('Eigene Möbel') && (
                       <div className="px-2 py-2">
-                        <MoebelGrid symbols={sonstige} fabricRef={fabricRef} placeMoebel={placeMoebel} colors={C} />
+                        <CustomMoebelGrid items={customMoebel} colors={C} onPlace={placeCustomMoebel} starredIds={favoriten} onStar={toggleFavorit} />
                       </div>
                     )}
                   </div>
@@ -1487,18 +1706,81 @@ export default function RaumplanerEditor({
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                {[
-                  { label: 'Position', fields: [{ l:'X', v:`${selectedProps.x} px` }, { l:'Y', v:`${selectedProps.y} px` }] },
-                  { label: 'Größe',    fields: [{ l:'Breite', v:`${Math.round(selectedProps.w)} px` }, { l:'Tiefe', v:`${Math.round(selectedProps.h)} px` }] },
-                  { label: 'Rotation', fields: [{ l:'Winkel', v:`${selectedProps.angle}°` }] },
-                ].map(sec => (
-                  <div key={sec.label} className="px-3 py-3" style={{ borderBottom: `1px solid ${C.border}20` }}>
-                    <p className="text-[9px] uppercase tracking-wider font-semibold mb-2" style={{ color: `${C.textLt}60` }}>{sec.label}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {sec.fields.map(f => <PropField key={f.l} label={f.l} value={f.v} colors={C} />)}
-                    </div>
+                {/* Name */}
+                <div className="px-3 py-2.5" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                  <p className="text-[9px] uppercase tracking-wider font-semibold mb-1.5" style={{ color: `${C.textLt}60` }}>Name</p>
+                  <input type="text" defaultValue={selectedProps.name} key={selectedProps.name}
+                    onBlur={e => applyObjProp('name', e.target.value)}
+                    className="w-full text-[11px] rounded-lg px-2 py-1.5 focus:outline-none"
+                    style={{ background: C.input, border: `1px solid ${C.border}`, color: C.textMd }} />
+                </div>
+
+                {/* Position */}
+                <div className="px-3 py-2.5" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                  <p className="text-[9px] uppercase tracking-wider font-semibold mb-1.5" style={{ color: `${C.textLt}60` }}>Position (cm)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[{ l:'X', f:'x' as const, v: selectedProps.x }, { l:'Y', f:'y' as const, v: selectedProps.y }].map(({ l, f, v }) => (
+                      <div key={l}>
+                        <label className="text-[9px] block mb-0.5" style={{ color: `${C.textLt}50` }}>{l}</label>
+                        <input type="number" step="1" defaultValue={v} key={v}
+                          onBlur={e => applyObjProp(f, e.target.value)}
+                          className="w-full text-[11px] rounded-lg px-2 py-1.5 focus:outline-none"
+                          style={{ background: C.input, border: `1px solid ${C.border}`, color: C.textMd }} />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                {/* Größe (readonly) */}
+                <div className="px-3 py-2.5" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                  <p className="text-[9px] uppercase tracking-wider font-semibold mb-1.5" style={{ color: `${C.textLt}60` }}>Größe (cm)</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[{ l:'B', v: Math.round(selectedProps.w) }, { l:'L', v: Math.round(selectedProps.h) }].map(({ l, v }) => (
+                      <div key={l}>
+                        <label className="text-[9px] block mb-0.5" style={{ color: `${C.textLt}50` }}>{l}</label>
+                        <div className="w-full text-[11px] rounded-lg px-2 py-1.5 font-mono opacity-60"
+                          style={{ background: C.input, border: `1px solid ${C.border}20`, color: C.textMd }}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Rotation */}
+                <div className="px-3 py-2.5" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                  <p className="text-[9px] uppercase tracking-wider font-semibold mb-1.5" style={{ color: `${C.textLt}60` }}>Rotation</p>
+                  <div>
+                    <label className="text-[9px] block mb-0.5" style={{ color: `${C.textLt}50` }}>Winkel °</label>
+                    <input type="number" step="1" min={-180} max={180} defaultValue={selectedProps.angle} key={selectedProps.angle}
+                      onBlur={e => applyObjProp('angle', e.target.value)}
+                      className="w-full text-[11px] rounded-lg px-2 py-1.5 focus:outline-none"
+                      style={{ background: C.input, border: `1px solid ${C.border}`, color: C.textMd }} />
+                  </div>
+                </div>
+
+                {/* Lock + Aktionen */}
+                <div className="px-3 py-2.5" style={{ borderBottom: `1px solid ${C.border}20` }}>
+                  <button type="button" onClick={toggleLock}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                    style={{
+                      background: selectedProps.locked ? 'rgba(239,68,68,0.1)' : C.input,
+                      border: `1px solid ${selectedProps.locked ? 'rgba(239,68,68,0.3)' : C.border}`,
+                      color: selectedProps.locked ? '#f87171' : C.textMd,
+                    }}>
+                    {selectedProps.locked ? <Lock className="w-3 h-3" /> : <LockOpen className="w-3 h-3" />}
+                    {selectedProps.locked ? 'Gesperrt (L)' : 'Sperren (L)'}
+                  </button>
+                </div>
+
+                {/* Duplizieren */}
+                <div className="px-3 py-2.5">
+                  <button type="button" onClick={duplicateSelected}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                    style={{ background: C.input, border: `1px solid ${C.border}`, color: C.textMd }}
+                    onMouseEnter={e => (e.currentTarget.style.background = C.hover)}
+                    onMouseLeave={e => (e.currentTarget.style.background = C.input)}>
+                    <Copy className="w-3 h-3" /> Duplizieren
+                  </button>
+                </div>
               </div>
             ) : (
               <div>
@@ -1553,6 +1835,85 @@ export default function RaumplanerEditor({
         </div>
       </div>
 
+      {/* ── Custom-Möbel Modal ── */}
+      {showCustomModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => setShowCustomModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-80 max-w-full"
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-sm font-semibold text-gray-900">Eigenes Möbel erstellen</h2>
+              <button onClick={() => setShowCustomModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] font-medium text-gray-500 block mb-1">Name *</label>
+                <input type="text" value={newMoebel.name} onChange={e => setNewMoebel(p => ({ ...p, name: e.target.value }))}
+                  placeholder="z.B. Mein Schrank" className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#445c49]/30 focus:border-[#445c49]" />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-500 block mb-1">Kategorie</label>
+                <select value={newMoebel.kategorie} onChange={e => setNewMoebel(p => ({ ...p, kategorie: e.target.value }))}
+                  className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#445c49]/30 focus:border-[#445c49]">
+                  {['Wohnzimmer','Schlafzimmer','Büro','Küche','Bad','Sonstiges'].map(k => <option key={k} value={k}>{k}</option>)}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-medium text-gray-500 block mb-1">Breite (cm)</label>
+                  <input type="number" min={10} max={500} value={newMoebel.breite_cm} onChange={e => setNewMoebel(p => ({ ...p, breite_cm: parseInt(e.target.value) || 80 }))}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#445c49]/30 focus:border-[#445c49]" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-medium text-gray-500 block mb-1">Länge (cm)</label>
+                  <input type="number" min={10} max={500} value={newMoebel.laenge_cm} onChange={e => setNewMoebel(p => ({ ...p, laenge_cm: parseInt(e.target.value) || 80 }))}
+                    className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#445c49]/30 focus:border-[#445c49]" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-500 block mb-1">Farbe</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={newMoebel.farbe} onChange={e => setNewMoebel(p => ({ ...p, farbe: e.target.value }))}
+                    className="w-10 h-9 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+                  <span className="text-sm text-gray-500 font-mono">{newMoebel.farbe}</span>
+                  {/* Farbvorschläge */}
+                  <div className="flex gap-1.5 ml-auto">
+                    {['#94c1a4','#93c5fd','#fca5a5','#fde68a','#c4b5fd','#6ee7b7'].map(c => (
+                      <button key={c} type="button" onClick={() => setNewMoebel(p => ({ ...p, farbe: c }))}
+                        className="w-5 h-5 rounded-full border-2 transition-all"
+                        style={{ background: c, borderColor: newMoebel.farbe === c ? '#1f2937' : 'transparent' }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* Vorschau */}
+              <div className="rounded-lg p-3 flex items-center justify-center" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', minHeight: 64 }}>
+                <div style={{
+                  width: Math.min(200, newMoebel.breite_cm * 1.5), height: Math.min(80, newMoebel.laenge_cm * 1.5),
+                  background: newMoebel.farbe, border: '1.5px solid #1e293b', borderRadius: 3,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, color: '#1e293b', fontWeight: 500,
+                }}>
+                  {newMoebel.name || '…'}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setShowCustomModal(false)} className="flex-1 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                Abbrechen
+              </button>
+              <button onClick={saveCustomMoebel} disabled={!newMoebel.name.trim() || customSaving}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors disabled:opacity-50"
+                style={{ background: '#445c49' }}>
+                {customSaving ? 'Speichern…' : 'Erstellen'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Status-Bar ── */}
       <div className="flex items-center justify-between px-4 py-1.5 shrink-0 h-8"
         style={{ background: C.toolbar, borderTop: `1px solid ${C.border}` }}>
@@ -1561,6 +1922,11 @@ export default function RaumplanerEditor({
           <span>Y {mousePos.y.toFixed(2)} m</span>
         </div>
         <div className="flex items-center gap-3 text-[10px]" style={{ color: `${C.textLt}60` }}>
+          {snapToGrid && (
+            <span className="flex items-center gap-1" style={{ color: '#94c1a4' }}>
+              <Magnet className="w-3 h-3" />Snap
+            </span>
+          )}
           <span style={{
             color: activeTool === 'wall' || activeTool === 'measure' ? '#fbbf24' :
                    activeTool === 'eraser' ? '#f87171' :
@@ -1577,12 +1943,14 @@ export default function RaumplanerEditor({
 
 // ── MoebelGrid ────────────────────────────────────────────────
 
-function MoebelGrid({ symbols, fabricRef, placeMoebel, colors }: {
+function MoebelGrid({ symbols, fabricRef, placeMoebel, colors, starredIds, onStar }: {
   symbols: MoebelSymbol[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fabricRef: React.MutableRefObject<any>
   placeMoebel: (s: MoebelSymbol, x: number, y: number) => void
   colors: { hover: string; textLt: string; border: string }
+  starredIds?: Set<string>
+  onStar?: (id: string) => void
 }) {
   return (
     <div className="grid grid-cols-2 gap-1.5">
@@ -1594,11 +1962,23 @@ function MoebelGrid({ symbols, fabricRef, placeMoebel, colors }: {
             const vpt = c.viewportTransform ?? [1,0,0,1,0,0]
             placeMoebel(symbol, (c.getWidth() / 2 - vpt[4]) / vpt[0], (c.getHeight() / 2 - vpt[5]) / vpt[3])
           }}
-          className="rounded-lg p-1.5 cursor-grab active:cursor-grabbing transition-all select-none"
+          className="relative rounded-lg p-1.5 cursor-grab active:cursor-grabbing transition-all select-none"
           style={{ background: 'rgba(0,0,0,0.15)', border: `1px solid rgba(74,99,80,0.2)` }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = colors.hover; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(68,92,73,0.5)' }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(0,0,0,0.15)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,99,80,0.2)' }}
           title={`${symbol.name} – ${symbol.breite_cm}×${symbol.tiefe_cm}cm`}>
+          {onStar && (
+            <button type="button"
+              onClick={e => { e.stopPropagation(); onStar(symbol.id) }}
+              className="absolute top-1 right-1 z-10 transition-opacity"
+              style={{
+                color: starredIds?.has(symbol.id) ? '#fbbf24' : `${colors.textLt}40`,
+                opacity: starredIds?.has(symbol.id) ? 1 : 0.4,
+              }}
+              title={starredIds?.has(symbol.id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}>
+              <Star className="w-3 h-3" fill={starredIds?.has(symbol.id) ? '#fbbf24' : 'none'} />
+            </button>
+          )}
           <div className="w-full rounded-md mb-1.5 overflow-hidden flex items-center justify-center p-1 bg-white/10" style={{ minHeight: 36 }}>
             <MoebelPreview symbol={symbol} />
           </div>
@@ -1610,16 +1990,48 @@ function MoebelGrid({ symbols, fabricRef, placeMoebel, colors }: {
   )
 }
 
-// ── PropField ─────────────────────────────────────────────────
+// ── CustomMoebelGrid ──────────────────────────────────────────
 
-function PropField({ label, value, colors }: { label: string; value: string; colors: { textLt: string; input: string; border: string } }) {
+function CustomMoebelGrid({ items, colors, onPlace, starredIds, onStar }: {
+  items: CustomMoebelType[]
+  colors: { hover: string; textLt: string; border: string; input: string }
+  onPlace: (cm: CustomMoebelType, x: number, y: number) => void
+  starredIds?: Set<string>
+  onStar?: (id: string) => void
+}) {
+  if (items.length === 0) return (
+    <p className="text-[10px] text-center py-3" style={{ color: `${colors.textLt}40` }}>Noch keine eigenen Möbel</p>
+  )
   return (
-    <div>
-      <p className="text-[9px] mb-0.5" style={{ color: `${colors.textLt}60` }}>{label}</p>
-      <div className="text-[11px] rounded-lg px-2 py-1 font-mono truncate"
-        style={{ background: colors.input, border: `1px solid ${colors.border}20`, color: colors.textLt }}>
-        {value}
-      </div>
+    <div className="grid grid-cols-2 gap-1.5">
+      {items.map(cm => (
+        <div key={cm.id}
+          onClick={() => onPlace(cm, 0, 0)}
+          className="relative rounded-lg p-1.5 cursor-pointer transition-all select-none"
+          style={{ background: 'rgba(0,0,0,0.15)', border: `1px solid rgba(74,99,80,0.2)` }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = colors.hover; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(68,92,73,0.5)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(0,0,0,0.15)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(74,99,80,0.2)' }}
+          title={`${cm.name} – ${cm.breite_cm}×${cm.laenge_cm}cm`}>
+          {onStar && (
+            <button type="button"
+              onClick={e => { e.stopPropagation(); onStar(cm.id) }}
+              className="absolute top-1 right-1 z-10 transition-opacity"
+              style={{ color: starredIds?.has(cm.id) ? '#fbbf24' : `${colors.textLt}40` }}
+              title={starredIds?.has(cm.id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}>
+              <Star className="w-3 h-3" fill={starredIds?.has(cm.id) ? '#fbbf24' : 'none'} />
+            </button>
+          )}
+          <div className="w-full rounded-md mb-1.5 flex items-center justify-center" style={{ minHeight: 36 }}>
+            <div style={{
+              width: Math.min(48, cm.breite_cm * 0.3), height: Math.min(32, cm.laenge_cm * 0.3),
+              background: cm.farbe, border: '1.5px solid rgba(255,255,255,0.2)', borderRadius: 3,
+            }} />
+          </div>
+          <p className="text-[10px] font-medium leading-tight truncate" style={{ color: colors.textLt }}>{cm.name}</p>
+          <p className="text-[9px] leading-tight" style={{ color: `${colors.textLt}50` }}>{cm.breite_cm}×{cm.laenge_cm}cm</p>
+        </div>
+      ))}
     </div>
   )
 }
+

@@ -2,7 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import type { MoebelSymbol } from '@/lib/supabase/types'
+import type { MoebelSymbol, CustomMoebel } from '@/lib/supabase/types'
+import { getOrganisationIdOrNull } from '@/lib/supabase/server'
 
 /** Canvas-State (Fabric.js JSON) in der DB speichern. */
 export async function grundrissSpeichern(
@@ -61,4 +62,39 @@ export async function getMoebelSymbole(): Promise<MoebelSymbol[]> {
     .order('ist_system', { ascending: false })
     .order('name')
   return (data ?? []) as MoebelSymbol[]
+}
+
+/** Eigene Custom-Möbel der Organisation laden. */
+export async function getCustomMoebel(): Promise<CustomMoebel[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('custom_moebel')
+    .select('*')
+    .order('created_at', { ascending: false })
+  return (data ?? []) as CustomMoebel[]
+}
+
+/** Neues Custom-Möbel speichern. */
+export async function customMoebelErstellen(input: {
+  name: string; kategorie: string; breite_cm: number; laenge_cm: number; farbe: string
+}): Promise<{ id: string } | { fehler: string }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { fehler: 'Nicht eingeloggt.' }
+  const orgId = await getOrganisationIdOrNull()
+  const { data, error } = await supabase
+    .from('custom_moebel')
+    .insert({
+      organisation_id: orgId,
+      name: input.name.trim(),
+      kategorie: input.kategorie,
+      breite_cm: input.breite_cm,
+      laenge_cm: input.laenge_cm,
+      farbe: input.farbe,
+      created_by: user.id,
+    })
+    .select('id')
+    .single()
+  if (error || !data) return { fehler: 'Fehler beim Speichern.' }
+  return { id: data.id }
 }
