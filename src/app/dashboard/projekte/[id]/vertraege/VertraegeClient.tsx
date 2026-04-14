@@ -3,10 +3,13 @@
 import { useState, useTransition } from 'react'
 import {
   Plus, FileText, ChevronDown, Eye, Trash2, CheckCircle,
-  Send, XCircle, Clock, PenLine, Download,
+  Send, XCircle, Clock, PenLine, Download, Link2, Copy, Check,
+  PenSquare, AlertCircle,
 } from 'lucide-react'
 import type { Vertrag, VertragStatus, VertragsVorlage } from '@/lib/supabase/types'
 import { vertragErstellen, vertragStatusAendern, vertragLoeschen } from '@/app/actions/vertraege'
+import { signaturTokenErstellen, firmaUnterschreiben } from '@/app/actions/signatur'
+import SignaturCanvas from '@/components/SignaturCanvas'
 
 // ── Status-Konfiguration ──────────────────────────────────────
 
@@ -132,6 +135,218 @@ function NeuerVertragModal({
   )
 }
 
+// ── Signatur-Link Modal ───────────────────────────────────────
+
+function SignaturLinkModal({
+  vertrag,
+  onClose,
+  onTokenErstellt,
+}: {
+  vertrag: Vertrag
+  onClose: () => void
+  onTokenErstellt: (id: string, token: string) => void
+}) {
+  const [token, setToken] = useState(vertrag.signatur_token ?? '')
+  const [kopiert, setKopiert] = useState(false)
+  const [laden, setLaden] = useState(false)
+  const [fehler, setFehler] = useState<string | null>(null)
+  const [, startTransition] = useTransition()
+
+  const link = token
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/vertrag/${token}`
+    : ''
+
+  function handleTokenErstellen() {
+    setFehler(null)
+    setLaden(true)
+    startTransition(async () => {
+      const res = await signaturTokenErstellen(vertrag.id)
+      setLaden(false)
+      if (res.fehler) { setFehler(res.fehler); return }
+      if (res.token) {
+        setToken(res.token)
+        onTokenErstellt(vertrag.id, res.token)
+      }
+    })
+  }
+
+  function handleKopieren() {
+    navigator.clipboard.writeText(link)
+    setKopiert(true)
+    setTimeout(() => setKopiert(false), 2000)
+  }
+
+  const signaturStatus = (() => {
+    if (vertrag.signatur_kunde_datum && vertrag.signatur_firma_datum) return 'beide'
+    if (vertrag.signatur_kunde_datum) return 'nur_kunde'
+    if (vertrag.signatur_firma_datum) return 'nur_firma'
+    return 'keine'
+  })()
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h3 className="text-sm font-semibold text-gray-900">Signatur-Link</h3>
+          <p className="text-xs text-gray-400 mt-0.5">{vertrag.titel}</p>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {/* Unterschriften-Status */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className={`rounded-xl p-3 border ${vertrag.signatur_kunde_datum ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100'}`}>
+              <p className="text-[11px] text-gray-500 mb-0.5">Kunde</p>
+              <p className={`text-xs font-medium ${vertrag.signatur_kunde_datum ? 'text-green-700' : 'text-gray-400'}`}>
+                {vertrag.signatur_kunde_datum
+                  ? `Unterschrieben ${new Date(vertrag.signatur_kunde_datum).toLocaleDateString('de-DE')}`
+                  : 'Noch ausstehend'}
+              </p>
+            </div>
+            <div className={`rounded-xl p-3 border ${vertrag.signatur_firma_datum ? 'bg-green-50 border-green-100' : 'bg-gray-50 border-gray-100'}`}>
+              <p className="text-[11px] text-gray-500 mb-0.5">Firma</p>
+              <p className={`text-xs font-medium ${vertrag.signatur_firma_datum ? 'text-green-700' : 'text-gray-400'}`}>
+                {vertrag.signatur_firma_datum
+                  ? `Unterschrieben ${new Date(vertrag.signatur_firma_datum).toLocaleDateString('de-DE')}`
+                  : 'Noch ausstehend'}
+              </p>
+            </div>
+          </div>
+
+          {signaturStatus === 'beide' && (
+            <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded-xl px-3 py-2.5">
+              <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+              Beide Parteien haben unterschrieben.
+            </div>
+          )}
+
+          {/* Link */}
+          {!vertrag.signatur_kunde_datum && (
+            <>
+              {token ? (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500">Diesen Link mit dem Kunden teilen:</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-600 font-mono truncate">
+                      {link}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleKopieren}
+                      className="shrink-0 p-2 text-gray-400 hover:text-wellbeing-green hover:bg-gray-100 rounded-lg transition-colors"
+                      title="Link kopieren"
+                    >
+                      {kopiert ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTokenErstellen}
+                    disabled={laden}
+                    className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    Neuen Link generieren
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500">Generieren Sie einen Link für die digitale Unterschrift des Kunden (gültig 30 Tage).</p>
+                  {fehler && (
+                    <div className="flex items-center gap-1.5 text-xs text-red-500">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {fehler}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleTokenErstellen}
+                    disabled={laden}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    {laden ? 'Wird erstellt…' : 'Signatur-Link erstellen'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+          <button type="button" onClick={onClose} className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 transition-colors">
+            Schließen
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Firma-Signatur Modal ───────────────────────────────────────
+
+function FirmaSignaturModal({
+  vertrag,
+  onUnterschrieben,
+  onClose,
+}: {
+  vertrag: Vertrag
+  onUnterschrieben: (id: string) => void
+  onClose: () => void
+}) {
+  const [signatur, setSignatur] = useState<string | null>(null)
+  const [fehler, setFehler] = useState<string | null>(null)
+  const [, startTransition] = useTransition()
+
+  function handleUnterschreiben() {
+    if (!signatur) { setFehler('Bitte zuerst unterschreiben.'); return }
+    setFehler(null)
+    startTransition(async () => {
+      const res = await firmaUnterschreiben(vertrag.id, signatur)
+      if (res.fehler) { setFehler(res.fehler); return }
+      onUnterschrieben(vertrag.id)
+      onClose()
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h3 className="text-sm font-semibold text-gray-900">Als Firma unterschreiben</h3>
+          <p className="text-xs text-gray-400 mt-0.5">{vertrag.titel}</p>
+        </div>
+        <div className="px-6 py-5">
+          <SignaturCanvas onExport={setSignatur} />
+          {fehler && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-red-500">
+              <AlertCircle className="w-3.5 h-3.5" />
+              {fehler}
+            </div>
+          )}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
+          <button type="button" onClick={onClose} className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1.5 transition-colors">
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            onClick={handleUnterschreiben}
+            disabled={!signatur}
+            className="px-4 py-1.5 text-xs font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-lg transition-colors"
+          >
+            Unterschrift speichern
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Haupt-Komponente ──────────────────────────────────────────
 
 interface Props {
@@ -145,6 +360,8 @@ export default function VertraegeClient({ projektId, kundeId, initialVertraege, 
   const [vertraege, setVertraege] = useState(initialVertraege)
   const [neuerVertragOffen, setNeuerVertragOffen] = useState(false)
   const [vorschau, setVorschau] = useState<Vertrag | null>(null)
+  const [signaturLink, setSignaturLink] = useState<Vertrag | null>(null)
+  const [firmaSignatur, setFirmaSignatur] = useState<Vertrag | null>(null)
   const [fehler, setFehler] = useState<string | null>(null)
   const [, startTransition] = useTransition()
 
@@ -193,6 +410,21 @@ export default function VertraegeClient({ projektId, kundeId, initialVertraege, 
       const res = await vertragLoeschen(id, projektId)
       if (!res.fehler) setVertraege((prev) => prev.filter((v) => v.id !== id))
     })
+  }
+
+  function handleTokenErstellt(id: string, token: string) {
+    setVertraege((prev) => prev.map((v) =>
+      v.id === id ? { ...v, signatur_token: token, status: 'gesendet' } : v
+    ))
+  }
+
+  function handleFirmaUnterschrieben(id: string) {
+    const now = new Date().toISOString()
+    setVertraege((prev) => prev.map((v) => {
+      if (v.id !== id) return v
+      const neuerStatus: VertragStatus = v.signatur_kunde_datum ? 'unterschrieben_beide' : v.status
+      return { ...v, signatur_firma_datum: now, status: neuerStatus }
+    }))
   }
 
   return (
@@ -288,6 +520,24 @@ export default function VertraegeClient({ projektId, kundeId, initialVertraege, 
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setSignaturLink(v)}
+                    title="Signatur-Link"
+                    className="p-1.5 text-gray-400 hover:text-wellbeing-green hover:bg-gray-50 rounded-lg transition-all"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                  </button>
+                  {!v.signatur_firma_datum && (
+                    <button
+                      type="button"
+                      onClick={() => setFirmaSignatur(v)}
+                      title="Als Firma unterschreiben"
+                      className="p-1.5 text-gray-400 hover:text-wellbeing-green hover:bg-gray-50 rounded-lg transition-all"
+                    >
+                      <PenSquare className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <a
                     href={`/api/vertraege/${v.id}/pdf`}
                     download
@@ -321,6 +571,20 @@ export default function VertraegeClient({ projektId, kundeId, initialVertraege, 
       )}
       {vorschau && (
         <VorschauModal vertrag={vorschau} onClose={() => setVorschau(null)} />
+      )}
+      {signaturLink && (
+        <SignaturLinkModal
+          vertrag={signaturLink}
+          onTokenErstellt={handleTokenErstellt}
+          onClose={() => setSignaturLink(null)}
+        />
+      )}
+      {firmaSignatur && (
+        <FirmaSignaturModal
+          vertrag={firmaSignatur}
+          onUnterschrieben={handleFirmaUnterschrieben}
+          onClose={() => setFirmaSignatur(null)}
+        />
       )}
     </>
   )
