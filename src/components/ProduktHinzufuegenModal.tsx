@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plus, X, ChevronRight, BookOpen, PlusCircle,
@@ -26,7 +26,6 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
   const [toast, setToast]             = useState<{ msg: string; err?: boolean } | null>(null)
   const [selected, setSelected]       = useState<Set<string>>(new Set())
   const [adding, setAdding]           = useState(false)
-  const [, startTransition]           = useTransition()
 
   function showToast(msg: string, err = false) {
     setToast({ msg, err })
@@ -108,7 +107,7 @@ export default function ProduktHinzufuegenModal({ raumId, projektId }: Props) {
 
     if (erfolgreich > 0) {
       close()
-      startTransition(() => { router.refresh() })
+      router.refresh()
     }
   }
 

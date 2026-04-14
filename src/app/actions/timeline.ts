@@ -14,6 +14,7 @@ export type TimelineEventDaten = {
   farbe?: string | null
   verantwortlich?: string | null
   erinnerung_tage?: number | null
+  raum_id?: string | null
 }
 
 // ── Alle Events eines Projekts ────────────────────────────────
@@ -43,6 +44,9 @@ export async function eventErstellen(
   if (error || !data) throw new Error('Event konnte nicht erstellt werden.')
   revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
   revalidatePath(`/dashboard/projekte/${projektId}`)
+  if (daten.raum_id) {
+    revalidatePath(`/dashboard/projekte/${projektId}/raeume/${daten.raum_id}`)
+  }
   return { id: data.id }
 }
 
@@ -56,14 +60,24 @@ export async function eventAktualisieren(
   await supabase.from('timeline_events').update(daten).eq('id', eventId)
   revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
   revalidatePath(`/dashboard/projekte/${projektId}`)
+  if (daten.raum_id) {
+    revalidatePath(`/dashboard/projekte/${projektId}/raeume/${daten.raum_id}`)
+  }
 }
 
 // ── Event löschen ─────────────────────────────────────────────
-export async function eventLoeschen(eventId: string, projektId: string): Promise<void> {
+export async function eventLoeschen(
+  eventId: string,
+  projektId: string,
+  raumId?: string | null
+): Promise<void> {
   const supabase = await createClient()
   await supabase.from('timeline_events').delete().eq('id', eventId)
   revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
   revalidatePath(`/dashboard/projekte/${projektId}`)
+  if (raumId) {
+    revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  }
 }
 
 // ── Nächste Events für Mini-Preview ──────────────────────────
