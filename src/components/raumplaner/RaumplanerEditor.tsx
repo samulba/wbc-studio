@@ -835,40 +835,59 @@ export default function RaumplanerEditor({
     getCustomMoebel().then(data => setCustomMoebel(data)).catch(() => {})
   }, [])
 
-  // ── Grid (world-coordinate approach, bewegt sich korrekt mit Zoom/Pan) ──
+  // ── Grid ─────────────────────────────────────────────────────
+  //
+  // Gezeichnet in after:render im CSS-Pixel-Koordinatensystem.
+  //
+  // Warum setTransform(dpr, 0, 0, dpr, 0, 0)?
+  //   Fabric.js ruft beim Init ctx.scale(dpr, dpr) (Retina-Scaling).
+  //   Nach jedem save()/restore()-Zyklus ist der Context wieder im
+  //   scale(dpr, dpr)-Zustand = CSS-Pixelraum.
+  //   vpt[4]/vpt[5] sind in CSS-Pixeln.
+  //   setTransform(1,0,0,1,0,0) → physischer Pixelraum → Grid off by DPR.
+  //   setTransform(dpr,0,0,dpr,0,0) → CSS-Pixelraum → vpt stimmt direkt.
 
   function renderGrid(canvas: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     if (!showGridRef.current) return
+    // Fabric.js interner Context (garantiert identisch mit dem nach _initRetinaScaling skalierten Context)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ctx: CanvasRenderingContext2D = (canvas as any).getContext('2d')
-    const vpt: number[] = canvas.viewportTransform ?? [1,0,0,1,0,0]
+    const ctx: CanvasRenderingContext2D = (canvas as any).contextContainer
+    if (!ctx) return
+
+    const vpt: number[] = canvas.viewportTransform ?? [1, 0, 0, 1, 0, 0]
     const zoom = canvas.getZoom()
     const gSize = gridSizeRef.current
 
-    const cW = canvas.getWidth()
-    const cH = canvas.getHeight()
+    // getRetinaScaling() liefert dpr wenn enableRetinaScaling=true, sonst 1
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dpr: number = typeof (canvas as any).getRetinaScaling === 'function'
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ? (canvas as any).getRetinaScaling()
+      : (window.devicePixelRatio || 1)
+
+    const cW = canvas.getWidth()   // CSS-Breite
+    const cH = canvas.getHeight()  // CSS-Höhe
 
     ctx.save()
-    // Draw in screen pixel space (identity transform) so the grid is always
-    // pixel-perfect regardless of device pixel ratio or canvas scaling.
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    // CSS-Pixel-Koordinatensystem wiederherstellen.
+    // Damit entsprechen alle Koordinaten direkt vpt[4]/vpt[5].
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-    const gStep = gSize * zoom   // minor grid step in screen pixels
-    // First visible minor grid line (at or before x=0 / y=0)
+    // Minor Grid
+    const gStep = gSize * zoom   // CSS-Pixel pro Grid-Schritt
     let startX = vpt[4] % gStep; if (startX > 0) startX -= gStep
     let startY = vpt[5] % gStep; if (startY > 0) startY -= gStep
 
-    // Minor grid
     ctx.strokeStyle = 'rgba(150,180,150,0.30)'
     ctx.lineWidth = 0.5
     for (let x = startX; x < cW + gStep; x += gStep) {
-      ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, cH); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cH); ctx.stroke()
     }
     for (let y = startY; y < cH + gStep; y += gStep) {
-      ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(cW, y + 0.5); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cW, y); ctx.stroke()
     }
 
-    // Major grid (1 m = 100 world-px → 100*zoom screen-px)
+    // Major Grid (1 m = 100 world-px → 100 * zoom CSS-px)
     const mStep = 100 * zoom
     let mStartX = vpt[4] % mStep; if (mStartX > 0) mStartX -= mStep
     let mStartY = vpt[5] % mStep; if (mStartY > 0) mStartY -= mStep
@@ -876,10 +895,10 @@ export default function RaumplanerEditor({
     ctx.strokeStyle = 'rgba(80,130,90,0.40)'
     ctx.lineWidth = 1
     for (let x = mStartX; x < cW + mStep; x += mStep) {
-      ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, cH); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, cH); ctx.stroke()
     }
     for (let y = mStartY; y < cH + mStep; y += mStep) {
-      ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(cW, y + 0.5); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cW, y); ctx.stroke()
     }
 
     ctx.restore()
