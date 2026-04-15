@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { organisationErstellen, userMitOrgVerknuepfen } from '@/app/actions/organisation'
+import { erstelleStandardVorlagen } from '@/app/actions/vorlagen-seed'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
@@ -46,6 +47,9 @@ export async function GET(request: Request) {
             // Noch kein Eintrag → neu als Admin anlegen
             await userMitOrgVerknuepfen(user.id, user.email ?? '', orgId)
           }
+
+          // Standard-Vorlagen für neue Organisation anlegen
+          await erstelleStandardVorlagen(orgId)
         }
       }
     } catch (err) {

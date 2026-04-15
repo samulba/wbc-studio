@@ -24,6 +24,7 @@ import HandbuchClient from '@/app/dashboard/einstellungen/handbuch/HandbuchClien
 import BrandingEditor from '@/components/BrandingEditor'
 import VertragsVorlagenVerwaltung from '@/components/VertragsVorlagenVerwaltung'
 import type { VertragsVorlage } from '@/lib/supabase/types'
+import { ConfirmModal } from '@/components/ConfirmModal'
 
 // ── Konstanten ────────────────────────────────────────────────
 
@@ -342,8 +343,10 @@ function TeamTab({
 }) {
   const [einladenOffen, setEinladenOffen] = useState(false)
   const [offenesMenue, setOffenesMenue]   = useState<string | null>(null)
+  const [confirmDeaktivId, setConfirmDeaktivId] = useState<string | null>(null)
   const [einladeState, einladeAction]     = useFormState(mitgliedEinladen, null)
   const [, startTransition]               = useTransition()
+  const confirmMitglied = team.find(m => m.id === confirmDeaktivId)
   const istAdmin = userRolle === 'admin'
 
   const aktive      = team.filter((m) => m.status === 'aktiv')
@@ -356,7 +359,23 @@ function TeamTab({
     startTransition(async () => { await rolleAendern(mitgliedId, neueRolle) })
   }
 
+  function handleMitgliedDeaktivieren(id: string) {
+    startTransition(async () => { await mitgliedEntfernen(id) })
+    setConfirmDeaktivId(null)
+    setOffenesMenue(null)
+  }
+
   return (
+    <>
+    <ConfirmModal
+      isOpen={confirmDeaktivId !== null}
+      onClose={() => setConfirmDeaktivId(null)}
+      onConfirm={() => confirmDeaktivId && handleMitgliedDeaktivieren(confirmDeaktivId)}
+      title="Mitglied deaktivieren"
+      message={confirmMitglied ? `${confirmMitglied.email} wird deaktiviert und kann sich nicht mehr anmelden.` : 'Dieses Mitglied wird deaktiviert.'}
+      confirmText="Deaktivieren"
+      variant="warning"
+    />
     <div className="space-y-6 max-w-3xl">
 
       {/* Backdrop: schließt offene Dropdowns */}
@@ -414,7 +433,6 @@ function TeamTab({
             const istCurrentUser = m.user_id === userId || m.email === userEmail
             const rollenInfo = ROLLEN_CONFIG[m.rolle] ?? ROLLEN_CONFIG.viewer
             const menuOffen = offenesMenue === m.id
-            const entfernenAction = mitgliedEntfernen.bind(null, m.id)
             return (
               <li
                 key={m.id}
@@ -460,18 +478,15 @@ function TeamTab({
                             <option value="viewer">Viewer</option>
                           </select>
                         </div>
-                        <form action={entfernenAction}>
+                        <div>
                           <button
-                            type="submit"
+                            type="button"
                             className="w-full text-left px-3 py-2.5 text-xs text-red-500 hover:bg-red-50 transition-colors"
-                            onClick={(e) => {
-                              if (!confirm(`${m.email} deaktivieren?`)) e.preventDefault()
-                              else setOffenesMenue(null)
-                            }}
+                            onClick={() => { setOffenesMenue(null); setConfirmDeaktivId(m.id) }}
                           >
                             Deaktivieren
                           </button>
-                        </form>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -647,6 +662,7 @@ function TeamTab({
         </div>
       )}
     </div>
+    </>
   )
 }
 

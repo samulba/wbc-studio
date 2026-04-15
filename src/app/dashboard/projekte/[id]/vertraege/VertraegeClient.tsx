@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import {
   Plus, FileText, ChevronDown, Eye, Trash2, CheckCircle,
   Send, XCircle, Clock, PenLine, Download, Link2, Copy, Check,
-  PenSquare, AlertCircle,
+  PenSquare, AlertCircle, ShieldCheck, Archive, Ban,
 } from 'lucide-react'
 import type { Vertrag, VertragStatus, VertragsVorlage } from '@/lib/supabase/types'
 import { vertragErstellen, vertragStatusAendern, vertragLoeschen } from '@/app/actions/vertraege'
@@ -16,14 +16,20 @@ import SignaturCanvas from '@/components/SignaturCanvas'
 const statusConfig: Record<VertragStatus, { label: string; farbe: string; Icon: React.FC<{ className?: string }> }> = {
   entwurf:               { label: 'Entwurf',              farbe: 'bg-gray-100 text-gray-600',     Icon: PenLine },
   gesendet:              { label: 'Gesendet',             farbe: 'bg-blue-50 text-blue-700',      Icon: Send },
+  zur_unterschrift:      { label: 'Zur Unterschrift',     farbe: 'bg-purple-50 text-purple-700',  Icon: PenSquare },
   unterschrieben_kunde:  { label: 'Sign. Kunde',          farbe: 'bg-amber-50 text-amber-700',    Icon: CheckCircle },
+  kunde_unterschrieben:  { label: 'Sign. Kunde',          farbe: 'bg-amber-50 text-amber-700',    Icon: CheckCircle },
   unterschrieben_beide:  { label: 'Unterschrieben',       farbe: 'bg-green-50 text-green-700',    Icon: CheckCircle },
+  aktiv:                 { label: 'Aktiv',                farbe: 'bg-green-100 text-green-800',   Icon: ShieldCheck },
+  abgeschlossen:         { label: 'Abgeschlossen',        farbe: 'bg-gray-100 text-gray-600',     Icon: Archive },
   abgelaufen:            { label: 'Abgelaufen',           farbe: 'bg-gray-100 text-gray-500',     Icon: Clock },
   storniert:             { label: 'Storniert',            farbe: 'bg-red-50 text-red-600',        Icon: XCircle },
+  gekuendigt:            { label: 'Gekündigt',            farbe: 'bg-red-100 text-red-700',       Icon: Ban },
 }
 
 const STATUS_REIHENFOLGE: VertragStatus[] = [
-  'entwurf', 'gesendet', 'unterschrieben_kunde', 'unterschrieben_beide', 'abgelaufen', 'storniert',
+  'entwurf', 'gesendet', 'zur_unterschrift',
+  'unterschrieben_kunde', 'aktiv', 'abgeschlossen', 'abgelaufen', 'storniert', 'gekuendigt',
 ]
 
 // ── Vertrag-Vorschau Modal ────────────────────────────────────
@@ -391,6 +397,20 @@ export default function VertraegeClient({ projektId, kundeId, initialVertraege, 
         signatur_token_gueltig: null,
         gesamtwert: null,
         gueltig_bis: null,
+        angebot_id: null,
+        vertragsnummer: null,
+        vertragstyp: 'einzelauftrag',
+        version: 1,
+        startdatum: null,
+        enddatum: null,
+        kuendigungsfrist: null,
+        gewaehrleistung_monate: 24,
+        interne_notizen: null,
+        erstellt_von: null,
+        gesendet_am: null,
+        kunde_unterschrift_ip: null,
+        kunde_unterschrift_name: null,
+        firma_unterschrift_von: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }

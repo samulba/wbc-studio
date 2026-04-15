@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { UserCircle2, CheckCircle2, X, Copy, Check, RefreshCw, PowerOff, ExternalLink } from 'lucide-react'
 import { kundeEinladen, portalZuganDeaktivieren } from '@/app/actions/portal'
+import { ConfirmModal } from '@/components/ConfirmModal'
 
 interface PortalUser {
   id: string
@@ -27,6 +28,7 @@ export default function KundenPortalSection({
 }) {
   const [portalUser, setPortalUser]     = useState(initialPortalUser)
   const [modalOffen, setModalOffen]     = useState(false)
+  const [confirmDeaktiv, setConfirmDeaktiv] = useState(false)
   const [einladungsLink, setLink]       = useState('')
   const [kopiert, setKopiert]           = useState(false)
   const [fehler, setFehler]             = useState('')
@@ -55,11 +57,11 @@ export default function KundenPortalSection({
   }
 
   function handleDeaktivieren() {
-    if (!confirm('Kunden-Portal-Zugang deaktivieren?')) return
     startTransition(async () => {
       await portalZuganDeaktivieren(kundeId)
       setPortalUser((prev) => prev ? { ...prev, aktiv: false } : null)
     })
+    setConfirmDeaktiv(false)
   }
 
   const hatAktivenLink = portalUser?.einladungs_token &&
@@ -68,6 +70,16 @@ export default function KundenPortalSection({
 
   return (
     <>
+      <ConfirmModal
+        isOpen={confirmDeaktiv}
+        onClose={() => setConfirmDeaktiv(false)}
+        onConfirm={handleDeaktivieren}
+        title="Portal-Zugang deaktivieren"
+        message="Der Kunde kann sich nicht mehr im Kunden-Portal anmelden. Der Zugang kann jederzeit erneut aktiviert werden."
+        confirmText="Deaktivieren"
+        variant="warning"
+        isLoading={isPending}
+      />
       {/* Einladungs-Modal */}
       {modalOffen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
@@ -213,7 +225,7 @@ export default function KundenPortalSection({
                 <ExternalLink className="w-3 h-3" />
                 Portal öffnen
               </a>
-              <button onClick={handleDeaktivieren} disabled={isPending}
+              <button onClick={() => setConfirmDeaktiv(true)} disabled={isPending}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-500 border border-red-200 hover:bg-red-50 rounded-lg transition disabled:opacity-50">
                 <PowerOff className="w-3 h-3" />
                 Deaktivieren

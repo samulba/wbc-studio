@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Plus, Pencil, Trash2, FileText, ChevronDown } from 'lucide-react'
+import { Plus, Pencil, Trash2, FileText, ChevronDown, Sparkles } from 'lucide-react'
 import type { VertragsVorlage, VertragsVorlageKategorie } from '@/lib/supabase/types'
 import { vorlageAnlegen, vorlageAktualisieren, vorlageLoeschen } from '@/app/actions/vertraege'
+import { standardVorlagenErstellenAction } from '@/app/actions/vorlagen-seed'
 import { PLATZHALTER } from '@/lib/vertrags-platzhalter'
 
 const KATEGORIEN: { value: VertragsVorlageKategorie; label: string }[] = [
@@ -132,7 +133,24 @@ export default function VertragsVorlagenVerwaltung({ initialVorlagen }: { initia
   const [vorlagen, setVorlagen] = useState(initialVorlagen)
   const [modus, setModus] = useState<'liste' | 'neu' | { bearbeiten: VertragsVorlage }>('liste')
   const [fehler, setFehler] = useState<string | null>(null)
+  const [seedMsg, setSeedMsg] = useState<string | null>(null)
   const [, startTransition] = useTransition()
+
+  function handleStandardVorlagen() {
+    setFehler(null)
+    setSeedMsg(null)
+    startTransition(async () => {
+      const res = await standardVorlagenErstellenAction()
+      if (res.fehler) { setFehler(res.fehler); return }
+      if (res.erstellt === 0) {
+        setFehler('Es sind bereits Vorlagen vorhanden.')
+        return
+      }
+      setSeedMsg(`${res.erstellt} Standard-Vorlagen wurden erfolgreich angelegt.`)
+      // Seite neu laden damit neue Vorlagen sichtbar sind
+      window.location.reload()
+    })
+  }
 
   function handleNeu(f: FormState) {
     setFehler(null)
@@ -225,27 +243,47 @@ export default function VertragsVorlagenVerwaltung({ initialVorlagen }: { initia
         <p className="text-xs text-gray-500">
           {vorlagen.length} {vorlagen.length === 1 ? 'Vorlage' : 'Vorlagen'}
         </p>
-        <button
-          type="button"
-          onClick={() => setModus('neu')}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" /> Neue Vorlage
-        </button>
+        <div className="flex items-center gap-2">
+          {vorlagen.length === 0 && (
+            <button
+              type="button"
+              onClick={handleStandardVorlagen}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-wellbeing-green border border-wellbeing-green/30 hover:bg-wellbeing-green/5 rounded-lg transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5" /> Standard-Vorlagen laden
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setModus('neu')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" /> Neue Vorlage
+          </button>
+        </div>
       </div>
 
       {fehler && <p className="mb-3 text-xs text-red-500">{fehler}</p>}
+      {seedMsg && <p className="mb-3 text-xs text-wellbeing-green">{seedMsg}</p>}
 
       {vorlagen.length === 0 ? (
         <div className="border border-dashed border-gray-300 rounded-xl py-12 text-center">
           <FileText className="w-7 h-7 text-gray-300 mx-auto mb-2" />
-          <p className="text-xs text-gray-400">Noch keine Vorlagen angelegt.</p>
+          <p className="text-xs text-gray-400 mb-3">Noch keine Vorlagen angelegt.</p>
+          <button
+            type="button"
+            onClick={handleStandardVorlagen}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg transition-colors"
+          >
+            <Sparkles className="w-3.5 h-3.5" /> 3 Standard-Vorlagen laden
+          </button>
+          <p className="mt-3 text-[11px] text-gray-300">oder</p>
           <button
             type="button"
             onClick={() => setModus('neu')}
-            className="mt-3 text-xs text-wellbeing-green hover:text-wellbeing-green-dark font-medium transition-colors"
+            className="mt-2 text-xs text-wellbeing-green hover:text-wellbeing-green-dark font-medium transition-colors"
           >
-            Erste Vorlage erstellen
+            Leere Vorlage erstellen
           </button>
         </div>
       ) : (

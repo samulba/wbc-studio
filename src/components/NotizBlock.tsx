@@ -8,6 +8,7 @@ import {
   notizAktualisieren,
   notizLoeschen,
 } from '@/app/actions/notizen'
+import { ConfirmModal } from '@/components/ConfirmModal'
 
 // ── Typen ─────────────────────────────────────────────────────
 export type Notiz = {
@@ -42,19 +43,30 @@ function SubmitBtn({ label }: { label: string }) {
 // ── Einzelne Notiz (inkl. Inline-Edit) ───────────────────────
 function NotizEintrag({ notiz, typ, referenzId }: { notiz: Notiz; typ: NotizTyp; referenzId: string }) {
   const [bearbeiten, setBearbeiten] = useState(false)
+  const [loeschenOffen, setLoeschenOffen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const updateAktion = notizAktualisieren.bind(null, notiz.id, typ, referenzId)
   const [state, formAction] = useFormState(updateAktion, null)
 
   function handleLoeschen() {
-    if (!confirm('Notiz löschen?')) return
     startTransition(() => notizLoeschen(notiz.id, typ, referenzId))
+    setLoeschenOffen(false)
   }
 
   const bearbeitetGeaendert = notiz.bearbeitet_am !== notiz.erstellt_am
 
   return (
+    <>
+    <ConfirmModal
+      isOpen={loeschenOffen}
+      onClose={() => setLoeschenOffen(false)}
+      onConfirm={handleLoeschen}
+      title="Notiz löschen"
+      message="Diese Notiz wird unwiderruflich gelöscht."
+      confirmText="Löschen"
+      isLoading={isPending}
+    />
     <div className="group relative bg-gray-50 border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-all">
       {bearbeiten ? (
         <form action={formAction} onSubmit={() => { if (!state?.fehler) setBearbeiten(false) }} className="space-y-2">
@@ -94,7 +106,7 @@ function NotizEintrag({ notiz, typ, referenzId }: { notiz: Notiz; typ: NotizTyp;
               title="Bearbeiten">
               <Pencil className="w-3.5 h-3.5" />
             </button>
-            <button onClick={handleLoeschen} disabled={isPending}
+            <button onClick={() => setLoeschenOffen(true)} disabled={isPending}
               className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
               title="Löschen">
               <Trash2 className="w-3.5 h-3.5" />
@@ -103,6 +115,7 @@ function NotizEintrag({ notiz, typ, referenzId }: { notiz: Notiz; typ: NotizTyp;
         </>
       )}
     </div>
+    </>
   )
 }
 

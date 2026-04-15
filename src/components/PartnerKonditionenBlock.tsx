@@ -9,6 +9,7 @@ import {
   konditionLoeschen,
   type KonditionDaten,
 } from '@/app/actions/partner'
+import { ConfirmModal } from '@/components/ConfirmModal'
 
 // ── Hilfsdaten ────────────────────────────────────────────────
 
@@ -138,6 +139,8 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen 
   const [form, setForm] = useState<FormState>(leereFormState)
   const [fehler, setFehler] = useState<string | null>(null)
   const [erweitert, setErweitert] = useState(false)
+  const [confirmLoeschenId, setConfirmLoeschenId] = useState<string | null>(null)
+  const confirmKondition = konditionen.find(k => k.id === confirmLoeschenId)
   const [, startTransition] = useTransition()
 
   function oeffneNeu() {
@@ -216,6 +219,15 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen 
   const zeigeWertFeld     = !istGestaffelt && !istKategorieBas
 
   return (
+    <>
+    <ConfirmModal
+      isOpen={confirmLoeschenId !== null}
+      onClose={() => setConfirmLoeschenId(null)}
+      onConfirm={() => { if (confirmLoeschenId) { handleLoeschen(confirmLoeschenId); setConfirmLoeschenId(null) } }}
+      title="Kondition löschen"
+      message={confirmKondition ? `„${confirmKondition.name}" wird unwiderruflich gelöscht.` : 'Diese Kondition wird gelöscht.'}
+      confirmText="Löschen"
+    />
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
@@ -294,9 +306,7 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen 
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (confirm(`Kondition „${k.name}" wirklich löschen?`)) handleLoeschen(k.id)
-                  }}
+                  onClick={() => setConfirmLoeschenId(k.id)}
                   className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                   title="Löschen"
                 >
@@ -515,6 +525,7 @@ export default function PartnerKonditionenBlock({ partnerId, initialKonditionen 
         </div>
       )}
     </div>
+    </>
   )
 }
 

@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { Save, Upload, Eye, EyeOff, RotateCcw } from 'lucide-react'
 import { brandingAktualisieren, brandingLogoHochladen, type BrandingDaten } from '@/app/actions/branding'
 import type { Branding } from '@/lib/supabase/types'
+import { ConfirmModal } from '@/components/ConfirmModal'
 
 // ── Konstanten ────────────────────────────────────────────────
 const GOOGLE_FONTS = [
@@ -228,6 +229,7 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
   const [vorschau,     setVorschau]     = useState(true)
   const [gespeichert,  setGespeichert]  = useState(false)
   const [fehler,       setFehler]       = useState<string | null>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
   const [isPending,    startTransition] = useTransition()
 
   function set<K extends keyof Partial<Branding>>(key: K, value: Partial<Branding>[K]) {
@@ -266,7 +268,6 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
   }
 
   function handleReset() {
-    if (!window.confirm('Alle Farben auf Standard-Werte zurücksetzen?')) return
     setForm((prev) => ({
       ...prev,
       primary_color:    def.primary_color,
@@ -278,6 +279,16 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
   }
 
   return (
+    <>
+    <ConfirmModal
+      isOpen={confirmReset}
+      onClose={() => setConfirmReset(false)}
+      onConfirm={() => { handleReset(); setConfirmReset(false) }}
+      title="Farben zurücksetzen"
+      message="Alle Farbeinstellungen werden auf die Standard-Werte zurückgesetzt. Deine aktuellen Farben gehen verloren."
+      confirmText="Zurücksetzen"
+      variant="warning"
+    />
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6">
       {/* ── Linke Spalte: Einstellungen ── */}
       <div className="space-y-6">
@@ -306,7 +317,7 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
           <div className="flex items-center justify-between mb-5">
             <h2 className="text-sm font-semibold text-gray-900">Farben</h2>
             <button
-              onClick={handleReset}
+              onClick={() => setConfirmReset(true)}
               className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -468,5 +479,6 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
         </div>
       </div>
     </div>
+    </>
   )
 }

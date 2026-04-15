@@ -342,27 +342,60 @@ export interface TeamMitglied {
   updated_at: string
 }
 
-export type OnboardingStatus = 'offen' | 'abgeschlossen' | 'abgelehnt'
+export type OnboardingStatus = 'offen' | 'in_bearbeitung' | 'abgeschlossen' | 'abgelehnt' | 'abgelaufen'
+export type OnboardingTyp    = 'neukunde' | 'projekt' | 'universal'
 
 export type OnboardingFrageTyp =
   | 'text' | 'textarea' | 'email' | 'telefon' | 'url'
   | 'zahl' | 'datum' | 'bewertung' | 'skala'
   | 'auswahl' | 'mehrfachauswahl' | 'ja_nein'
+  // Neue Typen (Migration 054)
+  | 'slider'             // Einzelner Bereichs-Schieberegler
+  | 'budget_verteilung'  // Budget auf Räume/Kategorien aufteilen
+  | 'upload'             // Datei- / Foto-Upload
+  | 'inventar'           // Bestandserfassung (Fotos + behalten/weg)
+  | 'prioritaeten'       // Drag-&-Drop Rangfolge
+  | 'datum_rechner'      // Deadline-Kalkulator
+  | 'entscheider_matrix' // Wer entscheidet was? (Rollen-Matrix)
+  | 'checkliste'         // Smart-Checkliste mit Häkchen
+  | 'rangfolge'          // Explizite Sortierung / Ranking
+
+export interface OnboardingBedingtVon {
+  frage_id: string
+  operator: 'gleich' | 'nicht_gleich' | 'enthaelt' | 'nicht_leer' | 'ist_leer'
+  wert: string
+}
 
 export interface OnboardingSektion {
   id: string
   name: string
+  beschreibung?: string
 }
 
 export interface OnboardingFrage {
   id: string
   titel: string
+  beschreibung?: string        // Hilfetext unter dem Label
   typ: OnboardingFrageTyp
   optionen?: string[]
   pflichtfeld: boolean
   placeholder?: string
   sektion_id?: string
   bild_url?: string
+  // Conditional Logic
+  bedingt_von?: OnboardingBedingtVon
+  // Slider
+  slider_min?: number
+  slider_max?: number
+  slider_schritt?: number
+  slider_einheit?: string      // z. B. '€', '%', 'm²'
+  // Upload
+  upload_typen?: string[]      // z. B. ['image/*']
+  upload_max_mb?: number
+  // Mehrfachauswahl-Limit
+  max_auswahl?: number
+  // Budget-Verteilung
+  budget_kategorien?: string[]
 }
 
 export interface OnboardingVorlage {
@@ -370,11 +403,68 @@ export interface OnboardingVorlage {
   organisation_id?: string | null
   name: string
   beschreibung: string | null
+  typ: OnboardingTyp
   fragen: OnboardingFrage[]
   sektionen?: OnboardingSektion[]
   ist_standard: boolean
+  // White-Label
+  einleitung_text?: string | null
+  abschluss_text?: string | null
+  logo_url?: string | null
+  akzent_farbe?: string | null
+  redirect_url?: string | null
+  // E-Mail
+  email_betreff?: string | null
+  email_text?: string | null
+  // Gültigkeit
+  deadline_tage?: number | null
   created_at: string
   updated_at: string
+}
+
+// ── Onboarding-Datei-Uploads (Migration 054) ─────────────────
+export interface OnboardingDatei {
+  id: string
+  organisation_id?: string | null
+  anfrage_id: string
+  frage_id?: string | null
+  dateiname: string
+  dateityp: string
+  dateigroesse?: number | null
+  storage_pfad: string
+  vorschau_url?: string | null
+  created_at: string
+}
+
+// ── Onboarding-Inventar (Migration 054) ──────────────────────
+export type InventarZustand = 'sehr_gut' | 'gut' | 'mittel' | 'schlecht'
+
+export interface OnboardingInventarItem {
+  id: string
+  organisation_id?: string | null
+  anfrage_id: string
+  bezeichnung: string
+  kategorie?: string | null
+  raum?: string | null
+  zustand?: InventarZustand | null
+  behalten: boolean
+  foto_url?: string | null
+  notizen?: string | null
+  reihenfolge: number
+  created_at: string
+  updated_at: string
+}
+
+// ── Onboarding-Prioritäten (Migration 054) ───────────────────
+export interface OnboardingPrioritaet {
+  id: string
+  organisation_id?: string | null
+  anfrage_id: string
+  frage_id?: string | null
+  bezeichnung: string
+  icon?: string | null
+  reihenfolge: number
+  created_at: string
 }
 
 // ── Kunden-Konfigurator ───────────────────────────────────────
@@ -455,9 +545,12 @@ export interface Branding {
   updated_at: string
 }
 
-// ── Angebotsmodul (Migration 044) ────────────────────────────
-export type AngebotStatus = 'entwurf' | 'gesendet' | 'angenommen' | 'abgelehnt' | 'abgelaufen'
+// ── Angebotsmodul (Migration 044 + 053) ──────────────────────
+export type AngebotStatus =
+  | 'entwurf' | 'gesendet' | 'angesehen'
+  | 'angenommen' | 'abgelehnt' | 'abgelaufen' | 'ueberarbeitung'
 
+/** JSONB-Positionsformat (Legacy, in angebote.positionen) */
 export interface AngebotPosition {
   id: string
   name: string
@@ -488,15 +581,55 @@ export interface Angebot {
   pdf_url: string | null
   anmerkungen: string | null
   agb_text: string | null
+  // Neue Felder (Migration 053)
+  version: number
+  vorgaenger_id: string | null
+  zahlungsbedingungen: string | null
+  interne_notizen: string | null
+  erstellt_von: string | null
+  gesendet_am: string | null
+  angesehen_am: string | null
+  beantwortet_am: string | null
+  antwort_notiz: string | null
+  token: string | null
   created_at: string
   updated_at: string
 }
 
-// ── Vertragssystem (Migration 043) ───────────────────────────
+export type AngebotPositionTyp = 'standard' | 'optional' | 'alternativ'
+
+/** Relationale Angebot-Position (Tabelle angebot_positionen, Migration 053) */
+export interface AngebotPositionRow {
+  id: string
+  organisation_id: string
+  angebot_id: string
+  raum_id: string | null
+  raum_produkt_id: string | null
+  position: number
+  typ: AngebotPositionTyp
+  gruppe: string | null
+  bezeichnung: string
+  beschreibung: string | null
+  menge: number
+  einheit: string
+  ep_netto: number | null       // intern – NIE an Kunde
+  vp_netto: number | null
+  rabatt_prozent: number
+  gesamt_netto: number | null
+  vom_kunden_gewaehlt: boolean
+  created_at: string
+}
+
+// ── Vertragssystem (Migration 043 + 053) ─────────────────────
 export type VertragsVorlageKategorie = 'projektvertrag' | 'rahmenvertrag' | 'angebot' | 'sonstiges'
 export type VertragStatus =
-  | 'entwurf' | 'gesendet' | 'unterschrieben_kunde'
-  | 'unterschrieben_beide' | 'abgelaufen' | 'storniert'
+  | 'entwurf' | 'gesendet' | 'zur_unterschrift'
+  | 'unterschrieben_kunde' | 'kunde_unterschrieben'
+  | 'unterschrieben_beide' | 'aktiv'
+  | 'abgeschlossen' | 'abgelaufen' | 'storniert' | 'gekuendigt'
+export type Vertragstyp =
+  | 'planungsvertrag' | 'ausfuehrungsvertrag'
+  | 'rahmenvertrag' | 'einzelauftrag' | 'wartungsvertrag'
 
 export interface VertragsVorlage {
   id: string
@@ -530,8 +663,72 @@ export interface Vertrag {
   signatur_token_gueltig: string | null
   gesamtwert: number | null
   gueltig_bis: string | null
+  // Neue Felder (Migration 053)
+  angebot_id: string | null
+  vertragsnummer: string | null
+  vertragstyp: Vertragstyp
+  version: number
+  startdatum: string | null
+  enddatum: string | null
+  kuendigungsfrist: string | null
+  gewaehrleistung_monate: number
+  interne_notizen: string | null
+  erstellt_von: string | null
+  gesendet_am: string | null
+  kunde_unterschrift_ip: string | null
+  kunde_unterschrift_name: string | null
+  firma_unterschrift_von: string | null
   created_at: string
   updated_at: string
+}
+
+export type MeilensteinStatus = 'offen' | 'in_arbeit' | 'erledigt' | 'abgerechnet'
+
+export interface VertragMeilenstein {
+  id: string
+  organisation_id: string
+  vertrag_id: string
+  titel: string
+  beschreibung: string | null
+  reihenfolge: number
+  faellig_am: string | null
+  betrag: number | null
+  prozent: number | null
+  status: MeilensteinStatus
+  erledigt_am: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface VertragAnhang {
+  id: string
+  organisation_id: string
+  vertrag_id: string | null
+  angebot_id: string | null
+  name: string
+  dateityp: string | null
+  datei_url: string | null
+  groesse: number | null
+  hochgeladen_von: string | null
+  hochgeladen_am: string
+}
+
+export type DokumentTyp = 'angebot' | 'vertrag'
+
+export interface DokumentAktivitaet {
+  id: string
+  organisation_id: string
+  dokument_typ: DokumentTyp
+  dokument_id: string
+  aktion: string
+  details: string | null
+  alter_status: string | null
+  neuer_status: string | null
+  user_id: string | null
+  kunde_name: string | null
+  ip_adresse: string | null
+  user_agent: string | null
+  created_at: string
 }
 
 // ── Kommunikationslog (Migration 042) ────────────────────────
@@ -561,8 +758,15 @@ export interface OnboardingAnfrage {
   organisation_id?: string | null
   token: string
   status: OnboardingStatus
+  typ: OnboardingTyp
   vorlage_id: string | null
+  projekt_id?: string | null
+  kunde_id?: string | null
   antworten: Record<string, unknown> | null
+  auto_save?: Record<string, unknown> | null  // Zwischengespeicherte Antworten
+  fortschritt: number                          // 0–100 %
+  aktuelle_sektion: number
+  // Stammdaten (ausgefüllt durch Kunden)
   kunde_name: string | null
   kunde_email: string | null
   kunde_telefon: string | null
@@ -574,6 +778,10 @@ export interface OnboardingAnfrage {
   stil_praeferenzen: string | null
   zeitrahmen: string | null
   notizen: string | null
+  // Timestamps
+  abgeschlossen_am?: string | null
+  gueltig_bis?: string | null
+  letzte_aktivitaet?: string | null
   created_at: string
   updated_at: string
 }

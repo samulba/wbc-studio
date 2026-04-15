@@ -30,6 +30,7 @@ import {
 } from '@/app/actions/raumplaner'
 import type { MoebelSymbol, CustomMoebel as CustomMoebelType } from '@/lib/supabase/types'
 import GrundrissVorschau from './GrundrissVorschau'
+import { ConfirmModal } from '@/components/ConfirmModal'
 
 // ── Konstanten ────────────────────────────────────────────────
 
@@ -735,6 +736,10 @@ export default function RaumplanerEditor({
 
   // ── Responsive Toolbar ───────────────────────────────────────
   const [isCompactToolbar,    setIsCompactToolbar]    = useState(false)
+
+  // ── Toast + Confirm-Modal ────────────────────────────────────
+  const [raumAlert,           setRaumAlert]           = useState<string | null>(null)
+  const [raumConfirm,         setRaumConfirm]         = useState<{ open: boolean; msg: string; onOk: () => void }>({ open: false, msg: '', onOk: () => {} })
 
   useEffect(() => {
     const check = () => setIsCompactToolbar(window.innerWidth < 1400)
@@ -2007,7 +2012,9 @@ export default function RaumplanerEditor({
   // ── Alle löschen ──────────────────────────────────────────
 
   function clearAll() {
-    if (!confirm('Alle Objekte löschen?')) return
+    setRaumConfirm({ open: true, msg: 'Alle Objekte löschen?', onOk: doClearAll })
+  }
+  function doClearAll() {
     const canvas = fabricRef.current; if (!canvas) return
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     canvas.getObjects().filter((o: any) => o.data?.type !== 'outline').forEach((o: any) => canvas.remove(o))
@@ -2475,13 +2482,13 @@ export default function RaumplanerEditor({
   async function createAngebotFromCanvas() {
     if (allProdukteRef.current.length === 0) await loadProdukte()
     const { items } = getKostenUebersicht()
-    if (!items.length) { alert('Keine Produkte mit Möbeln verknüpft.'); return }
+    if (!items.length) { setRaumAlert('Keine Produkte mit Möbeln verknüpft.'); return }
     setAngebotCreating(true)
     try {
       const positionen = items.map(i => ({ name: i.name, preis_netto: i.preis, menge: i.count }))
       const res = await raumplanAngebotErstellen(projektId, positionen)
       if ('id' in res) router.push(`/dashboard/projekte/${projektId}/angebote`)
-      else alert('Fehler: ' + res.fehler)
+      else setRaumAlert('Fehler: ' + res.fehler)
     } finally { setAngebotCreating(false) }
   }
 
@@ -2529,7 +2536,9 @@ export default function RaumplanerEditor({
 
   async function loescheVersion(id: string) {
     const v = versionen.find(x => x.id === id)
-    if (!confirm(`Version "${v?.name ?? 'diese Version'}" wirklich löschen?`)) return
+    setRaumConfirm({ open: true, msg: `Version "${v?.name ?? 'diese Version'}" wirklich löschen?`, onOk: () => doLoescheVersion(id) })
+  }
+  async function doLoescheVersion(id: string) {
     await raumplanVersionLoeschen(id)
     const updated = await getRaumplanVersionen(raumId)
     setVersionen(updated)
@@ -2837,7 +2846,7 @@ export default function RaumplanerEditor({
       })
     })
 
-    if (counts.size === 0) { alert('Keine Möbel im Grundriss vorhanden.'); return }
+    if (counts.size === 0) { setRaumAlert('Keine Möbel im Grundriss vorhanden.'); return }
 
     const { Rect, Text, Group } = imp
     const W = 210, PAD = 10, LINE_H = 18, HEADER_H = 28
@@ -3014,8 +3023,10 @@ export default function RaumplanerEditor({
   }
 
   async function loescheEtage(etage: EtageType) {
-    if (etagen.length <= 1) { alert('Mindestens eine Etage muss vorhanden sein.'); return }
-    if (!confirm(`Etage "${etage.name}" löschen?`)) return
+    if (etagen.length <= 1) { setRaumAlert('Mindestens eine Etage muss vorhanden sein.'); return }
+    setRaumConfirm({ open: true, msg: `Etage "${etage.name}" löschen?`, onOk: () => doLoescheEtage(etage) })
+  }
+  async function doLoescheEtage(etage: EtageType) {
     await etageLoeschen(etage.id)
     const updated = etagen.filter(e => e.id !== etage.id)
     setEtagen(updated)
@@ -3277,6 +3288,24 @@ export default function RaumplanerEditor({
 
       <LoadingScreen visible={loading} />
       {showShortcuts && <ShortcutOverlay onClose={() => setShowShortcuts(false)} />}
+
+      {/* Toast-Alert */}
+      {raumAlert && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[300] flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl shadow-lg text-sm text-gray-800">
+          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+          <span>{raumAlert}</span>
+          <button onClick={() => setRaumAlert(null)} className="ml-2 text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
+      {/* Confirm-Modal */}
+      <ConfirmModal
+        isOpen={raumConfirm.open}
+        onClose={() => setRaumConfirm(p => ({ ...p, open: false }))}
+        onConfirm={() => { raumConfirm.onOk(); setRaumConfirm(p => ({ ...p, open: false })) }}
+        title="Bestätigung"
+        message={raumConfirm.msg}
+      />
 
       {/* Kontext-Menü */}
       {contextMenu && (
@@ -3990,6 +4019,7 @@ export default function RaumplanerEditor({
               onClick={handleMinimapClick}
             >
               {minimapImage
+                // eslint-disable-next-line @next/next/no-img-element
                 ? <img src={minimapImage} alt="" className="absolute inset-0 w-full h-full pointer-events-none" style={{ objectFit: 'fill' }} draggable={false} />
                 : <div className="flex items-center justify-center w-full h-full text-[10px] text-gray-400">Minimap</div>
               }

@@ -1,17 +1,24 @@
 'use client'
 
-import { useState, useRef, useTransition, type ReactNode } from 'react'
+import { useState, useRef, useEffect, useTransition, type ReactNode } from 'react'
 import {
   Plus, Trash2, Edit2, Check, X, GripVertical,
   ChevronDown, ChevronUp, Star, Eye, Copy, MoreHorizontal,
   Type, AlignLeft, Mail, Phone, Globe, Hash, Calendar,
   Sliders, List, CheckSquare, ToggleLeft, FolderPlus,
+  Upload, Package, BarChart2, Layers, Clock, Users,
+  ClipboardList, ArrowUpDown, GitBranch, Palette, Link,
+  Euro,
 } from 'lucide-react'
 import {
-  vorlageErstellen, vorlageSpeichern, vorlageLoeschen,
+  vorlageLoeschen,
 } from '@/app/actions/onboarding'
+import {
+  vorlageErstellenV2, vorlageAktualisierenV2,
+} from '@/app/actions/onboarding-erweitert'
 import type {
   OnboardingVorlage, OnboardingFrage, OnboardingFrageTyp, OnboardingSektion,
+  OnboardingBedingtVon, OnboardingTyp,
 } from '@/lib/supabase/types'
 
 // ── Typ-Gruppen ───────────────────────────────────────────────
@@ -36,15 +43,29 @@ const FRAGE_GRUPPEN: FrageGruppe[] = [
       { wert: 'auswahl',         label: 'Einfachauswahl',  icon: <List className="w-3.5 h-3.5" /> },
       { wert: 'mehrfachauswahl', label: 'Mehrfachauswahl', icon: <CheckSquare className="w-3.5 h-3.5" /> },
       { wert: 'ja_nein',         label: 'Ja / Nein',       icon: <ToggleLeft className="w-3.5 h-3.5" /> },
+      { wert: 'rangfolge',       label: 'Rangfolge / Sortierung', icon: <ArrowUpDown className="w-3.5 h-3.5" /> },
     ],
   },
   {
-    label: 'Zahlen & Datum',
+    label: 'Zahlen & Schieberegler',
     typen: [
-      { wert: 'zahl',      label: 'Zahl',        icon: <Hash className="w-3.5 h-3.5" /> },
-      { wert: 'datum',     label: 'Datum',        icon: <Calendar className="w-3.5 h-3.5" /> },
-      { wert: 'bewertung', label: 'Bewertung ★',  icon: <Star className="w-3.5 h-3.5" /> },
-      { wert: 'skala',     label: 'Skala 1–10',   icon: <Sliders className="w-3.5 h-3.5" /> },
+      { wert: 'zahl',               label: 'Zahl',              icon: <Hash className="w-3.5 h-3.5" /> },
+      { wert: 'datum',              label: 'Datum',             icon: <Calendar className="w-3.5 h-3.5" /> },
+      { wert: 'bewertung',          label: 'Bewertung ★',       icon: <Star className="w-3.5 h-3.5" /> },
+      { wert: 'skala',              label: 'Skala 1–10',        icon: <Sliders className="w-3.5 h-3.5" /> },
+      { wert: 'slider',             label: 'Schieberegler',     icon: <BarChart2 className="w-3.5 h-3.5" /> },
+      { wert: 'budget_verteilung',  label: 'Budget verteilen',  icon: <Euro className="w-3.5 h-3.5" /> },
+    ],
+  },
+  {
+    label: 'Spezial',
+    typen: [
+      { wert: 'upload',             label: 'Datei-Upload',      icon: <Upload className="w-3.5 h-3.5" /> },
+      { wert: 'inventar',           label: 'Inventar erfassen', icon: <Package className="w-3.5 h-3.5" /> },
+      { wert: 'prioritaeten',       label: 'Prioritäten',       icon: <Layers className="w-3.5 h-3.5" /> },
+      { wert: 'checkliste',         label: 'Checkliste',        icon: <ClipboardList className="w-3.5 h-3.5" /> },
+      { wert: 'datum_rechner',      label: 'Deadline-Rechner',  icon: <Clock className="w-3.5 h-3.5" /> },
+      { wert: 'entscheider_matrix', label: 'Entscheider-Matrix',icon: <Users className="w-3.5 h-3.5" /> },
     ],
   },
 ]
@@ -231,12 +252,31 @@ function TypDropdown({
   onChange: (typ: OnboardingFrageTyp) => void
 }) {
   const [offen, setOffen] = useState(false)
+  const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
   const aktuellerTyp = alleTypen().find((t) => t.wert === wert)
 
+  useEffect(() => {
+    if (!offen) return
+    function update() {
+      if (!btnRef.current) return
+      const r = btnRef.current.getBoundingClientRect()
+      setDropPos({ top: r.bottom + 4, left: r.left, width: r.width })
+    }
+    update()
+    window.addEventListener('scroll', update, true)
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update, true)
+      window.removeEventListener('resize', update)
+    }
+  }, [offen])
+
   return (
-    <div className="relative">
+    <div>
       <label className="block text-xs font-medium text-gray-600 mb-1">Typ</label>
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOffen((o) => !o)}
         className="w-full flex items-center gap-2 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 hover:border-gray-300 transition-colors text-left"
@@ -246,10 +286,13 @@ function TypDropdown({
         <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" />
       </button>
 
-      {offen && (
+      {offen && dropPos && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOffen(false)} />
-          <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+          <div className="fixed inset-0 z-[110]" onClick={() => setOffen(false)} />
+          <div
+            className="fixed z-[120] bg-white border border-gray-200 rounded-xl shadow-lg overflow-y-auto max-h-72"
+            style={{ top: dropPos.top, left: dropPos.left, width: dropPos.width }}
+          >
             {FRAGE_GRUPPEN.map((gruppe) => (
               <div key={gruppe.label}>
                 <p className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
@@ -284,10 +327,92 @@ function TypDropdown({
 
 // ── FrageEditor ───────────────────────────────────────────────
 
+function ConditionalLogicEditor({
+  frage,
+  alleFragen,
+  onChange,
+}: {
+  frage: OnboardingFrage
+  alleFragen: OnboardingFrage[]
+  onChange: (f: OnboardingFrage) => void
+}) {
+  const [offen, setOffen] = useState(!!frage.bedingt_von)
+  const quellFragen = alleFragen.filter((f) => f.id !== frage.id && ['auswahl','mehrfachauswahl','ja_nein','text'].includes(f.typ))
+
+  if (!offen) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOffen(true)}
+        className="flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-wellbeing-green transition-colors"
+      >
+        <GitBranch className="w-3 h-3" />
+        Conditional Logic hinzufügen
+      </button>
+    )
+  }
+
+  function updateLogic(partial: Partial<OnboardingBedingtVon>) {
+    const current = frage.bedingt_von ?? { frage_id: '', operator: 'gleich' as const, wert: '' }
+    onChange({ ...frage, bedingt_von: { ...current, ...partial } })
+  }
+
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold text-amber-700 flex items-center gap-1.5">
+          <GitBranch className="w-3 h-3" /> Conditional Logic
+        </p>
+        <button
+          type="button"
+          onClick={() => { setOffen(false); onChange({ ...frage, bedingt_von: undefined }) }}
+          className="text-amber-400 hover:text-amber-600"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      <p className="text-[10px] text-amber-600">Dieses Feld nur zeigen, wenn:</p>
+      <div className="grid grid-cols-3 gap-2">
+        <select
+          value={frage.bedingt_von?.frage_id ?? ''}
+          onChange={(e) => updateLogic({ frage_id: e.target.value })}
+          className="col-span-1 px-2 py-1.5 text-xs border border-amber-200 rounded-lg bg-white focus:outline-none"
+        >
+          <option value="">Frage wählen…</option>
+          {quellFragen.map((q) => (
+            <option key={q.id} value={q.id}>{q.titel || `Frage ${alleFragen.indexOf(q) + 1}`}</option>
+          ))}
+        </select>
+        <select
+          value={frage.bedingt_von?.operator ?? 'gleich'}
+          onChange={(e) => updateLogic({ operator: e.target.value as OnboardingBedingtVon['operator'] })}
+          className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg bg-white focus:outline-none"
+        >
+          <option value="gleich">ist gleich</option>
+          <option value="nicht_gleich">ist nicht</option>
+          <option value="enthaelt">enthält</option>
+          <option value="nicht_leer">ist ausgefüllt</option>
+          <option value="ist_leer">ist leer</option>
+        </select>
+        {frage.bedingt_von?.operator !== 'nicht_leer' && frage.bedingt_von?.operator !== 'ist_leer' && (
+          <input
+            type="text"
+            placeholder="Wert…"
+            value={frage.bedingt_von?.wert ?? ''}
+            onChange={(e) => updateLogic({ wert: e.target.value })}
+            className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg bg-white focus:outline-none"
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
 function FrageEditor({
   frage,
   index,
   total,
+  alleFragen,
   onChange,
   onDelete,
   onDuplicate,
@@ -297,6 +422,7 @@ function FrageEditor({
   frage: OnboardingFrage
   index: number
   total: number
+  alleFragen: OnboardingFrage[]
   onChange: (f: OnboardingFrage) => void
   onDelete: () => void
   onDuplicate: () => void
@@ -305,8 +431,11 @@ function FrageEditor({
 }) {
   const [expanded, setExpanded] = useState(true)
   const [menuOffen, setMenuOffen] = useState(false)
-  const hatOptionen = frage.typ === 'auswahl' || frage.typ === 'mehrfachauswahl'
+  const hatOptionen = frage.typ === 'auswahl' || frage.typ === 'mehrfachauswahl' || frage.typ === 'rangfolge' || frage.typ === 'checkliste' || frage.typ === 'prioritaeten'
   const hatPlaceholder = ['text', 'textarea', 'email', 'telefon', 'url', 'zahl'].includes(frage.typ)
+  const hatSlider = frage.typ === 'slider' || frage.typ === 'skala'
+  const hatUpload = frage.typ === 'upload'
+  const hatBudget = frage.typ === 'budget_verteilung'
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -400,6 +529,18 @@ function FrageEditor({
             />
           </div>
 
+          {/* Beschreibung/Hilfetext */}
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Hilfetext (optional)</label>
+            <input
+              type="text"
+              placeholder="Erklärender Text unter dem Label…"
+              value={frage.beschreibung ?? ''}
+              onChange={(e) => onChange({ ...frage, beschreibung: e.target.value || undefined })}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light"
+            />
+          </div>
+
           {hatPlaceholder && (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Platzhalter (optional)</label>
@@ -414,21 +555,97 @@ function FrageEditor({
           )}
 
           {hatOptionen && (
+            <>
+              <OptionenEditor
+                optionen={frage.optionen ?? []}
+                onChange={(opts) => onChange({ ...frage, optionen: opts })}
+              />
+              {frage.typ === 'mehrfachauswahl' && (
+                <div className="flex items-center gap-3">
+                  <label className="text-xs text-gray-600 shrink-0">Max. Auswahl:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="unbegrenzt"
+                    value={frage.max_auswahl ?? ''}
+                    onChange={(e) => onChange({ ...frage, max_auswahl: e.target.value ? Number(e.target.value) : undefined })}
+                    className="w-24 px-3 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:outline-none"
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Slider-Konfiguration */}
+          {hatSlider && frage.typ === 'slider' && (
+            <div className="grid grid-cols-4 gap-2">
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-1">Min</label>
+                <input type="number" value={frage.slider_min ?? 0} onChange={(e) => onChange({ ...frage, slider_min: Number(e.target.value) })}
+                  className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-1">Max</label>
+                <input type="number" value={frage.slider_max ?? 100} onChange={(e) => onChange({ ...frage, slider_max: Number(e.target.value) })}
+                  className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-1">Schritt</label>
+                <input type="number" value={frage.slider_schritt ?? 1} onChange={(e) => onChange({ ...frage, slider_schritt: Number(e.target.value) })}
+                  className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-1">Einheit</label>
+                <input type="text" placeholder="€" value={frage.slider_einheit ?? ''} onChange={(e) => onChange({ ...frage, slider_einheit: e.target.value || undefined })}
+                  className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:outline-none" />
+              </div>
+            </div>
+          )}
+
+          {/* Upload-Konfiguration */}
+          {hatUpload && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-1">Dateitypen (leer = alle)</label>
+                <input type="text" placeholder="image/*, application/pdf"
+                  value={(frage.upload_typen ?? []).join(', ')}
+                  onChange={(e) => onChange({ ...frage, upload_typen: e.target.value ? e.target.value.split(',').map(s => s.trim()) : undefined })}
+                  className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-[11px] text-gray-500 mb-1">Max. Größe (MB)</label>
+                <input type="number" min="1" placeholder="10"
+                  value={frage.upload_max_mb ?? ''}
+                  onChange={(e) => onChange({ ...frage, upload_max_mb: e.target.value ? Number(e.target.value) : undefined })}
+                  className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 focus:outline-none" />
+              </div>
+            </div>
+          )}
+
+          {/* Budget-Verteilung Kategorien */}
+          {hatBudget && (
             <OptionenEditor
-              optionen={frage.optionen ?? []}
-              onChange={(opts) => onChange({ ...frage, optionen: opts })}
+              optionen={frage.budget_kategorien ?? []}
+              onChange={(opts) => onChange({ ...frage, budget_kategorien: opts })}
             />
           )}
 
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={frage.pflichtfeld}
-              onChange={(e) => onChange({ ...frage, pflichtfeld: e.target.checked })}
-              className="w-4 h-4 rounded border-gray-300 text-wellbeing-green focus:ring-wellbeing-green/20"
+          <div className="flex items-center justify-between pt-1">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={frage.pflichtfeld}
+                onChange={(e) => onChange({ ...frage, pflichtfeld: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-wellbeing-green focus:ring-wellbeing-green/20"
+              />
+              <span className="text-xs text-gray-600">Pflichtfeld</span>
+            </label>
+            <ConditionalLogicEditor
+              frage={frage}
+              alleFragen={alleFragen}
+              onChange={onChange}
             />
-            <span className="text-xs text-gray-600">Pflichtfeld</span>
-          </label>
+          </div>
         </div>
       )}
     </div>
@@ -442,6 +659,7 @@ function SektionsBlock({
   sektionsIndex,
   sektionsTotal,
   fragen,
+  alleFragen,
   onRename,
   onDelete,
   onMoveUp,
@@ -457,6 +675,7 @@ function SektionsBlock({
   sektionsIndex: number
   sektionsTotal: number
   fragen: OnboardingFrage[]
+  alleFragen: OnboardingFrage[]
   onRename: (name: string) => void
   onDelete: () => void
   onMoveUp: () => void
@@ -551,6 +770,7 @@ function SektionsBlock({
               frage={f}
               index={i}
               total={fragen.length}
+              alleFragen={alleFragen}
               onChange={(updated) => onUpdateFrage(f.id, updated)}
               onDelete={() => onDeleteFrage(f.id)}
               onDuplicate={() => onDuplicateFrage(f.id)}
@@ -648,6 +868,83 @@ function VorschauFeld({ frage }: { frage: OnboardingFrage }) {
             <span>1</span>
             <span>10</span>
           </div>
+        </div>
+      )}
+      {frage.typ === 'slider' && (
+        <div className="space-y-1">
+          <input type="range" min={frage.slider_min ?? 0} max={frage.slider_max ?? 100} defaultValue={(frage.slider_min ?? 0)} disabled className="w-full" />
+          <div className="flex justify-between text-xs text-gray-400">
+            <span>{frage.slider_min ?? 0}{frage.slider_einheit}</span>
+            <span>{frage.slider_max ?? 100}{frage.slider_einheit}</span>
+          </div>
+        </div>
+      )}
+      {frage.typ === 'rangfolge' && (
+        <div className="space-y-1.5">
+          {(frage.optionen ?? []).map((opt, i) => (
+            <div key={i} className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 cursor-default">
+              <span className="text-xs font-bold text-gray-300 w-4">{i + 1}.</span>
+              {opt}
+            </div>
+          ))}
+          {!frage.optionen?.length && <p className="text-xs text-gray-400 italic">Noch keine Optionen definiert</p>}
+        </div>
+      )}
+      {frage.typ === 'upload' && (
+        <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center bg-gray-50">
+          <Upload className="w-6 h-6 text-gray-300 mx-auto mb-1" />
+          <p className="text-xs text-gray-400">Datei hochladen{frage.upload_typen?.length ? ` (${frage.upload_typen.join(', ')})` : ''}</p>
+        </div>
+      )}
+      {frage.typ === 'inventar' && (
+        <div className="border border-gray-200 rounded-xl p-3 text-center bg-gray-50">
+          <Package className="w-5 h-5 text-gray-300 mx-auto mb-1" />
+          <p className="text-xs text-gray-400">Bestandserfassung – Fotos + behalten/ersetzen</p>
+        </div>
+      )}
+      {frage.typ === 'prioritaeten' && (
+        <div className="space-y-1.5">
+          {(frage.optionen ?? ['Option A', 'Option B', 'Option C']).map((opt, i) => (
+            <div key={i} className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 cursor-default">
+              <Layers className="w-3.5 h-3.5 text-gray-300" />
+              {opt}
+            </div>
+          ))}
+        </div>
+      )}
+      {frage.typ === 'checkliste' && (
+        <div className="space-y-1.5">
+          {(frage.optionen ?? ['Punkt 1', 'Punkt 2']).map((opt, i) => (
+            <label key={i} className="flex items-center gap-2 text-sm text-gray-600 cursor-default">
+              <div className="w-4 h-4 rounded border border-gray-300 shrink-0" />
+              {opt}
+            </label>
+          ))}
+        </div>
+      )}
+      {frage.typ === 'budget_verteilung' && (
+        <div className="space-y-2">
+          {(frage.budget_kategorien ?? ['Wohnzimmer', 'Schlafzimmer']).map((kat, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <span className="text-xs text-gray-600 w-24 shrink-0 truncate">{kat}</span>
+              <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-full bg-wellbeing-green/30 rounded-full" style={{ width: `${100 / (frage.budget_kategorien?.length ?? 2)}%` }} />
+              </div>
+              <span className="text-xs text-gray-400">0 %</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {frage.typ === 'datum_rechner' && (
+        <div className="border border-gray-200 rounded-xl p-3 bg-gray-50 text-center">
+          <Clock className="w-5 h-5 text-gray-300 mx-auto mb-1" />
+          <p className="text-xs text-gray-400">Wunschdatum + automatische Deadline-Berechnung</p>
+        </div>
+      )}
+      {frage.typ === 'entscheider_matrix' && (
+        <div className="border border-gray-200 rounded-xl p-3 bg-gray-50 text-center">
+          <Users className="w-5 h-5 text-gray-300 mx-auto mb-1" />
+          <p className="text-xs text-gray-400">Wer entscheidet was? (Rollen-Matrix)</p>
         </div>
       )}
     </div>
@@ -782,12 +1079,21 @@ function VorlageEditorModal({
   onClose,
 }: {
   vorlage: OnboardingVorlage | null
-  onSave: (name: string, beschreibung: string, fragen: OnboardingFrage[], sektionen: OnboardingSektion[]) => void
+  onSave: (name: string, beschreibung: string, fragen: OnboardingFrage[], sektionen: OnboardingSektion[], extra: Partial<OnboardingVorlage>) => void
   onClose: () => void
 }) {
   const [schritt, setSchritt]         = useState<'picker' | 'editor'>(vorlage ? 'editor' : 'picker')
+  const [tab, setTab]                 = useState<'felder' | 'einstellungen' | 'whitelabel'>('felder')
   const [name, setName]               = useState(vorlage?.name ?? '')
   const [beschreibung, setBeschreibung] = useState(vorlage?.beschreibung ?? '')
+  const [typ, setTyp]                 = useState<OnboardingTyp>(vorlage?.typ ?? 'neukunde')
+  const [einleitungText, setEinleitungText] = useState(vorlage?.einleitung_text ?? '')
+  const [abschlussText, setAbschlussText]   = useState(vorlage?.abschluss_text ?? '')
+  const [akzentFarbe, setAkzentFarbe]       = useState(vorlage?.akzent_farbe ?? '#445c49')
+  const [logoUrl, setLogoUrl]               = useState(vorlage?.logo_url ?? '')
+  const [emailBetreff, setEmailBetreff]     = useState(vorlage?.email_betreff ?? '')
+  const [emailText, setEmailText]           = useState(vorlage?.email_text ?? '')
+  const [deadlineTage, setDeadlineTage]     = useState<number | ''>(vorlage?.deadline_tage ?? '')
   const [fragen, setFragen]           = useState<OnboardingFrage[]>(vorlage?.fragen ?? [])
   const [sektionen, setSektionen]     = useState<OnboardingSektion[]>(vorlage?.sektionen ?? [])
   const [vorschauOffen, setVorschauOffen] = useState(false)
@@ -870,7 +1176,16 @@ function VorlageEditorModal({
     if (!name.trim()) return
     startTransition(async () => {
       const cleanFragen = fragen.filter((f) => f.titel.trim())
-      onSave(name.trim(), beschreibung.trim(), cleanFragen, sektionen)
+      onSave(name.trim(), beschreibung.trim(), cleanFragen, sektionen, {
+        typ,
+        einleitung_text: einleitungText || null,
+        abschluss_text:  abschlussText  || null,
+        akzent_farbe:    akzentFarbe    || null,
+        logo_url:        logoUrl        || null,
+        email_betreff:   emailBetreff   || null,
+        email_text:      emailText      || null,
+        deadline_tage:   deadlineTage !== '' ? Number(deadlineTage) : null,
+      })
     })
   }
 
@@ -954,113 +1269,189 @@ function VorlageEditorModal({
             </div>
           </div>
 
+          {/* Tabs */}
+          <div className="flex border-b border-gray-100 shrink-0 px-6">
+            {([['felder', 'Felder'], ['einstellungen', 'Einstellungen'], ['whitelabel', 'White-Label']] as const).map(([t, label]) => (
+              <button key={t} type="button" onClick={() => setTab(t)}
+                className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${tab === t ? 'border-wellbeing-green text-wellbeing-green' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
           {/* Scrollable Body */}
           <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
-            {/* Meta */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="z. B. Gewerbe-Kunden"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light"
-                />
+
+            {tab === 'felder' && <>
+              {/* Meta */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
+                  <input type="text" autoFocus placeholder="z. B. Gewerbe-Kunden" value={name} onChange={(e) => setName(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Typ</label>
+                  <select value={typ} onChange={(e) => setTyp(e.target.value as OnboardingTyp)}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20">
+                    <option value="neukunde">Neukunde</option>
+                    <option value="projekt">Projekt</option>
+                    <option value="universal">Universal</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Beschreibung (optional)</label>
-                <input
-                  type="text"
-                  placeholder="Kurze Beschreibung…"
-                  value={beschreibung}
-                  onChange={(e) => setBeschreibung(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light"
-                />
+                <input type="text" placeholder="Kurze Beschreibung…" value={beschreibung} onChange={(e) => setBeschreibung(e.target.value)}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light" />
               </div>
-            </div>
 
-            {/* Allgemeine Fragen */}
-            {allgemeineFragen.length > 0 && (
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                  Allgemeine Fragen
-                </label>
-                {allgemeineFragen.map((f, i) => (
-                  <FrageEditor
-                    key={f.id}
-                    frage={f}
-                    index={i}
-                    total={allgemeineFragen.length}
-                    onChange={(updated) => frageAktualisieren(f.id, updated)}
-                    onDelete={() => frageLöschen(f.id)}
-                    onDuplicate={() => frageDuplizieren(f.id)}
-                    onMoveUp={() => frageVerschieben(f.id, -1, undefined)}
-                    onMoveDown={() => frageVerschieben(f.id, 1, undefined)}
-                  />
-                ))}
+              {/* Allgemeine Fragen */}
+              {allgemeineFragen.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Allgemeine Fragen</label>
+                  {allgemeineFragen.map((f, i) => (
+                    <FrageEditor key={f.id} frage={f} index={i} total={allgemeineFragen.length} alleFragen={fragen}
+                      onChange={(updated) => frageAktualisieren(f.id, updated)}
+                      onDelete={() => frageLöschen(f.id)} onDuplicate={() => frageDuplizieren(f.id)}
+                      onMoveUp={() => frageVerschieben(f.id, -1, undefined)} onMoveDown={() => frageVerschieben(f.id, 1, undefined)} />
+                  ))}
+                </div>
+              )}
+
+              {/* Sektionen */}
+              {sektionen.length > 0 && (
+                <div className="space-y-3">
+                  {sektionen.map((s, si) => {
+                    const sf = fragen.filter((f) => f.sektion_id === s.id)
+                    return (
+                      <SektionsBlock key={s.id} sektion={s} sektionsIndex={si} sektionsTotal={sektionen.length}
+                        fragen={sf} alleFragen={fragen}
+                        onRename={(n) => sektionUmbenennen(s.id, n)} onDelete={() => sektionLöschen(s.id)}
+                        onMoveUp={() => sektionVerschieben(s.id, -1)} onMoveDown={() => sektionVerschieben(s.id, 1)}
+                        onAddFrage={() => frageHinzufuegen(s.id)} onUpdateFrage={frageAktualisieren}
+                        onDeleteFrage={frageLöschen} onDuplicateFrage={frageDuplizieren}
+                        onMoveFrageUp={(id) => frageVerschieben(id, -1, s.id)} onMoveFrageDown={(id) => frageVerschieben(id, 1, s.id)} />
+                    )
+                  })}
+                </div>
+              )}
+
+              {fragen.length === 0 && sektionen.length === 0 && (
+                <p className="text-sm text-gray-400 italic text-center py-6 border border-dashed border-gray-200 rounded-xl">
+                  Noch keine Fragen. Füge eine Frage oder Sektion hinzu.
+                </p>
+              )}
+
+              <div className="flex gap-2">
+                <button onClick={() => frageHinzufuegen()}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-wellbeing-green border-2 border-dashed border-wellbeing-green/30 hover:border-wellbeing-green/60 rounded-xl transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> Frage hinzufügen
+                </button>
+                <button onClick={sektionHinzufuegen}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-gray-500 border-2 border-dashed border-gray-200 hover:border-gray-300 rounded-xl transition-colors">
+                  <FolderPlus className="w-3.5 h-3.5" /> Sektion hinzufügen
+                </button>
+              </div>
+            </>}
+
+            {tab === 'einstellungen' && (
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Einleitungstext</label>
+                  <textarea rows={3} placeholder="Text, den der Kunde am Anfang des Formulars sieht…" value={einleitungText}
+                    onChange={(e) => setEinleitungText(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none resize-none focus:ring-2 focus:ring-wellbeing-green/20" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Abschluss-Text</label>
+                  <textarea rows={3} placeholder="Dankesnachricht nach dem Absenden…" value={abschlussText}
+                    onChange={(e) => setAbschlussText(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none resize-none focus:ring-2 focus:ring-wellbeing-green/20" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Link-Gültigkeit (Tage)</label>
+                    <input type="number" min="1" placeholder="unbegrenzt" value={deadlineTage}
+                      onChange={(e) => setDeadlineTage(e.target.value ? Number(e.target.value) : '')}
+                      className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20" />
+                  </div>
+                </div>
+                <div className="border-t border-gray-100 pt-4">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">E-Mail-Benachrichtigung</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Betreff</label>
+                      <input type="text" placeholder="Neue Onboarding-Anfrage eingegangen" value={emailBetreff}
+                        onChange={(e) => setEmailBetreff(e.target.value)}
+                        className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Nachricht</label>
+                      <textarea rows={4} placeholder="Benachrichtigungstext…" value={emailText}
+                        onChange={(e) => setEmailText(e.target.value)}
+                        className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none resize-none focus:ring-2 focus:ring-wellbeing-green/20" />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Sektionen */}
-            {sektionen.length > 0 && (
-              <div className="space-y-3">
-                {sektionen.map((s, si) => {
-                  const sf = fragen.filter((f) => f.sektion_id === s.id)
-                  return (
-                    <SektionsBlock
-                      key={s.id}
-                      sektion={s}
-                      sektionsIndex={si}
-                      sektionsTotal={sektionen.length}
-                      fragen={sf}
-                      onRename={(n) => sektionUmbenennen(s.id, n)}
-                      onDelete={() => sektionLöschen(s.id)}
-                      onMoveUp={() => sektionVerschieben(s.id, -1)}
-                      onMoveDown={() => sektionVerschieben(s.id, 1)}
-                      onAddFrage={() => frageHinzufuegen(s.id)}
-                      onUpdateFrage={frageAktualisieren}
-                      onDeleteFrage={frageLöschen}
-                      onDuplicateFrage={frageDuplizieren}
-                      onMoveFrageUp={(id) => frageVerschieben(id, -1, s.id)}
-                      onMoveFrageDown={(id) => frageVerschieben(id, 1, s.id)}
-                    />
-                  )
-                })}
+            {tab === 'whitelabel' && (
+              <div className="space-y-5">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                  <p className="text-xs text-blue-700">White-Label-Einstellungen überschreiben die globalen Branding-Einstellungen für dieses Formular.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Logo-URL (optional)</label>
+                  <div className="flex gap-2">
+                    <input type="url" placeholder="https://…" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)}
+                      className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20" />
+                    <Link className="w-4 h-4 text-gray-400 my-auto shrink-0" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-2">Akzentfarbe</label>
+                  <div className="flex items-center gap-3">
+                    <input type="color" value={akzentFarbe} onChange={(e) => setAkzentFarbe(e.target.value)}
+                      className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5 bg-white" />
+                    <div className="flex gap-1.5">
+                      {['#445c49','#2d3e31','#94c1a4','#823509','#cba178','#1e293b','#6366f1'].map((c) => (
+                        <button key={c} type="button" onClick={() => setAkzentFarbe(c)}
+                          className="w-6 h-6 rounded-full border-2 transition-all hover:scale-110"
+                          style={{ background: c, borderColor: akzentFarbe === c ? '#374151' : 'transparent' }} />
+                      ))}
+                    </div>
+                    <input type="text" value={akzentFarbe} onChange={(e) => setAkzentFarbe(e.target.value)}
+                      className="w-24 px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 font-mono focus:outline-none" />
+                  </div>
+                </div>
+                <div className="border rounded-xl p-4" style={{ borderColor: akzentFarbe + '40' }}>
+                  <p className="text-xs text-gray-500 mb-2">Vorschau</p>
+                  <div className="flex items-center gap-3">
+                    {logoUrl
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={logoUrl} alt="" className="h-8 object-contain" />
+                      : <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: akzentFarbe }}>
+                          <Palette className="w-4 h-4 text-white" />
+                        </div>
+                    }
+                    <button className="px-4 py-2 text-xs font-semibold text-white rounded-lg" style={{ background: akzentFarbe }}>
+                      Weiter →
+                    </button>
+                    <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div className="h-full rounded-full w-1/3" style={{ background: akzentFarbe }} />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
-
-            {/* Empty state */}
-            {fragen.length === 0 && sektionen.length === 0 && (
-              <p className="text-sm text-gray-400 italic text-center py-6 border border-dashed border-gray-200 rounded-xl">
-                Noch keine Fragen. Füge eine Frage oder Sektion hinzu.
-              </p>
-            )}
-
-            {/* Add buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => frageHinzufuegen()}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-wellbeing-green border-2 border-dashed border-wellbeing-green/30 hover:border-wellbeing-green/60 rounded-xl transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Frage hinzufügen
-              </button>
-              <button
-                onClick={sektionHinzufuegen}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-gray-500 border-2 border-dashed border-gray-200 hover:border-gray-300 rounded-xl transition-colors"
-              >
-                <FolderPlus className="w-3.5 h-3.5" />
-                Sektion hinzufügen
-              </button>
-            </div>
           </div>
 
           {/* Fixed Footer */}
           <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between shrink-0">
             <p className="text-xs text-gray-400">
-              {fragen.length} Fragen · {sektionen.length} Sektionen
+              {fragen.length} Fragen · {sektionen.length} Sektionen · <span className="capitalize">{typ}</span>
             </p>
             <div className="flex items-center gap-3">
               <button
@@ -1115,6 +1506,8 @@ function VorlageKarte({
         <p className="text-xs text-gray-400">
           {vorlage.fragen.length} Fragen
           {sektionenAnzahl > 0 && ` · ${sektionenAnzahl} Sektionen`}
+          {vorlage.typ && vorlage.typ !== 'neukunde' && ` · ${vorlage.typ === 'projekt' ? 'Projekt' : 'Universal'}`}
+          {vorlage.deadline_tage && ` · ${vorlage.deadline_tage} Tage gültig`}
         </p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
@@ -1149,22 +1542,33 @@ export default function VorlagenVerwaltung({ vorlagen: initVorlagen }: { vorlage
     name: string,
     beschreibung: string,
     fragen: OnboardingFrage[],
-    sektionen: OnboardingSektion[]
+    sektionen: OnboardingSektion[],
+    extra: Partial<OnboardingVorlage>
   ) {
     startTransition(async () => {
       if (editorVorlage === null) {
-        const neu = await vorlageErstellen(name, beschreibung, fragen, sektionen)
-        setVorlagen((vs) => [
-          ...vs.filter((v) => v.ist_standard),
-          neu,
-          ...vs.filter((v) => !v.ist_standard && v.id !== neu.id),
-        ])
+        // Neue Vorlage mit erweiterten Feldern
+        const neu = await vorlageErstellenV2({
+          name, beschreibung, fragen, sektionen,
+          typ: extra.typ ?? 'neukunde',
+          einleitung_text: extra.einleitung_text,
+          abschluss_text:  extra.abschluss_text,
+          akzent_farbe:    extra.akzent_farbe,
+          logo_url:        extra.logo_url,
+          email_betreff:   extra.email_betreff,
+          email_text:      extra.email_text,
+          deadline_tage:   extra.deadline_tage,
+        })
+        setVorlagen((vs) => [...vs, neu])
       } else if (editorVorlage) {
-        await vorlageSpeichern(editorVorlage.id, name, beschreibung, fragen, sektionen)
+        // Bestehende Vorlage aktualisieren
+        await vorlageAktualisierenV2(editorVorlage.id, {
+          name, beschreibung: beschreibung || null, fragen, sektionen, ...extra,
+        })
         setVorlagen((vs) =>
           vs.map((v) =>
             v.id === editorVorlage.id
-              ? { ...v, name, beschreibung: beschreibung || null, fragen, sektionen }
+              ? { ...v, name, beschreibung: beschreibung || null, fragen, sektionen, ...extra }
               : v
           )
         )

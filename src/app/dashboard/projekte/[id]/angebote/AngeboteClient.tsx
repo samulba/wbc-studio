@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import {
   Plus, Trash2, ChevronDown, Eye, ReceiptText,
-  ArrowLeft, PenLine, Send, CheckCircle, XCircle, Clock, Layers, Download,
+  ArrowLeft, PenLine, Send, CheckCircle, XCircle, Clock, Layers, Download, RefreshCw,
 } from 'lucide-react'
 import type { Angebot, AngebotStatus, AngebotPosition } from '@/lib/supabase/types'
 import {
@@ -20,13 +20,15 @@ const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 }).format(n)
 
 const statusConfig: Record<AngebotStatus, { label: string; farbe: string; Icon: React.FC<{ className?: string }> }> = {
-  entwurf:    { label: 'Entwurf',    farbe: 'bg-gray-100 text-gray-600',    Icon: PenLine },
-  gesendet:   { label: 'Gesendet',   farbe: 'bg-blue-50 text-blue-700',     Icon: Send },
-  angenommen: { label: 'Angenommen', farbe: 'bg-green-50 text-green-700',   Icon: CheckCircle },
-  abgelehnt:  { label: 'Abgelehnt',  farbe: 'bg-red-50 text-red-600',       Icon: XCircle },
-  abgelaufen: { label: 'Abgelaufen', farbe: 'bg-gray-100 text-gray-500',    Icon: Clock },
+  entwurf:       { label: 'Entwurf',        farbe: 'bg-gray-100 text-gray-600',    Icon: PenLine },
+  gesendet:      { label: 'Gesendet',       farbe: 'bg-blue-50 text-blue-700',     Icon: Send },
+  angesehen:     { label: 'Angesehen',      farbe: 'bg-purple-50 text-purple-700', Icon: Eye },
+  angenommen:    { label: 'Angenommen',     farbe: 'bg-green-50 text-green-700',   Icon: CheckCircle },
+  abgelehnt:     { label: 'Abgelehnt',      farbe: 'bg-red-50 text-red-600',       Icon: XCircle },
+  abgelaufen:    { label: 'Abgelaufen',     farbe: 'bg-gray-100 text-gray-500',    Icon: Clock },
+  ueberarbeitung:{ label: 'Überarbeitung',  farbe: 'bg-amber-50 text-amber-700',   Icon: RefreshCw },
 }
-const STATUS_LIST: AngebotStatus[] = ['entwurf', 'gesendet', 'angenommen', 'abgelehnt', 'abgelaufen']
+const STATUS_LIST: AngebotStatus[] = ['entwurf', 'gesendet', 'angesehen', 'angenommen', 'ueberarbeitung', 'abgelehnt', 'abgelaufen']
 
 const inp = 'w-full px-2.5 py-2 text-xs bg-white border border-gray-200 rounded-lg text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light transition'
 
@@ -155,6 +157,16 @@ function AngebotFormular({ projektId, kundeId, kundeName, defaultMwst, onSpeiche
         pdf_url: null,
         anmerkungen: anmerkungen || null,
         agb_text: agbText || null,
+        version: 1,
+        vorgaenger_id: null,
+        zahlungsbedingungen: null,
+        interne_notizen: null,
+        erstellt_von: null,
+        gesendet_am: null,
+        angesehen_am: null,
+        beantwortet_am: null,
+        antwort_notiz: null,
+        token: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }
@@ -436,6 +448,9 @@ export default function AngeboteClient({ projektId, kundeId, kundeName, initialA
         einleitung: null, positionen: [], netto_summe: null, mwst_satz: defaultMwst,
         mwst_betrag: null, brutto_summe: null, rabatt_prozent: null, rabatt_betrag: null,
         status: 'entwurf', gueltig_bis: null, pdf_url: null, anmerkungen: null, agb_text: null,
+        version: 1, vorgaenger_id: null, zahlungsbedingungen: null, interne_notizen: null,
+        erstellt_von: null, gesendet_am: null, angesehen_am: null, beantwortet_am: null,
+        antwort_notiz: null, token: null,
         created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }
       setAngebote((prev) => [platzhalter, ...prev])

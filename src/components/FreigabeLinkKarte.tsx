@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { tokenGenerieren, tokenDeaktivieren, tokenErneuern } from '@/app/actions/freigabe-token'
 import { pinSetzen } from '@/app/actions/projekte'
 import { RefreshCw, Clock, Lock, LockOpen, Copy, Check, Eye, EyeOff, Share2 } from 'lucide-react'
+import { ConfirmModal } from '@/components/ConfirmModal'
 
 interface Props {
   projektId: string
@@ -36,6 +37,8 @@ export default function FreigabeLinkKarte({ projektId, initialToken, initialHatP
   const [pinKopiert, setPinKopiert]       = useState(false)
   const [pinFehler, setPinFehler]         = useState<string | null>(null)
   const [toast, setToast]                 = useState<string | null>(null)
+  const [confirmDeaktivieren, setConfirmDeaktivieren] = useState(false)
+  const [confirmErneuern, setConfirmErneuern]         = useState(false)
 
   const freigabeUrl = tokenData
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/freigabe/${tokenData.token}`
@@ -66,21 +69,23 @@ export default function FreigabeLinkKarte({ projektId, initialToken, initialHatP
   }
 
   function handleDeaktivieren() {
-    if (!tokenData?.id || !confirm('Freigabe-Link wirklich deaktivieren? Der Link wird ungültig.')) return
+    if (!tokenData?.id) return
     startTransition(async () => {
       await tokenDeaktivieren(tokenData.id, projektId)
       setTokenData(null)
     })
+    setConfirmDeaktivieren(false)
   }
 
   function handleErneuern() {
-    if (!tokenData?.id || !confirm('Neuen Freigabelink erstellen? Der alte Link wird ungültig.')) return
+    if (!tokenData?.id) return
     startTransition(async () => {
       const result = await tokenErneuern(projektId, tokenData.id)
       if ('token' in result) {
         setTokenData({ id: '', token: result.token, gueltig_bis: null })
       }
     })
+    setConfirmErneuern(false)
   }
 
   // ── PIN-Aktionen ──────────────────────────────────────────────
@@ -123,6 +128,27 @@ export default function FreigabeLinkKarte({ projektId, initialToken, initialHatP
   }
 
   return (
+    <>
+    <ConfirmModal
+      isOpen={confirmDeaktivieren}
+      onClose={() => setConfirmDeaktivieren(false)}
+      onConfirm={handleDeaktivieren}
+      title="Freigabe-Link deaktivieren"
+      message="Der Link wird sofort ungültig. Kunden können den Freigabe-Link nicht mehr öffnen."
+      confirmText="Deaktivieren"
+      variant="warning"
+      isLoading={isPending}
+    />
+    <ConfirmModal
+      isOpen={confirmErneuern}
+      onClose={() => setConfirmErneuern(false)}
+      onConfirm={handleErneuern}
+      title="Freigabe-Link erneuern"
+      message="Der alte Link wird ungültig. Bitte teile den neuen Link mit dem Kunden."
+      confirmText="Erneuern"
+      variant="warning"
+      isLoading={isPending}
+    />
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm relative">
       {/* Toast */}
       {toast && (
@@ -192,7 +218,7 @@ export default function FreigabeLinkKarte({ projektId, initialToken, initialHatP
             {tokenData.id && (
               <>
                 <button
-                  onClick={handleErneuern}
+                  onClick={() => setConfirmErneuern(true)}
                   disabled={isPending}
                   className="inline-flex items-center gap-1 text-xs text-wellbeing-green hover:text-wellbeing-green-dark transition-colors"
                 >
@@ -200,7 +226,7 @@ export default function FreigabeLinkKarte({ projektId, initialToken, initialHatP
                   Erneuern
                 </button>
                 <button
-                  onClick={handleDeaktivieren}
+                  onClick={() => setConfirmDeaktivieren(true)}
                   disabled={isPending}
                   className="text-xs text-red-400/60 hover:text-red-500 transition-colors"
                 >
@@ -301,5 +327,6 @@ export default function FreigabeLinkKarte({ projektId, initialToken, initialHatP
         </div>
       )}
     </div>
+    </>
   )
 }

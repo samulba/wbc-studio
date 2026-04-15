@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Plus, ChevronRight, Calendar, List, X, Flag, Truck, Clock, Layers } from 'lucide-react'
 import { eventErstellen, eventAktualisieren, eventLoeschen } from '@/app/actions/timeline'
 import type { TimelineEvent, TimelineEventTyp, TimelineEventStatus } from '@/lib/supabase/types'
+import { ConfirmModal } from '@/components/ConfirmModal'
 
 // ── Konstanten ────────────────────────────────────────────────
 const TYP_CONFIG: Record<TimelineEventTyp, { label: string; farbe: string; bgFarbe: string; icon: typeof Flag }> = {
@@ -63,6 +64,7 @@ function EventModal({
   })
   const [isPending, startTransition] = useTransition()
   const [fehler, setFehler] = useState<string | null>(null)
+  const [confirmLoeschen, setConfirmLoeschen] = useState(false)
 
   function handleSpeichern() {
     if (!form.titel.trim()) { setFehler('Titel ist erforderlich.'); return }
@@ -91,18 +93,29 @@ function EventModal({
   }
 
   function handleLoeschen() {
-    if (!event?.id || !window.confirm('Event wirklich löschen?')) return
+    if (!event?.id) return
     startTransition(async () => {
       await eventLoeschen(event.id!, projektId)
       onDelete?.(event.id!)
       onClose()
     })
+    setConfirmLoeschen(false)
   }
 
   const set = <K extends keyof typeof form>(key: K, val: typeof form[K]) =>
     setForm((f) => ({ ...f, [key]: val }))
 
   return (
+    <>
+    <ConfirmModal
+      isOpen={confirmLoeschen}
+      onClose={() => setConfirmLoeschen(false)}
+      onConfirm={handleLoeschen}
+      title="Event löschen"
+      message={`„${event?.titel ?? 'Dieses Event'}" wird unwiderruflich gelöscht.`}
+      confirmText="Löschen"
+      isLoading={isPending}
+    />
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
@@ -216,7 +229,7 @@ function EventModal({
 
         <div className="flex gap-3 mt-6">
           {!isNeu && (
-            <button onClick={handleLoeschen} disabled={isPending}
+            <button onClick={() => setConfirmLoeschen(true)} disabled={isPending}
               className="px-4 py-2.5 text-xs font-medium text-red-500 border border-red-200 hover:bg-red-50 rounded-xl transition disabled:opacity-50">
               Löschen
             </button>
@@ -231,6 +244,7 @@ function EventModal({
         </div>
       </div>
     </div>
+    </>
   )
 }
 

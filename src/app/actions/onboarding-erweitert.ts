@@ -1,0 +1,676 @@
+'use server'
+
+import { createClient, getOrganisationId } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { revalidatePath } from 'next/cache'
+import type {
+  OnboardingAnfrage,
+  OnboardingVorlage,
+  OnboardingFrage,
+  OnboardingSektion,
+  OnboardingTyp,
+  OnboardingInventarItem,
+  OnboardingPrioritaet,
+  OnboardingDatei,
+  InventarZustand,
+} from '@/lib/supabase/types'
+
+// ── Hilfsfunktion: Gültigkeitsdatum berechnen ─────────────────
+function berechneGueltigBis(deadlineTage: number | null | undefined): string | null {
+  if (!deadlineTage) return null
+  const d = new Date()
+  d.setDate(d.getDate() + deadlineTage)
+  return d.toISOString()
+}
+
+// ─────────────────────────────────────────────────────────────
+// ONBOARDING-LINKS ERSTELLEN
+// ─────────────────────────────────────────────────────────────
+
+/** Erstellt einen neuen Onboarding-Link mit Typ und optionaler Vorlage. */
+export async function onboardingLinkErstellenV2(
+  vorlage_id?: string | null,
+  typ: OnboardingTyp = 'neukunde',
+  projekt_id?: string | null,
+  kunde_id?: string | null,
+): Promise<{ token: string; pfad: string }> {
+  const supabase = await createClient()
+  const orgId    = await getOrganisationId()
+
+  // Gültigkeitsdatum aus Vorlage berechnen
+  let gueltig_bis: string | null = null
+  if (vorlage_id) {
+    const { data: v } = await supabase
+      .from('onboarding_vorlagen')
+      .select('deadline_tage')
+      .eq('id', vorlage_id)
+      .single()
+    gueltig_bis = berechneGueltigBis(v?.deadline_tage)
+  }
+
+  const { data, error } = await supabase
+    .from('onboarding_anfragen')
+    .insert({
+      status:          'offen',
+      typ,
+      vorlage_id:      vorlage_id ?? null,
+      projekt_id:      projekt_id ?? null,
+      kunde_id:        kunde_id   ?? null,
+      organisation_id: orgId,
+      gueltig_bis,
+    })
+    .select('token')
+    .single()
+
+  if (error || !data) throw new Error('Fehler beim Erstellen des Links: ' + error?.message)
+  revalidatePath('/dashboard/onboarding')
+  return { token: data.token, pfad: `/onboarding/${data.token}` }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ONBOARDING-ANFRAGEN LESEN (Admin-Dashboard)
+// ─────────────────────────────────────────────────────────────
+
+/** Alle Anfragen der Organisation mit Vorlage-Name und Fortschritt. */
+export async function getOnboardingAnfragen(filter?: {
+  status?: string
+  typ?: OnboardingTyp
+}): Promise<(OnboardingAnfrage & { vorlage_name?: string })[]> {
+  const supabase = await createClient()
+  let query = supabase
+    .from('onboarding_anfragen')
+    .select('*, onboarding_vorlagen(name)')
+    .order('created_at', { ascending: false })
+
+  if (filter?.status) query = query.eq('status', filter.status)
+  if (filter?.typ)    query = query.eq('typ', filter.typ)
+
+  const { data } = await query
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((r: any) => ({
+    ...r,
+    vorlage_name: r.onboarding_vorlagen?.name ?? undefined,
+    onboarding_vorlagen: undefined,
+  })) as (OnboardingAnfrage & { vorlage_name?: string })[]
+}
+
+/** Einzelne Anfrage laden (Admin). */
+export async function getOnboardingAnfrage(id: string): Promise<OnboardingAnfrage | null> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('onboarding_anfragen')
+    .select('*')
+    .eq('id', id)
+    .single()
+  return data as OnboardingAnfrage | null
+}
+
+/** Anfrage per Token öffentlich laden (Kunden-Formular). */
+export async function getAnfrageByToken(
+  token: string
+): Promise<{ anfrage: OnboardingAnfrage; vorlage: OnboardingVorlage | null } | null> {
+  const supabase = createAdminClient()
+
+  const { data: anfrage } = await supabase
+    .from('onboarding_anfragen')
+    .select('*')
+    .eq('token', token)
+    .single()
+
+  if (!anfrage) return null
+
+  // Abgelaufen prüfen
+  if (anfrage.gueltig_bis && new Date(anfrage.gueltig_bis) < new Date()) {
+    await supabase
+      .from('onboarding_anfragen')
+      .update({ status: 'abgelaufen' })
+      .eq('token', token)
+    return { anfrage: { ...anfrage, status: 'abgelaufen' }, vorlage: null }
+  }
+
+  let vorlage: OnboardingVorlage | null = null
+  if (anfrage.vorlage_id) {
+    const { data: v } = await supabase
+      .from('onboarding_vorlagen')
+      .select('*')
+      .eq('id', anfrage.vorlage_id)
+      .single()
+    vorlage = v as OnboardingVorlage | null
+  }
+
+  return { anfrage: anfrage as OnboardingAnfrage, vorlage }
+}
+
+// ─────────────────────────────────────────────────────────────
+// AUTO-SAVE (Kunden tippen – Daten werden zwischengespeichert)
+// ─────────────────────────────────────────────────────────────
+
+/** Speichert Antworten als Entwurf. Keine Authentifizierung nötig. */
+export async function onboardingAutoSave(
+  token: string,
+  antworten: Record<string, unknown>,
+  fortschritt: number,
+  aktuelle_sektion: number,
+): Promise<{ ok: boolean }> {
+  const supabase = createAdminClient()
+
+  const { data: anfrage } = await supabase
+    .from('onboarding_anfragen')
+    .select('id, status')
+    .eq('token', token)
+    .single()
+
+  if (!anfrage || !['offen', 'in_bearbeitung'].includes(anfrage.status)) {
+    return { ok: false }
+  }
+
+  const { error } = await supabase
+    .from('onboarding_anfragen')
+    .update({
+      auto_save:        antworten,
+      fortschritt:      Math.min(100, Math.max(0, fortschritt)),
+      aktuelle_sektion,
+      status:           'in_bearbeitung',
+    })
+    .eq('token', token)
+
+  return { ok: !error }
+}
+
+// ─────────────────────────────────────────────────────────────
+// FINALES ABSENDEN
+// ─────────────────────────────────────────────────────────────
+
+export interface OnboardingAbsendenDaten {
+  kunde_name: string
+  kunde_email: string
+  kunde_telefon?: string | null
+  projekt_name?: string | null
+  projekt_adresse?: string | null
+  raumtypen?: string[] | null
+  budget_min?: number | null
+  budget_max?: number | null
+  stil_praeferenzen?: string | null
+  zeitrahmen?: string | null
+  notizen?: string | null
+  antworten?: Record<string, unknown> | null
+}
+
+/** Finales Absenden des Onboarding-Formulars durch den Kunden. */
+export async function onboardingAbsendenV2(
+  token: string,
+  daten: OnboardingAbsendenDaten,
+): Promise<{ erfolg: boolean; fehler?: string }> {
+  const supabase = createAdminClient()
+
+  const { data: anfrage } = await supabase
+    .from('onboarding_anfragen')
+    .select('id, status')
+    .eq('token', token)
+    .single()
+
+  if (!anfrage) return { erfolg: false, fehler: 'Dieser Link ist ungültig.' }
+  if (!['offen', 'in_bearbeitung'].includes(anfrage.status)) {
+    return { erfolg: false, fehler: 'Dieses Formular wurde bereits abgeschlossen.' }
+  }
+
+  const { antworten, ...stammdaten } = daten
+  const { error } = await supabase
+    .from('onboarding_anfragen')
+    .update({
+      ...stammdaten,
+      antworten:        antworten ?? null,
+      auto_save:        null,         // Entwurf löschen
+      status:           'abgeschlossen',
+      fortschritt:      100,
+      abgeschlossen_am: new Date().toISOString(),
+    })
+    .eq('token', token)
+
+  if (error) return { erfolg: false, fehler: 'Fehler beim Speichern: ' + error.message }
+  return { erfolg: true }
+}
+
+// ─────────────────────────────────────────────────────────────
+// DATEI-UPLOADS
+// ─────────────────────────────────────────────────────────────
+
+/** Datei-Metadaten nach Upload in Storage speichern. */
+export async function onboardingDateiSpeichern(
+  token: string,
+  datei: {
+    frage_id?: string | null
+    dateiname: string
+    dateityp: string
+    dateigroesse?: number | null
+    storage_pfad: string
+    vorschau_url?: string | null
+  }
+): Promise<{ id: string } | { fehler: string }> {
+  const supabase = createAdminClient()
+
+  const { data: anfrage } = await supabase
+    .from('onboarding_anfragen')
+    .select('id, organisation_id')
+    .eq('token', token)
+    .single()
+
+  if (!anfrage) return { fehler: 'Anfrage nicht gefunden.' }
+
+  const { data, error } = await supabase
+    .from('onboarding_dateien')
+    .insert({
+      anfrage_id:      anfrage.id,
+      organisation_id: anfrage.organisation_id,
+      ...datei,
+    })
+    .select('id')
+    .single()
+
+  if (error || !data) return { fehler: error?.message ?? 'Unbekannter Fehler' }
+  return { id: data.id }
+}
+
+/** Alle Dateien einer Anfrage laden. */
+export async function getOnboardingDateien(anfrageId: string): Promise<OnboardingDatei[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('onboarding_dateien')
+    .select('*')
+    .eq('anfrage_id', anfrageId)
+    .order('created_at')
+  return (data ?? []) as OnboardingDatei[]
+}
+
+/** Datei-Eintrag löschen (Supabase Storage muss separat bereinigt werden). */
+export async function onboardingDateiLoeschen(id: string): Promise<void> {
+  const supabase = await createClient()
+  const orgId    = await getOrganisationId()
+  await supabase
+    .from('onboarding_dateien')
+    .delete()
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+}
+
+// ─────────────────────────────────────────────────────────────
+// INVENTAR
+// ─────────────────────────────────────────────────────────────
+
+/** Inventar-Item anlegen (öffentlich: Kunden füllen aus). */
+export async function inventarItemAnlegen(
+  token: string,
+  item: {
+    bezeichnung: string
+    kategorie?: string | null
+    raum?: string | null
+    zustand?: InventarZustand | null
+    behalten?: boolean
+    foto_url?: string | null
+    notizen?: string | null
+  }
+): Promise<{ id: string } | { fehler: string }> {
+  const supabase = createAdminClient()
+
+  const { data: anfrage } = await supabase
+    .from('onboarding_anfragen')
+    .select('id, organisation_id')
+    .eq('token', token)
+    .single()
+
+  if (!anfrage) return { fehler: 'Anfrage nicht gefunden.' }
+
+  const { data, error } = await supabase
+    .from('onboarding_inventar')
+    .insert({
+      anfrage_id:      anfrage.id,
+      organisation_id: anfrage.organisation_id,
+      behalten:        item.behalten ?? true,
+      ...item,
+    })
+    .select('id')
+    .single()
+
+  if (error || !data) return { fehler: error?.message ?? 'Fehler' }
+  return { id: data.id }
+}
+
+/** Inventar-Item aktualisieren. */
+export async function inventarItemAktualisieren(
+  id: string,
+  updates: Partial<Pick<OnboardingInventarItem, 'bezeichnung' | 'kategorie' | 'raum' | 'zustand' | 'behalten' | 'foto_url' | 'notizen' | 'reihenfolge'>>
+): Promise<void> {
+  const supabase = createAdminClient()
+  await supabase.from('onboarding_inventar').update(updates).eq('id', id)
+}
+
+/** Inventar-Item löschen. */
+export async function inventarItemLoeschen(id: string): Promise<void> {
+  const supabase = createAdminClient()
+  await supabase.from('onboarding_inventar').delete().eq('id', id)
+}
+
+/** Alle Inventar-Items einer Anfrage laden. */
+export async function getInventar(anfrageId: string): Promise<OnboardingInventarItem[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('onboarding_inventar')
+    .select('*')
+    .eq('anfrage_id', anfrageId)
+    .order('reihenfolge')
+  return (data ?? []) as OnboardingInventarItem[]
+}
+
+/** Inventar-Reihenfolge aktualisieren. */
+export async function inventarReihenfolgeAktualisieren(
+  items: { id: string; reihenfolge: number }[]
+): Promise<void> {
+  const supabase = createAdminClient()
+  await Promise.all(
+    items.map(({ id, reihenfolge }) =>
+      supabase.from('onboarding_inventar').update({ reihenfolge }).eq('id', id)
+    )
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// PRIORITÄTEN
+// ─────────────────────────────────────────────────────────────
+
+/** Prioritäten für eine Anfrage/Frage komplett setzen (upsert). */
+export async function prioritaetenSetzen(
+  token: string,
+  frage_id: string,
+  prioritaeten: { bezeichnung: string; icon?: string | null; reihenfolge: number }[]
+): Promise<void> {
+  const supabase = createAdminClient()
+
+  const { data: anfrage } = await supabase
+    .from('onboarding_anfragen')
+    .select('id, organisation_id')
+    .eq('token', token)
+    .single()
+
+  if (!anfrage) return
+
+  // Alte löschen, neue einfügen
+  await supabase
+    .from('onboarding_prioritaeten')
+    .delete()
+    .eq('anfrage_id', anfrage.id)
+    .eq('frage_id', frage_id)
+
+  if (prioritaeten.length === 0) return
+
+  await supabase.from('onboarding_prioritaeten').insert(
+    prioritaeten.map((p) => ({
+      anfrage_id:      anfrage.id,
+      organisation_id: anfrage.organisation_id,
+      frage_id,
+      ...p,
+    }))
+  )
+}
+
+/** Prioritäten einer Anfrage laden. */
+export async function getPrioritaeten(anfrageId: string): Promise<OnboardingPrioritaet[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('onboarding_prioritaeten')
+    .select('*')
+    .eq('anfrage_id', anfrageId)
+    .order('reihenfolge')
+  return (data ?? []) as OnboardingPrioritaet[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// VORLAGEN-CRUD (Erweitert)
+// ─────────────────────────────────────────────────────────────
+
+/** Vorlage mit allen neuen Feldern erstellen. */
+export async function vorlageErstellenV2(params: {
+  name: string
+  beschreibung?: string | null
+  typ?: OnboardingTyp
+  fragen?: OnboardingFrage[]
+  sektionen?: OnboardingSektion[]
+  einleitung_text?: string | null
+  abschluss_text?: string | null
+  logo_url?: string | null
+  akzent_farbe?: string | null
+  redirect_url?: string | null
+  email_betreff?: string | null
+  email_text?: string | null
+  deadline_tage?: number | null
+}): Promise<OnboardingVorlage> {
+  const supabase = await createClient()
+  const orgId    = await getOrganisationId()
+
+  const { data, error } = await supabase
+    .from('onboarding_vorlagen')
+    .insert({
+      name:            params.name,
+      beschreibung:    params.beschreibung ?? null,
+      typ:             params.typ ?? 'neukunde',
+      fragen:          params.fragen ?? [],
+      sektionen:       params.sektionen ?? [],
+      ist_standard:    false,
+      einleitung_text: params.einleitung_text ?? null,
+      abschluss_text:  params.abschluss_text  ?? null,
+      logo_url:        params.logo_url         ?? null,
+      akzent_farbe:    params.akzent_farbe     ?? null,
+      redirect_url:    params.redirect_url     ?? null,
+      email_betreff:   params.email_betreff    ?? null,
+      email_text:      params.email_text       ?? null,
+      deadline_tage:   params.deadline_tage    ?? null,
+      organisation_id: orgId,
+    })
+    .select('*')
+    .single()
+
+  if (error || !data) throw new Error('Fehler beim Erstellen: ' + error?.message)
+  revalidatePath('/dashboard/onboarding')
+  revalidatePath('/dashboard/einstellungen')
+  return data as OnboardingVorlage
+}
+
+/** Vorlage mit allen Feldern aktualisieren. */
+export async function vorlageAktualisierenV2(
+  id: string,
+  params: Partial<Omit<OnboardingVorlage, 'id' | 'organisation_id' | 'created_at' | 'updated_at'>>
+): Promise<void> {
+  const supabase = await createClient()
+  const orgId    = await getOrganisationId()
+  await supabase
+    .from('onboarding_vorlagen')
+    .update({ ...params, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+  revalidatePath('/dashboard/onboarding')
+  revalidatePath('/dashboard/einstellungen')
+}
+
+/** Alle Vorlagen der Organisation laden. */
+export async function getVorlagen(typ?: OnboardingTyp): Promise<OnboardingVorlage[]> {
+  const supabase = await createClient()
+  let query = supabase
+    .from('onboarding_vorlagen')
+    .select('*')
+    .order('ist_standard', { ascending: false })
+    .order('created_at')
+
+  if (typ) query = query.eq('typ', typ)
+
+  const { data } = await query
+  return (data ?? []) as OnboardingVorlage[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN-AKTIONEN
+// ─────────────────────────────────────────────────────────────
+
+/** Status einer Anfrage ändern. */
+export async function onboardingStatusAendernV2(
+  id: string,
+  status: 'offen' | 'in_bearbeitung' | 'abgeschlossen' | 'abgelehnt' | 'abgelaufen'
+): Promise<void> {
+  const supabase = await createClient()
+  const orgId    = await getOrganisationId()
+  await supabase
+    .from('onboarding_anfragen')
+    .update({ status })
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+  revalidatePath('/dashboard/onboarding')
+}
+
+/** Anfrage an ein bestehendes Projekt verknüpfen. */
+export async function anfrageZuProjektVerknuepfen(
+  anfrageId: string,
+  projektId: string
+): Promise<void> {
+  const supabase = await createClient()
+  const orgId    = await getOrganisationId()
+  await supabase
+    .from('onboarding_anfragen')
+    .update({ projekt_id: projektId })
+    .eq('id', anfrageId)
+    .eq('organisation_id', orgId)
+  revalidatePath('/dashboard/onboarding')
+}
+
+/** Kunden + Projekt aus Onboarding-Anfrage automatisch anlegen. */
+export async function kundeUndProjektAusOnboarding(
+  anfrageId: string,
+  optionen?: {
+    raeume_erstellen?: boolean   // Räume aus raumtypen automatisch anlegen
+  }
+): Promise<{ kunde_id: string; projekt_id: string | null }> {
+  const supabase = await createClient()
+  const orgId    = await getOrganisationId()
+
+  const { data: anfrage } = await supabase
+    .from('onboarding_anfragen')
+    .select('*')
+    .eq('id', anfrageId)
+    .eq('organisation_id', orgId)
+    .single()
+
+  if (!anfrage?.kunde_name) throw new Error('Anfrage unvollständig.')
+
+  // Kunden anlegen
+  const { data: kunde, error: kErr } = await supabase
+    .from('kunden')
+    .insert({
+      name:            anfrage.kunde_name,
+      ansprechpartner: anfrage.kunde_name,
+      email:           anfrage.kunde_email,
+      telefon:         anfrage.kunde_telefon,
+      adresse:         anfrage.projekt_adresse,
+      notizen:         anfrage.notizen,
+      status:          'aktiv',
+      organisation_id: orgId,
+    })
+    .select('id')
+    .single()
+
+  if (kErr || !kunde) throw new Error('Fehler beim Anlegen des Kunden: ' + kErr?.message)
+
+  let projektId: string | null = null
+
+  // Projekt anlegen
+  if (anfrage.projekt_name) {
+    const { data: projekt } = await supabase
+      .from('projekte')
+      .insert({
+        kunde_id:        kunde.id,
+        name:            anfrage.projekt_name,
+        standort:        anfrage.projekt_adresse,
+        gesamtbudget:    anfrage.budget_max,
+        status:          'offen',
+        organisation_id: orgId,
+      })
+      .select('id')
+      .single()
+
+    projektId = projekt?.id ?? null
+
+    // Optional: Räume aus raumtypen erstellen
+    if (projektId && optionen?.raeume_erstellen && anfrage.raumtypen?.length) {
+      await Promise.all(
+        anfrage.raumtypen.map((raumtyp: string, i: number) =>
+          supabase.from('raeume').insert({
+            projekt_id:      projektId,
+            name:            raumtyp,
+            organisation_id: orgId,
+            reihenfolge:     i,
+          })
+        )
+      )
+    }
+  }
+
+  // Anfrage abschließen + verknüpfen
+  await supabase
+    .from('onboarding_anfragen')
+    .update({
+      status:          'abgeschlossen',
+      kunde_id:        kunde.id,
+      projekt_id:      projektId,
+      abgeschlossen_am: new Date().toISOString(),
+    })
+    .eq('id', anfrageId)
+    .eq('organisation_id', orgId)
+
+  revalidatePath('/dashboard/onboarding')
+  revalidatePath('/dashboard/kunden')
+  return { kunde_id: kunde.id, projekt_id: projektId }
+}
+
+/** Anfrage löschen. */
+export async function onboardingAnfrageLoeschen(id: string): Promise<void> {
+  const supabase = await createClient()
+  const orgId    = await getOrganisationId()
+  await supabase
+    .from('onboarding_anfragen')
+    .delete()
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+  revalidatePath('/dashboard/onboarding')
+}
+
+// ─────────────────────────────────────────────────────────────
+// DASHBOARD-STATS
+// ─────────────────────────────────────────────────────────────
+
+export interface OnboardingStats {
+  gesamt: number
+  offen: number
+  in_bearbeitung: number
+  abgeschlossen: number
+  abgelehnt: number
+  abgelaufen: number
+  neukunde: number
+  projekt: number
+  universal: number
+}
+
+export async function getOnboardingStats(): Promise<OnboardingStats> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('onboarding_anfragen')
+    .select('status, typ')
+
+  const rows = data ?? []
+  return {
+    gesamt:         rows.length,
+    offen:          rows.filter((r: {status:string}) => r.status === 'offen').length,
+    in_bearbeitung: rows.filter((r: {status:string}) => r.status === 'in_bearbeitung').length,
+    abgeschlossen:  rows.filter((r: {status:string}) => r.status === 'abgeschlossen').length,
+    abgelehnt:      rows.filter((r: {status:string}) => r.status === 'abgelehnt').length,
+    abgelaufen:     rows.filter((r: {status:string}) => r.status === 'abgelaufen').length,
+    neukunde:       rows.filter((r: {typ:string}) => r.typ === 'neukunde').length,
+    projekt:        rows.filter((r: {typ:string}) => r.typ === 'projekt').length,
+    universal:      rows.filter((r: {typ:string}) => r.typ === 'universal').length,
+  }
+}

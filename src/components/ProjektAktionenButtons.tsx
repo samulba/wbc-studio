@@ -8,6 +8,7 @@ import {
   projektWiederherstellen,
   projektDuplizieren,
 } from '@/app/actions/projekte'
+import { ConfirmModal } from '@/components/ConfirmModal'
 
 interface Kunde { id: string; name: string }
 
@@ -118,6 +119,8 @@ export default function ProjektAktionenButtons({
 }) {
   const [modalOffen, setModalOffen]   = useState(false)
   const [menuOffen, setMenuOffen]     = useState(false)
+  const [confirmArchiv, setConfirmArchiv] = useState(false)
+  const [confirmLoeschen, setConfirmLoeschen] = useState(false)
   const [isPending, startTransition]  = useTransition()
   const menuRef                       = useRef<HTMLDivElement>(null)
 
@@ -131,9 +134,9 @@ export default function ProjektAktionenButtons({
   }, [])
 
   function handleArchivieren() {
-    if (!window.confirm(`„${projektName}" archivieren? Das Projekt wird read-only.`)) return
     setMenuOffen(false)
     startTransition(async () => { await projektArchivieren(projektId) })
+    setConfirmArchiv(false)
   }
 
   function handleWiederherstellen() {
@@ -152,8 +155,34 @@ export default function ProjektAktionenButtons({
     )
   }
 
+  function handleLoeschenBestaetigt() {
+    setConfirmLoeschen(false)
+    startTransition(async () => {
+      await loeschenAktion(new FormData())
+    })
+  }
+
   return (
     <>
+      <ConfirmModal
+        isOpen={confirmArchiv}
+        onClose={() => setConfirmArchiv(false)}
+        onConfirm={handleArchivieren}
+        title="Projekt archivieren"
+        message={`„${projektName}" wird archiviert und ist danach read-only. Du kannst es jederzeit wiederherstellen.`}
+        confirmText="Archivieren"
+        variant="warning"
+        isLoading={isPending}
+      />
+      <ConfirmModal
+        isOpen={confirmLoeschen}
+        onClose={() => setConfirmLoeschen(false)}
+        onConfirm={handleLoeschenBestaetigt}
+        title="Projekt löschen"
+        message={`„${projektName}" wird unwiderruflich gelöscht. Alle zugehörigen Räume und Produkte werden entfernt.`}
+        confirmText="Endgültig löschen"
+        isLoading={isPending}
+      />
       {modalOffen && (
         <DuplizierenModal
           projektId={projektId}
@@ -187,29 +216,24 @@ export default function ProjektAktionenButtons({
 
             {/* Archivieren */}
             <button
-              onClick={handleArchivieren} disabled={isPending}
+              onClick={() => { setMenuOffen(false); setConfirmArchiv(true) }} disabled={isPending}
               className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
               <Archive className="w-3.5 h-3.5 text-gray-400" />
-              {isPending ? 'Wird archiviert…' : 'Archivieren'}
+              Archivieren
             </button>
 
             <div className="h-px bg-gray-100 my-1" />
 
             {/* Löschen */}
-            <form action={loeschenAktion}>
-              <button
-                type="submit"
-                onClick={(e) => {
-                  if (!confirm(`„${projektName}" wirklich löschen?`)) e.preventDefault()
-                  else setMenuOffen(false)
-                }}
-                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-red-500 hover:bg-red-50 transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Löschen
-              </button>
-            </form>
+            <button
+              type="button"
+              onClick={() => { setMenuOffen(false); setConfirmLoeschen(true) }}
+              className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs text-red-500 hover:bg-red-50 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Löschen
+            </button>
           </div>
         )}
       </div>
