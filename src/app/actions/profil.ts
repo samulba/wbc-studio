@@ -28,10 +28,16 @@ export async function updateProfil(
 }
 
 /**
- * Aktualisiert Vor- und Nachname des aktuell eingeloggten Users
- * auf allen seinen team_mitglieder-Einträgen (Multi-Org-Fall abgedeckt).
- * Außerdem wird full_name in auth.user_metadata synchron gehalten — damit
- * er auch in Kommentaren/Logs als Name auftaucht.
+ * Aktualisiert Vor- und Nachname des aktuell eingeloggten Users.
+ *
+ * Source-of-Truth-Regel: team_mitglieder ist maßgeblich.
+ * auth.user_metadata (full_name/vorname/nachname) wird aus DB gespiegelt —
+ * damit der Name auch in Supabase-Logs, Kommentaren und Auth-Hooks
+ * zuverlässig auftaucht, ohne dass wir überall joinen müssen.
+ * Kein umgekehrter Sync (auth → DB).
+ *
+ * Multi-Org-Fall: ein User kann in mehreren Organisationen Mitglied sein;
+ * Update betrifft alle seine Einträge.
  */
 export async function benutzerNamenAktualisieren(
   prevState: ProfilActionState,
@@ -64,9 +70,15 @@ export async function benutzerNamenAktualisieren(
     return { fehler: 'Name konnte nicht gespeichert werden.' }
   }
 
-  // full_name in auth.user_metadata mitziehen
+  // auth.user_metadata spiegeln: full_name + vorname + nachname
   const fullName = [vorname, nachname].filter(Boolean).join(' ') || null
-  await supabase.auth.updateUser({ data: { full_name: fullName } })
+  await supabase.auth.updateUser({
+    data: {
+      full_name: fullName,
+      vorname:   vorname  || null,
+      nachname:  nachname || null,
+    },
+  })
 
   revalidatePath('/dashboard/einstellungen')
   revalidatePath('/dashboard')
