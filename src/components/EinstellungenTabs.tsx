@@ -17,7 +17,7 @@ import {
   einladungZurueckziehen,
   type TeamActionState,
 } from '@/app/actions/team'
-import { updatePasswort, type ProfilActionState } from '@/app/actions/profil'
+import { updatePasswort, benutzerNamenAktualisieren, type ProfilActionState } from '@/app/actions/profil'
 import AvatarUpload from './AvatarUpload'
 import type { TeamMitglied, Rolle, Branding } from '@/lib/supabase/types'
 import { ROLLEN_CONFIG } from '@/lib/permissions'
@@ -76,10 +76,11 @@ function Meldung({ state }: { state: AnyState }) {
 
 function Feld({
   label, name, defaultValue, type = 'text',
-  required, min, max, step, hint,
+  required, min, max, step, hint, placeholder,
 }: {
   label: string; name: string; defaultValue?: string; type?: string
   required?: boolean; min?: string; max?: string; step?: string; hint?: string
+  placeholder?: string
 }) {
   return (
     <div>
@@ -87,7 +88,7 @@ function Feld({
       {hint && <p className="text-xs text-gray-400 mb-1.5">{hint}</p>}
       <input
         name={name} type={type} defaultValue={defaultValue}
-        required={required} min={min} max={max} step={step}
+        required={required} min={min} max={max} step={step} placeholder={placeholder}
         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green-light"
       />
     </div>
@@ -138,13 +139,20 @@ function Abschnitt({
 function ProfilTab({
   userEmail,
   userAvatarUrl,
+  userVorname,
+  userNachname,
   lastSignIn,
 }: {
   userEmail: string
   userAvatarUrl: string | null
+  userVorname: string | null
+  userNachname: string | null
   lastSignIn: string | null
 }) {
   const [passwortState, passwortAction] = useFormState(updatePasswort, null)
+  const [namenState,    namenAction]    = useFormState(benutzerNamenAktualisieren, null)
+
+  const nameLabel = [userVorname, userNachname].filter(Boolean).join(' ') || userEmail
 
   const letzteAnmeldung = lastSignIn
     ? new Date(lastSignIn).toLocaleString('de-DE', {
@@ -157,7 +165,21 @@ function ProfilTab({
     <div className="space-y-6 max-w-2xl">
       {/* Profilbild */}
       <Abschnitt titel="Profilbild" beschreibung="Erscheint im Team-Tab und in Kommentaren">
-        <AvatarUpload initialUrl={userAvatarUrl} userLabel={userEmail} />
+        <AvatarUpload initialUrl={userAvatarUrl} userLabel={nameLabel} />
+      </Abschnitt>
+
+      {/* Name */}
+      <Abschnitt titel="Dein Name" beschreibung="Wie andere dich im Team sehen">
+        <form action={namenAction} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Feld label="Vorname"  name="vorname"  defaultValue={userVorname  ?? ''} placeholder="Max" />
+            <Feld label="Nachname" name="nachname" defaultValue={userNachname ?? ''} placeholder="Mustermann" />
+          </div>
+          <div className="flex items-center gap-3 pt-1">
+            <SubmitButton label="Name speichern" />
+            <Meldung state={namenState} />
+          </div>
+        </form>
       </Abschnitt>
 
       {/* Konto-Info */}
@@ -1051,6 +1073,8 @@ export default function EinstellungenTabs({
   userEmail,
   userId,
   userAvatarUrl,
+  userVorname,
+  userNachname,
   lastSignIn,
   branding,
   vorlagen,
@@ -1062,6 +1086,8 @@ export default function EinstellungenTabs({
   userEmail: string
   userId: string
   userAvatarUrl: string | null
+  userVorname: string | null
+  userNachname: string | null
   lastSignIn: string | null
   branding: Branding | null
   vorlagen: VertragsVorlage[]
@@ -1090,7 +1116,7 @@ export default function EinstellungenTabs({
       </div>
 
       {/* Inhalt */}
-      {aktuellerTab === 'profil'             && <ProfilTab userEmail={userEmail} userAvatarUrl={userAvatarUrl} lastSignIn={lastSignIn} />}
+      {aktuellerTab === 'profil'             && <ProfilTab userEmail={userEmail} userAvatarUrl={userAvatarUrl} userVorname={userVorname} userNachname={userNachname} lastSignIn={lastSignIn} />}
       {aktuellerTab === 'workspace'          && <WorkspaceTab einstellungen={einstellungen} />}
       {aktuellerTab === 'branding' && istAdmin && <BrandingTab branding={branding} />}
       {aktuellerTab === 'team'               && <TeamTab team={team} userRolle={userRolle} userId={userId} userEmail={userEmail} lastSignIn={lastSignIn} />}

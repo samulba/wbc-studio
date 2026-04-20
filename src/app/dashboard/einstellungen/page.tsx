@@ -24,16 +24,20 @@ export default async function EinstellungenPage({
     getVorlagen(),
   ])
 
-  // Avatar-URL aus team_mitglieder laden (Migration 061)
+  // Avatar-URL + Vor-/Nachname aus team_mitglieder laden (Migrations 061 + 062)
   let userAvatarUrl: string | null = null
+  let userVorname:   string | null = null
+  let userNachname:  string | null = null
   if (user) {
     const { data: me } = await supabase
       .from('team_mitglieder')
-      .select('avatar_url')
+      .select('avatar_url, vorname, nachname')
       .eq('user_id', user.id)
       .limit(1)
       .maybeSingle()
     userAvatarUrl = (me?.avatar_url as string | null) ?? null
+    userVorname   = (me?.vorname    as string | null) ?? null
+    userNachname  = (me?.nachname   as string | null) ?? null
   }
 
   return (
@@ -48,6 +52,8 @@ export default async function EinstellungenPage({
           userEmail={user?.email ?? ''}
           userId={user?.id ?? ''}
           userAvatarUrl={userAvatarUrl}
+          userVorname={userVorname}
+          userNachname={userNachname}
           lastSignIn={user?.last_sign_in_at ?? null}
           branding={branding}
           vorlagen={vorlagen}

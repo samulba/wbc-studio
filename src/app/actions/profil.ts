@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 
 export type ProfilActionState = { fehler?: string; erfolg?: string } | null
@@ -24,6 +25,52 @@ export async function updateProfil(
 
   revalidatePath('/dashboard/profil')
   return { erfolg: 'Profil aktualisiert.' }
+}
+
+/**
+ * Aktualisiert Vor- und Nachname des aktuell eingeloggten Users
+ * auf allen seinen team_mitglieder-Einträgen (Multi-Org-Fall abgedeckt).
+ * Außerdem wird full_name in auth.user_metadata synchron gehalten — damit
+ * er auch in Kommentaren/Logs als Name auftaucht.
+ */
+export async function benutzerNamenAktualisieren(
+  prevState: ProfilActionState,
+  formData: FormData,
+): Promise<ProfilActionState> {
+  const vorname  = ((formData.get('vorname')  as string) ?? '').trim()
+  const nachname = ((formData.get('nachname') as string) ?? '').trim()
+
+  if (vorname.length > 100 || nachname.length > 100) {
+    return { fehler: 'Name ist zu lang (max. 100 Zeichen).' }
+  }
+
+  const supabase = await createClient()
+  const { data: { user }, error: userErr } = await supabase.auth.getUser()
+  if (userErr || !user) return { fehler: 'Nicht angemeldet.' }
+
+  const admin = createAdminClient()
+
+  // Alle team_mitglieder-Einträge des Users updaten (Multi-Org)
+  const { error: dbErr } = await admin
+    .from('team_mitglieder')
+    .update({
+      vorname:  vorname  || null,
+      nachname: nachname || null,
+    })
+    .eq('user_id', user.id)
+
+  if (dbErr) {
+    console.error('[benutzerNamenAktualisieren] DB-Update fehlgeschlagen:', dbErr)
+    return { fehler: 'Name konnte nicht gespeichert werden.' }
+  }
+
+  // full_name in auth.user_metadata mitziehen
+  const fullName = [vorname, nachname].filter(Boolean).join(' ') || null
+  await supabase.auth.updateUser({ data: { full_name: fullName } })
+
+  revalidatePath('/dashboard/einstellungen')
+  revalidatePath('/dashboard')
+  return { erfolg: 'Name gespeichert.' }
 }
 
 export async function updatePasswort(
