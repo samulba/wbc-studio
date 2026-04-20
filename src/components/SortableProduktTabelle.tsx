@@ -188,8 +188,11 @@ function SortableProduktZeile({
             type="button"
             onClick={onToggleExpand}
             aria-label={expanded ? 'Details einklappen' : 'Details einblenden'}
-            className={`inline-flex items-center justify-center w-6 h-6 rounded-md transition-colors ${
-              expanded ? 'bg-wellbeing-cream/70 text-wellbeing-green' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+            title={expanded ? 'Details einklappen' : 'Bestelldaten & interne Kalkulation anzeigen'}
+            className={`inline-flex items-center justify-center w-7 h-7 rounded-lg transition-colors border ${
+              expanded
+                ? 'bg-wellbeing-cream/70 text-wellbeing-green border-wellbeing-green/30'
+                : 'text-gray-400 border-transparent hover:bg-gray-100 hover:text-gray-600 hover:border-gray-200'
             }`}
           >
             <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`} />
@@ -249,12 +252,31 @@ function SortableProduktZeile({
           </span>
         </td>
 
-        {/* Bestellung */}
+        {/* Bestellung + inline Datum */}
         <td className="px-3 py-3.5 text-center align-middle">
-          <BestellStatusDropdown
-            status={bestellstatus}
-            onChange={(s) => onBestellstatusChange(eintrag.id, s)}
-          />
+          <div className="inline-flex flex-col items-center gap-1">
+            <BestellStatusDropdown
+              status={bestellstatus}
+              onChange={(s) => onBestellstatusChange(eintrag.id, s)}
+            />
+            {(() => {
+              // Zeige das passendste Datum direkt unter dem Badge
+              if (bestellstatus === 'geliefert' || bestellstatus === 'rechnung_erhalten') {
+                if (p.lieferung_erhalten_am) {
+                  return <span className="text-[10px] text-gray-400 inline-flex items-center gap-1"><PackageCheck className="w-2.5 h-2.5" /> {fmtDate(p.lieferung_erhalten_am)}</span>
+                }
+              }
+              if (bestellstatus === 'bestellt') {
+                if (p.liefertermin) {
+                  return <span className="text-[10px] text-gray-400 inline-flex items-center gap-1"><Truck className="w-2.5 h-2.5" /> erw. {fmtDate(p.liefertermin)}</span>
+                }
+                if (p.bestellt_am) {
+                  return <span className="text-[10px] text-gray-400 inline-flex items-center gap-1"><CalendarDays className="w-2.5 h-2.5" /> {fmtDate(p.bestellt_am)}</span>
+                }
+              }
+              return null
+            })()}
+          </div>
         </td>
 
         {/* Aktionen */}
@@ -393,6 +415,11 @@ function fmtProzent(n: number) {
   return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 }).format(n)} %`
 }
 
+function fmtDate(iso: string) {
+  const d = new Date(iso)
+  return new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit' }).format(d)
+}
+
 // ── Tabelle ─────────────────────────────────────────────────────
 
 const th = 'px-4 py-3 text-[10px] font-semibold text-gray-400 uppercase tracking-widest'
@@ -414,8 +441,16 @@ export default function SortableProduktTabelle({
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [fehlerToast, setFehlerToast] = useState<string | null>(null)
 
-  useEffect(() => setEintraege(initialEintraege), [initialEintraege])
+  // Sync mit Server-Daten NUR wenn sich die ID-Liste oder Reihenfolge ändert
+  // (z.B. nach Filter-Wechsel oder Add/Remove). Wir resetten NICHT bei jedem
+  // initialEintraege-Reference-Change, weil das den optimistischen Status zurücksetzen würde.
+  const initialIdsKey = initialEintraege.map((e) => e.id).join(',')
+  useEffect(() => {
+    setEintraege(initialEintraege)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialIdsKey])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -447,14 +482,27 @@ export default function SortableProduktTabelle({
   }
 
   async function handleBestellstatusChange(raumProduktId: string, neuerStatus: BestellStatus) {
+    const eintrag = eintraege.find((e) => e.id === raumProduktId)
+    if (!eintrag) return
+    const alterStatus = (eintrag.produkte.bestellstatus ?? 'ausstehend') as BestellStatus
+
+    // Optimistisch
     setEintraege((prev) =>
       prev.map((e) => (e.id === raumProduktId ? { ...e, produkte: { ...e.produkte, bestellstatus: neuerStatus } } : e))
     )
-    const eintrag = eintraege.find((e) => e.id === raumProduktId)
-    if (eintrag) {
-      await bestellstatusAendern(eintrag.produkt_id, raumId, projektId, neuerStatus)
-      startTransition(() => router.refresh())
+
+    const res = await bestellstatusAendern(eintrag.produkt_id, raumId, projektId, neuerStatus)
+    if (res?.fehler) {
+      // Rollback
+      setEintraege((prev) =>
+        prev.map((e) => (e.id === raumProduktId ? { ...e, produkte: { ...e.produkte, bestellstatus: alterStatus } } : e))
+      )
+      setFehlerToast('Bestellstatus konnte nicht gespeichert werden.')
+      setTimeout(() => setFehlerToast(null), 4000)
+      return
     }
+    // Kein router.refresh() hier — sonst überschreibt Server-State unseren optimistischen
+    // Update bevor revalidatePath durch ist. Der nächste page-load holt eh frische Daten.
   }
 
   async function handleDatumChange(raumProduktId: string, feld: ProduktDatumFeld, wert: string | null) {
@@ -479,6 +527,14 @@ export default function SortableProduktTabelle({
 
   return (
     <>
+      {/* Hint-Strip: erklärt das Expand-Feature */}
+      <div className="flex items-center justify-between px-4 py-2 bg-wellbeing-cream/30 border-b border-wellbeing-cream/60 text-[11px] text-wellbeing-green-dark">
+        <span className="inline-flex items-center gap-1.5">
+          <ChevronRight className="w-3 h-3" />
+          Klick auf das Pfeil-Icon einer Zeile zeigt <strong className="font-semibold">Bestell- & Lieferdaten</strong> sowie interne Kalkulation
+        </span>
+      </div>
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={eintraege.map((e) => e.id)} strategy={verticalListSortingStrategy}>
           <div className="overflow-x-auto overflow-y-auto max-h-[60vh]">
@@ -516,6 +572,14 @@ export default function SortableProduktTabelle({
           </div>
         </SortableContext>
       </DndContext>
+
+      {/* Fehler-Toast */}
+      {fehlerToast && (
+        <div className="fixed bottom-6 right-6 z-[100] bg-red-600 text-white text-sm px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 animate-fadeIn">
+          <X className="w-4 h-4" />
+          {fehlerToast}
+        </div>
+      )}
 
       {/* Lösch-Bestätigungs-Modal */}
       {deleteTarget && (

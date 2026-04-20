@@ -302,15 +302,20 @@ export async function bestellstatusAendern(
   raumId: string,
   projektId: string,
   neuerStatus: BestellStatus
-): Promise<void> {
+): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
-  await supabase
+  const { error } = await supabase
     .from('produkte')
     .update({ bestellstatus: neuerStatus })
     .eq('id', produktId)
     .eq('organisation_id', orgId)
+  if (error) {
+    console.error('bestellstatusAendern failed:', error)
+    return { fehler: error.message }
+  }
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  return {}
 }
 
 export type ProduktDatumFeld = 'bestellt_am' | 'liefertermin' | 'lieferung_erhalten_am'
