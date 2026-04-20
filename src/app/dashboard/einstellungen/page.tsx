@@ -4,6 +4,7 @@ import { teamMitgliederAbrufen, meineRolleAbrufen } from '@/app/actions/team'
 import { brandingAbrufen } from '@/app/actions/branding'
 import { getVorlagen } from '@/app/actions/vertraege'
 import EinstellungenTabs from '@/components/EinstellungenTabs'
+import StickyPageHeader from '@/components/StickyPageHeader'
 
 export default async function EinstellungenPage({
   searchParams,
@@ -24,19 +25,21 @@ export default async function EinstellungenPage({
   ])
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
-      <h1 className="text-xl font-semibold text-gray-900 mb-6">Einstellungen</h1>
-      <EinstellungenTabs
-        aktuellerTab={tab}
-        einstellungen={einstellungen}
-        team={team}
-        userRolle={userRolle}
-        userEmail={user?.email ?? ''}
-        userId={user?.id ?? ''}
-        lastSignIn={user?.last_sign_in_at ?? null}
-        branding={branding}
-        vorlagen={vorlagen}
-      />
+    <div className="flex-1 overflow-y-auto animate-fadeIn">
+      <StickyPageHeader title="Einstellungen" />
+      <div className="px-6 py-6">
+        <EinstellungenTabs
+          aktuellerTab={tab}
+          einstellungen={einstellungen}
+          team={team}
+          userRolle={userRolle}
+          userEmail={user?.email ?? ''}
+          userId={user?.id ?? ''}
+          lastSignIn={user?.last_sign_in_at ?? null}
+          branding={branding}
+          vorlagen={vorlagen}
+        />
+      </div>
     </div>
   )
 }

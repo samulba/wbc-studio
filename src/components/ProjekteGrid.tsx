@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, LayoutGrid, List, MapPin, Banknote, DoorOpen, AlertCircle, Archive } from 'lucide-react'
+import Image from 'next/image'
+import { Search, LayoutGrid, List, MapPin, DoorOpen, AlertCircle, Archive, Clock } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
 export type ProjektMitStats = {
@@ -15,10 +16,39 @@ export type ProjektMitStats = {
   created_at: string
   archiviert: boolean
   archiviert_am: string | null
-  kunden: { id: string; name: string } | null
+  deadline: string | null
+  kunden: { id: string; name: string; logo_url: string | null } | null
   raeumCount: number
   offeneFreigaben: number
   vpGesamt: number
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+const avatarFarben = [
+  'bg-wellbeing-green', 'bg-violet-500', 'bg-blue-500',
+  'bg-emerald-500', 'bg-rose-500', 'bg-amber-500',
+]
+function avatarFarbe(s: string) { return avatarFarben[(s.charCodeAt(0) || 0) % avatarFarben.length] }
+function initials(name: string) { return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2) }
+
+function deadlineChip(deadline: string): { label: string; cls: string; Icon: typeof Clock } {
+  const now = new Date()
+  const d   = new Date(deadline)
+  const diffMs   = d.getTime() - now.getTime()
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays < 0) {
+    return { label: `${Math.abs(diffDays)}T überfällig`, cls: 'bg-red-50 text-red-600 border-red-100', Icon: Clock }
+  }
+  if (diffDays === 0) {
+    return { label: 'Heute fällig', cls: 'bg-red-50 text-red-600 border-red-100', Icon: Clock }
+  }
+  if (diffDays <= 7) {
+    return { label: `in ${diffDays}T`, cls: 'bg-amber-50 text-amber-700 border-amber-100', Icon: Clock }
+  }
+  if (diffDays <= 30) {
+    return { label: `in ${diffDays}T`, cls: 'bg-wellbeing-cream text-wellbeing-green-dark border-wellbeing-cream', Icon: Clock }
+  }
+  return { label: d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }), cls: 'bg-gray-50 text-gray-500 border-gray-100', Icon: Clock }
 }
 
 // ── Konstanten ────────────────────────────────────────────────
@@ -36,21 +66,33 @@ const statusFarbe: Record<string, string> = {
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 
-function BudgetBar({ vp, budget }: { vp: number; budget: number }) {
+function BudgetRing({ vp, budget, size = 54 }: { vp: number; budget: number; size?: number }) {
   if (budget <= 0) return null
-  const pct = Math.min(100, Math.round((vp / budget) * 100))
-  const farbe = pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-400' : 'bg-emerald-500'
+  const pct = Math.min(100, Math.max(0, Math.round((vp / budget) * 100)))
+  const stroke = 4
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  const dash = (pct / 100) * c
+  const farbe = pct >= 90 ? '#ef4444' : pct >= 70 ? '#f59e0b' : '#10b981'
   return (
-    <div className="mt-2">
-      <div className="flex items-center justify-between text-[10px] text-gray-400 mb-1">
-        <span>VP-Einsatz</span>
-        <span className={pct >= 90 ? 'text-red-500 font-semibold' : pct >= 70 ? 'text-amber-600' : 'text-emerald-600'}>
-          {pct} %
-        </span>
-      </div>
-      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${farbe}`} style={{ width: `${pct}%` }} />
-      </div>
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#f3f4f6" strokeWidth={stroke} />
+        <circle
+          cx={size/2} cy={size/2} r={r}
+          fill="none" stroke={farbe} strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={`${dash} ${c - dash}`}
+          transform={`rotate(-90 ${size/2} ${size/2})`}
+          style={{ transition: 'stroke-dasharray 0.4s ease' }}
+        />
+      </svg>
+      <span
+        className="absolute inset-0 flex items-center justify-center font-mono font-semibold"
+        style={{ fontSize: Math.max(9, size * 0.22), color: farbe }}
+      >
+        {pct}%
+      </span>
     </div>
   )
 }
@@ -195,55 +237,118 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
       {/* Grid */}
       {gefiltert.length > 0 && ansicht === 'grid' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {gefiltert.map((p) => (
-            <Link key={p.id} href={`/dashboard/projekte/${p.id}`}
-              className={`bg-white border rounded-xl p-5 hover:shadow-md transition-all duration-200 group block ${
-                p.archiviert
-                  ? 'border-gray-200 opacity-70 hover:opacity-100 hover:border-gray-300'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}>
-              <div className="flex items-start justify-between mb-3 gap-2">
-                {p.archiviert ? (
-                  <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500 shrink-0">
-                    <Archive className="w-3 h-3" /> Archiviert
-                  </span>
-                ) : (
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium shrink-0 ${statusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                    {statusLabel[p.status] ?? p.status}
-                  </span>
-                )}
-                {p.projektart && <span className="text-xs text-gray-400 truncate">{p.projektart}</span>}
-              </div>
+          {gefiltert.map((p) => {
+            const kunde = p.kunden
+            const deadline = !p.archiviert && p.deadline ? deadlineChip(p.deadline) : null
+            const DeadlineIcon = deadline?.Icon
+            return (
+              <Link
+                key={p.id}
+                href={`/dashboard/projekte/${p.id}`}
+                className={`relative bg-white border rounded-2xl overflow-hidden transition-all duration-300 group block ${
+                  p.archiviert
+                    ? 'border-gray-200 opacity-70 hover:opacity-100'
+                    : 'border-gray-200 hover:border-wellbeing-green/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-gray-200/70'
+                }`}
+              >
+                {/* Status-Accent-Stripe am oberen Rand */}
+                <div className={`h-1 w-full ${
+                  p.archiviert ? 'bg-gray-200'
+                  : p.status === 'freigegeben' ? 'bg-emerald-400'
+                  : p.status === 'in_bearbeitung' ? 'bg-blue-400'
+                  : p.status === 'abgeschlossen' ? 'bg-gray-300'
+                  : 'bg-wellbeing-green-light'
+                }`} />
 
-              <h2 className="text-sm font-semibold text-gray-900 group-hover:text-wellbeing-green transition-colors leading-snug mb-1">{p.name}</h2>
-              <p className="text-xs text-gray-500 mb-3">{p.kunden?.name ?? '–'}</p>
+                <div className="p-5">
+                  {/* Kopf: Kunden-Avatar + Status-Badge + Deadline */}
+                  <div className="flex items-start justify-between gap-2 mb-4">
+                    {/* Kunde */}
+                    {kunde?.logo_url ? (
+                      <div className="w-11 h-11 rounded-xl overflow-hidden border border-gray-200 bg-white shrink-0">
+                        <Image src={kunde.logo_url} alt={kunde.name} width={44} height={44} className="w-full h-full object-cover" unoptimized />
+                      </div>
+                    ) : (
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xs font-bold text-white shrink-0 ${avatarFarbe(kunde?.name ?? '?')}`}>
+                        {kunde?.name ? initials(kunde.name) : '–'}
+                      </div>
+                    )}
 
-              {/* Budget Bar */}
-              {p.gesamtbudget != null && p.vpGesamt > 0 && (
-                <BudgetBar vp={p.vpGesamt} budget={p.gesamtbudget} />
-              )}
-
-              <div className="flex flex-col gap-1 text-xs text-gray-400 border-t border-gray-100 pt-3 mt-3">
-                {p.standort && <div className="flex items-center gap-1"><MapPin className="w-3 h-3 shrink-0" /><span className="truncate">{p.standort}</span></div>}
-                {p.gesamtbudget != null && (
-                  <div className="flex items-center gap-1 text-gray-500 font-medium">
-                    <Banknote className="w-3 h-3 shrink-0" />{eur(p.gesamtbudget)}
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      {deadline && DeadlineIcon && (
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${deadline.cls}`}>
+                          <DeadlineIcon className="w-2.5 h-2.5" />
+                          {deadline.label}
+                        </span>
+                      )}
+                      {p.archiviert ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold bg-gray-100 text-gray-500">
+                          <Archive className="w-2.5 h-2.5" /> Archiviert
+                        </span>
+                      ) : (
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {statusLabel[p.status] ?? p.status}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                )}
-              </div>
 
-              <div className="flex items-center gap-3 mt-3 pt-2 border-t border-gray-100">
-                <span className="flex items-center gap-1 text-xs text-gray-400">
-                  <DoorOpen className="w-3.5 h-3.5" />{p.raeumCount}
-                </span>
-                {p.offeneFreigaben > 0 && (
-                  <span className="flex items-center gap-1 text-xs text-amber-600 font-medium">
-                    <AlertCircle className="w-3.5 h-3.5" />{p.offeneFreigaben} offen
-                  </span>
-                )}
-              </div>
-            </Link>
-          ))}
+                  {/* Name + Kunde */}
+                  <h2 className="text-[15px] font-semibold text-gray-900 group-hover:text-wellbeing-green transition-colors leading-snug line-clamp-2 mb-0.5 min-h-[40px]">
+                    {p.name}
+                  </h2>
+                  <p className="text-xs text-gray-500 mb-4 truncate">
+                    {kunde?.name ?? '–'}
+                    {p.projektart && <span className="text-gray-300"> · {p.projektart}</span>}
+                  </p>
+
+                  {/* Budget-Ring + Details (Split) */}
+                  <div className="flex items-center gap-3 py-3 border-t border-gray-100">
+                    {p.gesamtbudget != null && p.gesamtbudget > 0 ? (
+                      <>
+                        <BudgetRing vp={p.vpGesamt} budget={p.gesamtbudget} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">Budget</p>
+                          <p className="text-sm font-mono font-semibold text-gray-900 leading-tight">
+                            {eur(p.vpGesamt)}
+                            <span className="text-gray-400 font-normal"> / {eur(p.gesamtbudget)}</span>
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-0.5">VP-Summe</p>
+                        <p className="text-sm font-mono font-semibold text-gray-700">
+                          {p.vpGesamt > 0 ? eur(p.vpGesamt) : '—'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Footer: Räume + offene Freigaben + Standort */}
+                  <div className="flex items-center gap-3 pt-3 border-t border-gray-100 text-xs">
+                    <span className="inline-flex items-center gap-1 text-gray-500">
+                      <DoorOpen className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="font-medium">{p.raeumCount}</span>
+                      <span className="text-gray-400">{p.raeumCount === 1 ? 'Raum' : 'Räume'}</span>
+                    </span>
+                    {p.offeneFreigaben > 0 && (
+                      <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md font-medium">
+                        <AlertCircle className="w-3 h-3" />
+                        {p.offeneFreigaben}
+                      </span>
+                    )}
+                    {p.standort && (
+                      <span className="inline-flex items-center gap-1 text-gray-400 ml-auto min-w-0">
+                        <MapPin className="w-3 h-3 shrink-0" />
+                        <span className="truncate max-w-[110px]">{p.standort}</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
         </div>
       )}
 

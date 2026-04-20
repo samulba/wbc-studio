@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Package } from 'lucide-react'
 import ProdukteTabelle, { type ProduktZeile } from '@/components/ProdukteTabelle'
 import NeuesProduktModal from '@/components/NeuesProduktModal'
+import StickyPageHeader from '@/components/StickyPageHeader'
 import type { KategorieOption } from '@/components/KategorieDropdown'
 import type { ProjektOption, RaumOption } from '@/components/ProduktZuweisenModal'
 import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
@@ -72,29 +73,29 @@ export default async function ProdukteSeite() {
   const kategorienListe: KategorieOption[] = kategorienRoh.map((k) => ({ name: k.name, icon: k.icon }))
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Produkte</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{produkte.length} Produkte in der Bibliothek</p>
-        </div>
-        <NeuesProduktModal />
+    <div className="flex-1 overflow-y-auto animate-fadeIn">
+      <StickyPageHeader
+        title="Produkte"
+        count={produkte.length}
+        countLabel={produkte.length === 1 ? 'Produkt in der Bibliothek' : 'Produkte in der Bibliothek'}
+        action={<NeuesProduktModal />}
+      />
+      <div className="px-6 py-6">
+        {produkte.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-wellbeing-cream flex items-center justify-center">
+              <Package className="w-7 h-7 text-wellbeing-green-light" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium text-gray-700">Noch keine Produkte angelegt</p>
+              <p className="text-xs text-gray-400 mt-1">Lege Produkte in einem Projekt → Raum an oder füge zur Bibliothek hinzu.</p>
+            </div>
+            <NeuesProduktModal />
+          </div>
+        ) : (
+          <ProdukteTabelle produkte={produkte} kategorienListe={kategorienListe} projekte={projekte} raeume={raeume} mwst={mwst} />
+        )}
       </div>
-
-      {produkte.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-wellbeing-cream flex items-center justify-center">
-            <Package className="w-7 h-7 text-wellbeing-green-light" />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-gray-700">Noch keine Produkte angelegt</p>
-            <p className="text-xs text-gray-400 mt-1">Lege Produkte in einem Projekt → Raum an oder füge zur Bibliothek hinzu.</p>
-          </div>
-          <NeuesProduktModal />
-        </div>
-      ) : (
-        <ProdukteTabelle produkte={produkte} kategorienListe={kategorienListe} projekte={projekte} raeume={raeume} mwst={mwst} />
-      )}
     </div>
   )
 }

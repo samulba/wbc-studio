@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Plus, Users } from 'lucide-react'
 import KundenGrid, { type KundeKarte } from '@/components/KundenGrid'
+import StickyPageHeader from '@/components/StickyPageHeader'
 
 async function getKunden(): Promise<KundeKarte[]> {
   const supabase = await createClient()
@@ -32,21 +33,21 @@ export default async function KundenPage() {
   const kunden = await getKunden()
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Kunden</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{kunden.length} Einträge</p>
-        </div>
-        <Link
-          href="/dashboard/kunden/neu"
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Neuer Kunde
-        </Link>
-      </div>
-
+    <div className="flex-1 overflow-y-auto animate-fadeIn">
+      <StickyPageHeader
+        title="Kunden"
+        count={kunden.length}
+        action={
+          <Link
+            href="/dashboard/kunden/neu"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Neuer Kunde
+          </Link>
+        }
+      />
+      <div className="px-6 py-6">
       {kunden.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 gap-4">
           <div className="w-14 h-14 rounded-2xl bg-wellbeing-cream flex items-center justify-center">
@@ -66,6 +67,7 @@ export default async function KundenPage() {
       ) : (
         <KundenGrid kunden={kunden} />
       )}
+      </div>
     </div>
   )
 }
