@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from 'react'
 import Image from 'next/image'
 import { Save, Upload, Eye, EyeOff, RotateCcw, Loader2, Check } from 'lucide-react'
-import { brandingAktualisieren, brandingLogoHochladen, type BrandingDaten } from '@/app/actions/branding'
+import { brandingAktualisieren, brandingLogoHochladen, brandingHeroHochladen, type BrandingDaten } from '@/app/actions/branding'
 import type { Branding } from '@/lib/supabase/types'
 import { ConfirmModal } from '@/components/ConfirmModal'
 
@@ -41,6 +41,15 @@ const DEFAULTS: Omit<Branding, 'id' | 'logo_url' | 'favicon_url' | 'created_at' 
   datenschutz_url:   null,
   show_powered_by:   true,
   custom_css:        null,
+  // Migration 066
+  support_email:        null,
+  footer_text:          null,
+  hero_image_url:       null,
+  accent_gradient_from: null,
+  accent_gradient_to:   null,
+  corner_style:         'soft',
+  social_instagram:     null,
+  social_website:       null,
 }
 
 // ── Farbfeld ─────────────────────────────────────────────────
@@ -262,6 +271,91 @@ function LogoUpload({ currentUrl, onChange }: { currentUrl: string | null; onCha
   )
 }
 
+// ── Hero-Image-Upload ────────────────────────────────────────
+function HeroImageUpload({ currentUrl, onChange }: { currentUrl: string | null; onChange: (url: string | null) => void }) {
+  const [isPending, startTransition] = useTransition()
+  const [fehler, setFehler]   = useState<string | null>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const anzeigeUrl = preview ?? currentUrl
+
+  function handleFile(file: File) {
+    setFehler(null)
+    if (!file.type.startsWith('image/')) { setFehler('Nur Bilddateien sind erlaubt.'); return }
+    if (file.size > 50 * 1024 * 1024)    { setFehler('Datei ist zu groß (max. 50 MB).'); return }
+
+    const reader = new FileReader()
+    reader.onload = (ev) => setPreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+
+    const formData = new FormData()
+    formData.append('hero', file)
+
+    startTransition(async () => {
+      const res = await brandingHeroHochladen(null, formData)
+      if (res?.fehler) { setFehler(res.fehler); setPreview(null) }
+      else if (res?.url) { onChange(res.url); setPreview(null) }
+    })
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => !isPending && inputRef.current?.click()}
+        className="relative group block w-full aspect-[16/6] rounded-2xl overflow-hidden border-2 border-dashed border-gray-300 bg-gray-50 hover:border-wellbeing-green transition-colors"
+        title="Hero-Bild hochladen"
+      >
+        {anzeigeUrl ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={anzeigeUrl} alt="Hero-Vorschau" className="w-full h-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <Upload className="w-6 h-6 text-gray-400" />
+            <span className="text-xs text-gray-500 font-medium">Hero-Bild hochladen</span>
+            <span className="text-[10px] text-gray-400">empfohlen: 1600×600</span>
+          </div>
+        )}
+        {anzeigeUrl && (
+          <span className="absolute inset-0 bg-black/40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+            {isPending
+              ? <Loader2 className="w-6 h-6 animate-spin" />
+              : <Upload className="w-6 h-6" />}
+          </span>
+        )}
+      </button>
+      <div className="flex items-center justify-between mt-2">
+        <p className="text-[11px] text-gray-400">
+          PNG, JPG, WebP · max. 50 MB · wird automatisch gespeichert
+        </p>
+        {anzeigeUrl && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            disabled={isPending}
+            className="text-[11px] text-gray-400 hover:text-red-500 transition-colors"
+          >
+            Entfernen
+          </button>
+        )}
+      </div>
+      {fehler && <p className="text-[11px] text-red-500 mt-1">{fehler}</p>}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f) handleFile(f)
+          e.target.value = ''
+        }}
+      />
+    </div>
+  )
+}
+
 // ── Haupt-Komponente ──────────────────────────────────────────
 export default function BrandingEditor({ branding: initial }: { branding: Branding | null }) {
   const def = DEFAULTS
@@ -284,6 +378,15 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
     datenschutz_url: initial?.datenschutz_url  ?? null,
     show_powered_by: initial?.show_powered_by  ?? def.show_powered_by,
     custom_css:      initial?.custom_css       ?? null,
+    // Migration 066
+    support_email:        initial?.support_email        ?? null,
+    footer_text:          initial?.footer_text          ?? null,
+    hero_image_url:       initial?.hero_image_url       ?? null,
+    accent_gradient_from: initial?.accent_gradient_from ?? null,
+    accent_gradient_to:   initial?.accent_gradient_to   ?? null,
+    corner_style:         initial?.corner_style         ?? 'soft',
+    social_instagram:     initial?.social_instagram     ?? null,
+    social_website:       initial?.social_website       ?? null,
   })
   const [logoUrl,      setLogoUrl]      = useState(initial?.logo_url ?? null)
   const [vorschau,     setVorschau]     = useState(true)
@@ -319,6 +422,15 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
         datenschutz_url: form.datenschutz_url  ?? null,
         show_powered_by: form.show_powered_by  ?? true,
         custom_css:      form.custom_css       ?? null,
+        // Migration 066
+        support_email:        form.support_email        ?? null,
+        footer_text:          form.footer_text          ?? null,
+        hero_image_url:       form.hero_image_url       ?? null,
+        accent_gradient_from: form.accent_gradient_from ?? null,
+        accent_gradient_to:   form.accent_gradient_to   ?? null,
+        corner_style:         form.corner_style         ?? 'soft',
+        social_instagram:     form.social_instagram     ?? null,
+        social_website:       form.social_website       ?? null,
       }
       const result = await brandingAktualisieren(daten)
       if (result.fehler) {
@@ -449,6 +561,132 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
               ))}
             </select>
             <p className="text-xs text-gray-400 mt-1.5">Wird im Firmenname-Label auf Freigabe- und Onboarding-Seiten verwendet.</p>
+          </div>
+        </section>
+
+        {/* Layout & Ecken */}
+        <section className="bg-white border border-gray-200 rounded-2xl p-6">
+          <h2 className="text-sm font-semibold text-gray-900 mb-1">Layout-Stil</h2>
+          <p className="text-xs text-gray-500 mb-4">Wie stark sollen Ecken im Portal gerundet sein?</p>
+          <div className="grid grid-cols-3 gap-3">
+            {([
+              { w: 'sharp',   l: 'Kantig',   r: '6px',   desc: 'Minimalistisch, streng' },
+              { w: 'soft',    l: 'Weich',    r: '14px',  desc: 'Ausgewogen (Standard)' },
+              { w: 'rounded', l: 'Rundlich', r: '20px',  desc: 'Verspielt, weich' },
+            ] as const).map((opt) => {
+              const aktiv = (form.corner_style ?? 'soft') === opt.w
+              return (
+                <button
+                  key={opt.w}
+                  type="button"
+                  onClick={() => set('corner_style', opt.w)}
+                  className={`text-left p-4 border transition-all ${
+                    aktiv
+                      ? 'border-wellbeing-green bg-wellbeing-cream/50 ring-2 ring-wellbeing-green/20'
+                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                  }`}
+                  style={{ borderRadius: opt.r }}
+                >
+                  <div
+                    className="w-full h-8 bg-gray-100 mb-2"
+                    style={{ borderRadius: opt.r }}
+                  />
+                  <p className="text-xs font-semibold text-gray-800">{opt.l}</p>
+                  <p className="text-[10px] text-gray-400">{opt.desc}</p>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* Hero-Bild + Akzent-Gradient */}
+        <section className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900 mb-1">Hero-Hintergrund</h2>
+            <p className="text-xs text-gray-500 mb-4">
+              Optionaler Bild-Hintergrund für Portal-Login + Dashboard-Hero.
+              Alternativ zum Primary-Gradient.
+            </p>
+            <HeroImageUpload
+              currentUrl={form.hero_image_url ?? null}
+              onChange={(url) => set('hero_image_url', url)}
+            />
+          </div>
+
+          <div className="pt-5 border-t border-gray-100">
+            <h3 className="text-xs font-semibold text-gray-800 mb-3">Akzent-Verlauf (Gradient)</h3>
+            <p className="text-[11px] text-gray-500 mb-3">
+              Zwei Farben für Brand-Verläufe auf Hero-Kacheln. Leer lassen → Primärfarbe + Sekundärfarbe werden genutzt.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <FarbFeld
+                label="Von"
+                beschreibung="Start-Farbe"
+                value={form.accent_gradient_from ?? ''}
+                onChange={(v) => set('accent_gradient_from', v || null)}
+              />
+              <FarbFeld
+                label="Bis"
+                beschreibung="End-Farbe"
+                value={form.accent_gradient_to ?? ''}
+                onChange={(v) => set('accent_gradient_to', v || null)}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Portal-Texte & Support */}
+        <section className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-900 mb-1">Portal-Texte</h2>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Support-E-Mail <span className="text-gray-400 font-normal">im Portal-Footer sichtbar</span>
+            </label>
+            <input
+              type="email"
+              value={form.support_email ?? ''}
+              onChange={(e) => set('support_email', e.target.value || null)}
+              placeholder="hello@dein-studio.de"
+              className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">
+              Footer-Text <span className="text-gray-400 font-normal">optional</span>
+            </label>
+            <textarea
+              value={form.footer_text ?? ''}
+              onChange={(e) => set('footer_text', e.target.value || null)}
+              rows={2}
+              maxLength={200}
+              placeholder="© 2026 Mein Studio · Alle Rechte vorbehalten"
+              className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition resize-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Instagram</label>
+              <input
+                type="text"
+                value={form.social_instagram ?? ''}
+                onChange={(e) => set('social_instagram', e.target.value || null)}
+                placeholder="@mein_studio oder URL"
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Website</label>
+              <input
+                type="text"
+                value={form.social_website ?? ''}
+                onChange={(e) => set('social_website', e.target.value || null)}
+                placeholder="https://dein-studio.de"
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition"
+              />
+            </div>
           </div>
         </section>
 

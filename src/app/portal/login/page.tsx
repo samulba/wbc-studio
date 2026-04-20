@@ -6,30 +6,45 @@ export default async function PortalLoginPage() {
   const branding = await brandingFuerToken()
   const firma    = branding?.firmenname ?? 'Wellbeing Spaces'
   const prim     = branding?.primary_color ?? '#445c49'
-  const slogan   = (branding as { slogan?: string | null })?.slogan ?? null
+  const slogan   = branding?.slogan ?? null
+  const heroImage = branding?.hero_image_url ?? null
+  const supportEmail = branding?.support_email ?? null
+  const footerText   = branding?.footer_text ?? null
 
   return (
     <div className="min-h-screen relative flex flex-col items-center justify-center px-4 py-12 overflow-hidden">
-      {/* Subtiler Brand-Orb im Hintergrund */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-32 -right-32 w-[520px] h-[520px] rounded-full opacity-40 blur-[90px]"
-        style={{ background: `radial-gradient(circle, rgba(var(--brand-primary-rgb), 0.35), transparent 70%)` }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-24 -left-24 w-[420px] h-[420px] rounded-full opacity-30 blur-[80px]"
-        style={{ background: `radial-gradient(circle, rgba(var(--brand-primary-rgb), 0.22), transparent 70%)` }}
-      />
-      {/* Dezentes Dot-Pattern */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.035]"
-        style={{
-          backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)',
-          backgroundSize: '28px 28px',
-        }}
-      />
+      {/* Hero-Hintergrund: Bild mit Overlay ODER Radial-Orbs als Fallback */}
+      {heroImage ? (
+        <>
+          <div
+            aria-hidden
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url('${heroImage}')` }}
+          />
+          <div aria-hidden className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+        </>
+      ) : (
+        <>
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -top-32 -right-32 w-[520px] h-[520px] rounded-full opacity-40 blur-[90px]"
+            style={{ background: `radial-gradient(circle, rgba(var(--brand-primary-rgb), 0.35), transparent 70%)` }}
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -bottom-24 -left-24 w-[420px] h-[420px] rounded-full opacity-30 blur-[80px]"
+            style={{ background: `radial-gradient(circle, rgba(var(--brand-primary-rgb), 0.22), transparent 70%)` }}
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-[0.035]"
+            style={{
+              backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)',
+              backgroundSize: '28px 28px',
+            }}
+          />
+        </>
+      )}
 
       <div className="relative w-full max-w-[400px]">
         {/* Logo / Marke */}
@@ -76,9 +91,21 @@ export default async function PortalLoginPage() {
           <LoginForm prim={prim} />
         </div>
 
-        <p className="mt-6 text-center text-[11px] opacity-50">
-          Probleme beim Anmelden? Kontaktiere {firma}.
-        </p>
+        <div className={`mt-6 text-center text-[11px] ${heroImage ? 'text-white/70' : 'opacity-50'}`}>
+          {supportEmail ? (
+            <p>
+              Probleme beim Anmelden?{' '}
+              <a href={`mailto:${supportEmail}`} className="underline hover:opacity-80">
+                {supportEmail}
+              </a>
+            </p>
+          ) : (
+            <p>Probleme beim Anmelden? Kontaktiere {firma}.</p>
+          )}
+          {footerText && (
+            <p className="mt-2 opacity-80 whitespace-pre-line">{footerText}</p>
+          )}
+        </div>
       </div>
     </div>
   )

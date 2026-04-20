@@ -17,8 +17,13 @@ export default async function PortalDashboardPage() {
   const { session, projekte, aktivitaeten, ungelesenNachrichten } = daten
   const firma        = branding?.firmenname     ?? 'Wellbeing Spaces'
   const prim         = branding?.primary_color  ?? '#445c49'
-  const welcomeText  = (branding as { welcome_text?: string | null })?.welcome_text ?? null
-  const slogan       = (branding as { slogan?: string | null })?.slogan ?? null
+  const welcomeText  = branding?.welcome_text ?? null
+  const slogan       = branding?.slogan ?? null
+  const heroImage    = branding?.hero_image_url ?? null
+  const gradFrom     = branding?.accent_gradient_from ?? null
+  const gradTo       = branding?.accent_gradient_to ?? null
+  const footerText   = branding?.footer_text ?? null
+  const supportEmail = branding?.support_email ?? null
 
   const offeneFreigaben = projekte.reduce((s, p) => s + p.stats.ausstehend, 0)
 
@@ -64,18 +69,31 @@ export default async function PortalDashboardPage() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
 
         {/* Hero */}
-        <section className="relative mb-10 rounded-3xl overflow-hidden border border-black/[0.06] bg-white p-8 shadow-sm">
-          <div
-            aria-hidden
-            className="absolute -top-16 -right-16 w-80 h-80 rounded-full opacity-30 blur-[90px]"
-            style={{ background: `radial-gradient(circle, rgba(var(--brand-primary-rgb), 0.4), transparent 70%)` }}
-          />
-          <div className="relative">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-50 mb-2">Dein Portal</p>
-            <h1 className="text-3xl md:text-[38px] font-bold leading-tight tracking-tight" style={{ color: 'var(--brand-text, #111827)' }}>
+        <section
+          className={`relative mb-10 brand-radius-lg overflow-hidden border border-black/[0.06] shadow-sm ${heroImage ? 'brand-hero-surface' : 'bg-white'}`}
+        >
+          {heroImage ? null : (
+            <div
+              aria-hidden
+              className="absolute -top-16 -right-16 w-80 h-80 rounded-full opacity-30 blur-[90px]"
+              style={{
+                background: (gradFrom && gradTo)
+                  ? `linear-gradient(135deg, ${gradFrom}, ${gradTo})`
+                  : `radial-gradient(circle, rgba(var(--brand-primary-rgb), 0.4), transparent 70%)`,
+              }}
+            />
+          )}
+          <div className="relative p-8">
+            <p className={`text-xs font-semibold uppercase tracking-[0.2em] mb-2 ${heroImage ? 'opacity-80 text-white/90' : 'opacity-50'}`}>
+              Dein Portal
+            </p>
+            <h1
+              className="text-3xl md:text-[38px] font-bold leading-tight tracking-tight"
+              style={{ color: heroImage ? '#fff' : 'var(--brand-text, #111827)' }}
+            >
               Willkommen, {session.vorname}.
             </h1>
-            <p className="mt-3 text-[15px] opacity-70 leading-relaxed max-w-xl">
+            <p className={`mt-3 text-[15px] leading-relaxed max-w-xl ${heroImage ? 'text-white/85' : 'opacity-70'}`}>
               {welcomeText ?? `Hier findest du alle deine Projekte mit ${firma} auf einen Blick – Fortschritt, offene Freigaben und Nachrichten.`}
             </p>
           </div>
@@ -199,11 +217,25 @@ export default async function PortalDashboardPage() {
           </aside>
         </div>
 
-        {branding?.show_powered_by !== false && (
-          <p className="text-center text-[10px] opacity-40 mt-12">
-            Kunden-Portal · powered by Wellbeing Spaces
-          </p>
-        )}
+        {/* Footer */}
+        <footer className="mt-14 pt-8 border-t border-black/[0.06] text-center space-y-2">
+          {footerText && (
+            <p className="text-xs opacity-60 whitespace-pre-line">{footerText}</p>
+          )}
+          {supportEmail && (
+            <p className="text-xs opacity-50">
+              Fragen? Schreib uns an{' '}
+              <a href={`mailto:${supportEmail}`} className="underline hover:opacity-80">
+                {supportEmail}
+              </a>
+            </p>
+          )}
+          {branding?.show_powered_by !== false && (
+            <p className="text-[10px] opacity-40">
+              Kunden-Portal · powered by Wellbeing Spaces
+            </p>
+          )}
+        </footer>
       </main>
     </div>
   )

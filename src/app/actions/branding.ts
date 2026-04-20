@@ -1,5 +1,6 @@
 'use server'
 
+import { cookies } from 'next/headers'
 import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
@@ -21,18 +22,67 @@ export async function brandingAbrufen(): Promise<Branding | null> {
   return (data as Branding | null) ?? null
 }
 
-// ── Branding laden (öffentlich, für Token-Seiten + Portal) ────
-export async function brandingFuerToken(): Promise<Branding | null> {
-  // Admin-Client umgeht RLS (wird in /portal aufgerufen, wo kein User
-  // eingeloggt ist; single-tenant Installation: erster Eintrag)
+/**
+ * Branding für eine bestimmte Organisation laden (Admin-Client).
+ * Interne Nutzung durch brandingFuerToken() — nie direkt aus Client-Code
+ * ohne vorherige Auth-Validierung aufrufen.
+ */
+async function brandingFuerOrg(orgId: string): Promise<Branding | null> {
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('branding')
     .select('*')
-    .order('created_at')
+    .eq('organisation_id', orgId)
     .limit(1)
     .maybeSingle()
   return (data as Branding | null) ?? null
+}
+
+/**
+ * Ermittelt die Organisation aus Portal-Kontext (portal_session-Cookie ODER
+ * einladungs_token im URL-Pfad) und lädt das zugehörige Branding.
+ *
+ * Wichtig für Multi-Tenancy: Wenn mehrere Organisationen das System nutzen,
+ * muss das Portal IHR Branding zeigen — nie das der ersten Organisation in
+ * der DB. Daher wird die Org strikt aus dem Auth-Kontext hergeleitet.
+ *
+ * Fallback (kein Kontext, z.B. Login-Seite vor Auth) → null → Default-Style
+ * aus Portal-Layout greift (Wellbeing-Spaces-Defaults).
+ */
+export async function brandingFuerToken(einladungsToken?: string | null): Promise<Branding | null> {
+  const admin = createAdminClient()
+
+  // 1) Aus Einladungslink-Token (public, noch nicht eingeloggt)
+  if (einladungsToken) {
+    const { data: einladung } = await admin
+      .from('client_users')
+      .select('kunde_id, kunden(organisation_id)')
+      .eq('einladungs_token', einladungsToken)
+      .maybeSingle()
+    const orgId = (einladung as { kunden?: { organisation_id?: string } | null } | null)
+      ?.kunden?.organisation_id
+    if (orgId) return brandingFuerOrg(orgId)
+  }
+
+  // 2) Aus Portal-Session-Cookie (eingeloggter Kunde)
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get('portal_session')?.value
+    if (token) {
+      const { data: session } = await admin
+        .from('client_users')
+        .select('kunde_id, kunden(organisation_id)')
+        .eq('session_token', token)
+        .eq('aktiv', true)
+        .maybeSingle()
+      const orgId = (session as { kunden?: { organisation_id?: string } | null } | null)
+        ?.kunden?.organisation_id
+      if (orgId) return brandingFuerOrg(orgId)
+    }
+  } catch { /* außerhalb Request-Kontext */ }
+
+  // Kein Kontext auflösbar → Default
+  return null
 }
 
 // ── Branding speichern ────────────────────────────────────────
@@ -119,15 +169,14 @@ function safeExt(original: string): string {
   return ACCEPT_EXT.has(ext) ? ext : 'png'
 }
 
-export async function brandingLogoHochladen(
-  prevState: { fehler?: string; url?: string } | null,
-  formData: FormData,
+type BrandingAssetTyp = 'logo' | 'hero'
+
+async function uploadBrandingAsset(
+  typ: BrandingAssetTyp,
+  file: File,
 ): Promise<{ fehler?: string; url?: string }> {
-  const file = formData.get('logo') as File | null
-  if (!file || file.size === 0) return { fehler: 'Keine Datei ausgewählt.' }
   if (file.size > MAX_MB * 1024 * 1024) return { fehler: `Datei ist zu groß (max. ${MAX_MB} MB).` }
 
-  // Auth + Org-Ownership
   const userClient = await createClient()
   const { data: { user } } = await userClient.auth.getUser()
   if (!user) return { fehler: 'Nicht angemeldet.' }
@@ -140,7 +189,7 @@ export async function brandingLogoHochladen(
   if (!id) return { fehler: 'Branding-Datensatz konnte nicht angelegt werden.' }
 
   const admin = createAdminClient()
-  const path  = `${orgId}/logo.${safeExt(file.name)}`
+  const path  = `${orgId}/${typ}.${safeExt(file.name)}`
   const bytes = new Uint8Array(await file.arrayBuffer())
 
   const { error: uploadError } = await admin.storage
@@ -151,25 +200,44 @@ export async function brandingLogoHochladen(
     })
 
   if (uploadError) {
-    console.error('[brandingLogoHochladen] Storage-Upload fehlgeschlagen:', uploadError)
+    console.error(`[branding:${typ}] Storage-Upload fehlgeschlagen:`, uploadError)
     return { fehler: `Upload fehlgeschlagen: ${uploadError.message}` }
   }
 
   const { data: urlData } = admin.storage.from('branding').getPublicUrl(path)
-  const logo_url = `${urlData.publicUrl}?t=${Date.now()}`
+  const url = `${urlData.publicUrl}?t=${Date.now()}`
 
+  const column = typ === 'logo' ? 'logo_url' : 'hero_image_url'
   const { error: dbError } = await admin
     .from('branding')
-    .update({ logo_url })
+    .update({ [column]: url })
     .eq('id', id)
 
   if (dbError) {
-    console.error('[brandingLogoHochladen] DB-Update fehlgeschlagen:', dbError)
+    console.error(`[branding:${typ}] DB-Update fehlgeschlagen:`, dbError)
     return { fehler: 'URL konnte nicht gespeichert werden.' }
   }
 
   revalidatePath('/dashboard/einstellungen')
   revalidatePath('/portal')
   revalidatePath('/portal/dashboard')
-  return { url: logo_url }
+  return { url }
+}
+
+export async function brandingLogoHochladen(
+  prevState: { fehler?: string; url?: string } | null,
+  formData: FormData,
+): Promise<{ fehler?: string; url?: string }> {
+  const file = formData.get('logo') as File | null
+  if (!file || file.size === 0) return { fehler: 'Keine Datei ausgewählt.' }
+  return uploadBrandingAsset('logo', file)
+}
+
+export async function brandingHeroHochladen(
+  prevState: { fehler?: string; url?: string } | null,
+  formData: FormData,
+): Promise<{ fehler?: string; url?: string }> {
+  const file = formData.get('hero') as File | null
+  if (!file || file.size === 0) return { fehler: 'Keine Datei ausgewählt.' }
+  return uploadBrandingAsset('hero', file)
 }

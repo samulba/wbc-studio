@@ -663,6 +663,15 @@ export interface Branding {
   welcome_text: string | null
   slogan: string | null
   button_text_color: string
+  // Migration 066 — Branding-Vollausbau
+  support_email: string | null
+  footer_text: string | null
+  hero_image_url: string | null
+  accent_gradient_from: string | null
+  accent_gradient_to: string | null
+  corner_style: 'soft' | 'rounded' | 'sharp'
+  social_instagram: string | null
+  social_website: string | null
   created_at: string
   updated_at: string
 }

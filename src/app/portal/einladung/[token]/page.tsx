@@ -9,7 +9,7 @@ interface Props { params: { token: string } }
 export default async function EinladungPage({ params }: Props) {
   const [einladung, branding] = await Promise.all([
     einladungValidieren(params.token),
-    brandingFuerToken(),
+    brandingFuerToken(params.token),
   ])
 
   const firma = branding?.firmenname    ?? 'Wellbeing Spaces'
