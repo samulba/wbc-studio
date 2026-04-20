@@ -1,11 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { kundeSoftDelete } from '@/app/actions/kunden'
 import { portalBenutzerAbrufen } from '@/app/actions/portal'
 import { getKommunikation } from '@/app/actions/kommunikation'
+import { meineRolleAbrufen } from '@/app/actions/team'
+import { istAdmin } from '@/lib/permissions'
 import { Plus } from 'lucide-react'
-import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
+import KundeLoeschenModal from '@/components/KundeLoeschenModal'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
 import KundenPortalSection from '@/components/KundenPortalSection'
@@ -39,16 +40,17 @@ async function getNotizen(kundeId: string): Promise<Notiz[]> {
 }
 
 export default async function KundeDetailPage({ params }: { params: { id: string } }) {
-  const [kunde, projekte, notizen, portalUser, kommunikation] = await Promise.all([
+  const [kunde, projekte, notizen, portalUser, kommunikation, rolle] = await Promise.all([
     getKunde(params.id),
     getProjekte(params.id),
     getNotizen(params.id),
     portalBenutzerAbrufen(params.id),
     getKommunikation(params.id),
+    meineRolleAbrufen(),
   ])
   if (!kunde) notFound()
 
-  const loeschenMitId = kundeSoftDelete.bind(null, kunde.id)
+  const darfLoeschen = istAdmin(rolle)
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
@@ -70,10 +72,9 @@ export default async function KundeDetailPage({ params }: { params: { id: string
           >
             Bearbeiten
           </Link>
-          <ConfirmDeleteButton
-            action={loeschenMitId}
-            confirmMessage={`„${kunde.name}" wirklich löschen?`}
-          />
+          {darfLoeschen && (
+            <KundeLoeschenModal kundeId={kunde.id} kundeName={kunde.name} />
+          )}
         </div>
       </div>
 

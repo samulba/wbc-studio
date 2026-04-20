@@ -5,6 +5,13 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-21
 
+### Kunde löschen jetzt sicher
+- Beim Löschen siehst du auf einen Blick **was alles dranhängt** (Projekte, Räume, Produkte, Angebote, Verträge, Notizen, Nachrichten, Portal-Zugänge)
+- Warnung wenn aktive Angebote/Verträge existieren
+- **Kunden-Name muss exakt eingetippt werden** — schützt vor versehentlichen Klicks
+- **Nur Admins** sehen den Löschen-Button überhaupt
+- Neuer **„Archiv"**-Link (nur für Admins): zeigt gelöschte Kunden, Wiederherstellen mit 1 Klick — 30 Tage lang möglich
+
 ### Änderungs-Log (diese Seite)
 - Neuer Tab **Änderungen** unter Einstellungen mit allen Updates chronologisch
 - Badge „Neu" neben Einstellungen in der Sidebar, wenn seit deinem letzten Besuch etwas Neues hinzugekommen ist
