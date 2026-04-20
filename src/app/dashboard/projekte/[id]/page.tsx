@@ -7,7 +7,6 @@ import DateiUpload from '@/components/DateiUpload'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import { raumAnlegen } from '@/app/actions/raeume'
 import { projektSoftDelete } from '@/app/actions/projekte'
-import ProjektStatusButtons from '@/components/ProjektStatusButtons'
 import { projektEventsAbrufen } from '@/app/actions/timeline'
 import { Timeline } from '@/components/Timeline'
 import {
@@ -305,10 +304,6 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
           )}
         </div>
 
-        {/* Status Buttons */}
-        <div className="mt-3">
-          <ProjektStatusButtons projektId={projekt.id} initialStatus={projekt.status} disabled={istArchiviert} />
-        </div>
       </div>
 
       {/* ── Kunde + Details Strip (full-width) ─────────────────── */}

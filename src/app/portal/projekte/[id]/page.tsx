@@ -8,11 +8,6 @@ import { ChevronLeft, LogOut, User } from 'lucide-react'
 
 interface Props { params: { id: string } }
 
-const STATUS_LABEL: Record<string, string> = {
-  offen: 'Offen', in_bearbeitung: 'In Bearbeitung',
-  freigegeben: 'Freigegeben', abgeschlossen: 'Abgeschlossen',
-}
-
 export default async function PortalProjektPage({ params }: Props) {
   const [daten, branding] = await Promise.all([
     portalProjektAbrufen(params.id).catch(() => null),
@@ -61,16 +56,9 @@ export default async function PortalProjektPage({ params }: Props) {
           <Link href="/portal/dashboard" className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-gray-700 mb-3 transition">
             <ChevronLeft className="w-3 h-3" /> Meine Projekte
           </Link>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{projekt.name}</h1>
-              {projekt.standort && <p className="text-sm text-gray-500 mt-0.5">{projekt.standort}</p>}
-            </div>
-            {projekt.status && (
-              <span className="shrink-0 text-xs px-3 py-1.5 rounded-full font-medium bg-gray-100 text-gray-600">
-                {STATUS_LABEL[projekt.status] ?? projekt.status}
-              </span>
-            )}
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{projekt.name}</h1>
+            {projekt.standort && <p className="text-sm text-gray-500 mt-0.5">{projekt.standort}</p>}
           </div>
         </div>
 

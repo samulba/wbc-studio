@@ -7,10 +7,14 @@ import StickyPageHeader from '@/components/StickyPageHeader'
 async function getProjekteMitStats(): Promise<ProjektMitStats[]> {
   const supabase = await createClient()
 
-  const [{ data: projekte }, { data: raeume }, { data: produkte }] = await Promise.all([
+  // Wir laden raum_produkte (Junction) + produkte zusammen — deckt Bibliotheks-
+  // Produkte, die erst via raum_produkte in einen Raum verlinkt sind, korrekt ab.
+  const [{ data: projekte }, { data: raeume }, { data: rps }] = await Promise.all([
     supabase.from('projekte').select('*, kunden(id, name, logo_url)').is('deleted_at', null).order('archiviert').order('created_at', { ascending: false }),
     supabase.from('raeume').select('id, projekt_id').is('deleted_at', null),
-    supabase.from('produkte').select('raum_id, verkaufspreis, menge, produktstatus(status)').is('deleted_at', null),
+    supabase
+      .from('raum_produkte')
+      .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, produkte(verkaufspreis, deleted_at, bestellstatus, produktstatus(status))'),
   ])
 
   // raum_id → projekt_id
@@ -21,30 +25,73 @@ async function getProjekteMitStats(): Promise<ProjektMitStats[]> {
     raumCount[r.projekt_id] = (raumCount[r.projekt_id] ?? 0) + 1
   }
 
-  const offeneFreigaben: Record<string, number> = {}
-  const vpGesamt: Record<string, number> = {}
+  const produkteGesamt:   Record<string, number> = {}
+  const freigegebenCount: Record<string, number> = {}
+  const bestelltCount:    Record<string, number> = {}
+  const geliefertCount:   Record<string, number> = {}
+  const vpGesamt:         Record<string, number> = {}
 
-  for (const p of produkte ?? []) {
-    const pid = raumProjektMap[p.raum_id]
+  type Row = {
+    raum_id: string
+    menge: number
+    verkaufspreis_override: number | null
+    rabatt_prozent: number | null
+    produkte: {
+      verkaufspreis: number | null
+      deleted_at: string | null
+      bestellstatus: string | null
+      produktstatus: { status: string } | { status: string }[] | null
+    } | null
+  }
+  for (const e of (rps ?? []) as unknown as Row[]) {
+    const pid = raumProjektMap[e.raum_id]
     if (!pid) continue
-    const statusObj = Array.isArray(p.produktstatus) ? p.produktstatus[0] : p.produktstatus
-    const status = statusObj?.status ?? 'ausstehend'
-    if (status === 'ausstehend' || status === 'ueberarbeitung') {
-      offeneFreigaben[pid] = (offeneFreigaben[pid] ?? 0) + 1
+    const prod = e.produkte
+    if (!prod || prod.deleted_at != null) continue
+
+    produkteGesamt[pid] = (produkteGesamt[pid] ?? 0) + 1
+
+    // Effektiver VP netto (Override → Rabatt) * Menge
+    const basis = e.verkaufspreis_override ?? prod.verkaufspreis ?? 0
+    const rabatt = e.rabatt_prozent ?? 0
+    const vp = Math.round(basis * (1 - rabatt / 100) * 100) / 100
+    vpGesamt[pid] = (vpGesamt[pid] ?? 0) + vp * e.menge
+
+    // Freigabe
+    const psRaw = prod.produktstatus
+    const ps = Array.isArray(psRaw) ? psRaw[0] : psRaw
+    if (ps?.status === 'freigegeben') {
+      freigegebenCount[pid] = (freigegebenCount[pid] ?? 0) + 1
     }
-    vpGesamt[pid] = (vpGesamt[pid] ?? 0) + (p.verkaufspreis ?? 0) * p.menge
+
+    // Bestell-/Liefer-Status
+    const bs = prod.bestellstatus ?? 'ausstehend'
+    if (bs === 'bestellt' || bs === 'geliefert' || bs === 'rechnung_erhalten') {
+      bestelltCount[pid] = (bestelltCount[pid] ?? 0) + 1
+    }
+    if (bs === 'geliefert' || bs === 'rechnung_erhalten') {
+      geliefertCount[pid] = (geliefertCount[pid] ?? 0) + 1
+    }
   }
 
-  return (projekte ?? []).map((p) => ({
-    ...p,
-    kunden:          p.kunden as { id: string; name: string; logo_url: string | null } | null,
-    archiviert:      p.archiviert ?? false,
-    archiviert_am:   p.archiviert_am ?? null,
-    deadline:        p.deadline ?? null,
-    raeumCount:      raumCount[p.id]      ?? 0,
-    offeneFreigaben: offeneFreigaben[p.id] ?? 0,
-    vpGesamt:        Math.round((vpGesamt[p.id] ?? 0) * 100) / 100,
-  }))
+  return (projekte ?? []).map((p) => {
+    const gesamt = produkteGesamt[p.id] ?? 0
+    const freig  = freigegebenCount[p.id] ?? 0
+    return {
+      ...p,
+      kunden:          p.kunden as { id: string; name: string; logo_url: string | null } | null,
+      archiviert:      p.archiviert ?? false,
+      archiviert_am:   p.archiviert_am ?? null,
+      deadline:        p.deadline ?? null,
+      raeumCount:      raumCount[p.id] ?? 0,
+      produkteGesamt:  gesamt,
+      freigegeben:     freig,
+      offeneFreigaben: Math.max(0, gesamt - freig),
+      bestellt:        bestelltCount[p.id]  ?? 0,
+      geliefert:       geliefertCount[p.id] ?? 0,
+      vpGesamt:        Math.round((vpGesamt[p.id] ?? 0) * 100) / 100,
+    }
+  })
 }
 
 export default async function ProjektePage() {

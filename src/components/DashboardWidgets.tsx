@@ -63,18 +63,6 @@ export interface LetzesProjekt {
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 
-const statusFarbe: Record<string, string> = {
-  offen:          'bg-gray-100 text-gray-600',
-  in_bearbeitung: 'bg-blue-50 text-blue-700',
-  freigegeben:    'bg-emerald-50 text-emerald-700',
-  abgeschlossen:  'bg-gray-100 text-gray-500',
-}
-const statusLabel: Record<string, string> = {
-  offen:          'Offen',
-  in_bearbeitung: 'In Bearbeitung',
-  freigegeben:    'Freigegeben',
-  abgeschlossen:  'Abgeschlossen',
-}
 
 const typIcon: Record<string, React.ElementType> = {
   email:     Mail,
@@ -408,7 +396,6 @@ export function LetzteProjekte({ projekte }: { projekte: LetzesProjekt[] }) {
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-widest">Projekt</th>
                 <th className="text-left px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-widest">Kunde</th>
-                <th className="text-left px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-widest">Status</th>
                 <th className="text-left px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-widest">Deadline</th>
                 <th className="text-left px-5 py-2.5 text-xs font-medium text-gray-500 uppercase tracking-widest">Budget</th>
                 <th className="w-8" />
@@ -428,11 +415,6 @@ export function LetzteProjekte({ projekte }: { projekte: LetzesProjekt[] }) {
                       </Link>
                     </td>
                     <td className="px-5 py-3 text-gray-500 text-xs">{p.kundenName ?? '–'}</td>
-                    <td className="px-5 py-3">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${statusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {statusLabel[p.status] ?? p.status}
-                      </span>
-                    </td>
                     <td className="px-5 py-3">
                       {dl !== null ? (
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${dl < 0 ? 'text-red-600 bg-red-50' : dl <= 7 ? 'text-amber-700 bg-amber-50' : 'text-gray-500 bg-gray-50'}`}>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Search, LayoutGrid, List, MapPin, DoorOpen, AlertCircle, Archive, Clock } from 'lucide-react'
+import { Search, LayoutGrid, List, MapPin, DoorOpen, Archive, Clock, CheckCircle2, Package, Truck } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
 export type ProjektMitStats = {
@@ -19,7 +19,11 @@ export type ProjektMitStats = {
   deadline: string | null
   kunden: { id: string; name: string; logo_url: string | null } | null
   raeumCount: number
+  produkteGesamt: number
+  freigegeben: number
   offeneFreigaben: number
+  bestellt: number
+  geliefert: number
   vpGesamt: number
 }
 
@@ -51,18 +55,35 @@ function deadlineChip(deadline: string): { label: string; cls: string; Icon: typ
   return { label: d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }), cls: 'bg-gray-50 text-gray-500 border-gray-100', Icon: Clock }
 }
 
-// ── Konstanten ────────────────────────────────────────────────
-const statusLabel: Record<string, string> = {
-  offen: 'Offen', in_bearbeitung: 'In Bearbeitung',
-  freigegeben: 'Freigegeben', abgeschlossen: 'Abgeschlossen',
-}
-const statusFarbe: Record<string, string> = {
-  offen:          'bg-gray-100 text-gray-600',
-  in_bearbeitung: 'bg-blue-50 text-blue-700',
-  freigegeben:    'bg-emerald-50 text-emerald-700',
-  abgeschlossen:  'bg-gray-100 text-gray-500',
+/** Dreistufige Progress-Zeile für Freigabe / Bestellung / Lieferung. */
+function ProgressZeile({
+  label, done, total, Icon, farbe,
+}: {
+  label: string
+  done: number
+  total: number
+  Icon: typeof CheckCircle2
+  farbe: string
+}) {
+  const pct = total > 0 ? (done / total) * 100 : 0
+  return (
+    <div className="flex items-center gap-2 text-[11px]">
+      <Icon className="w-3 h-3 text-gray-400 shrink-0" />
+      <span className="text-gray-500 w-16 shrink-0">{label}</span>
+      <div className="flex-1 h-1 rounded-full bg-gray-100 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${farbe}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="tabular-nums text-gray-600 font-medium shrink-0 min-w-[34px] text-right">
+        {done}/{total}
+      </span>
+    </div>
+  )
 }
 
+// ── Konstanten ────────────────────────────────────────────────
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 
@@ -100,7 +121,6 @@ function BudgetRing({ vp, budget, size = 54 }: { vp: number; budget: number; siz
 // ── Komponente ────────────────────────────────────────────────
 export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[] }) {
   const [suche,      setSuche]      = useState('')
-  const [tabStatus,  setTabStatus]  = useState('')
   const [archivAnsicht, setArchivAnsicht] = useState(false)
   const [ansicht,    setAnsicht]    = useState<'grid' | 'list'>('grid')
 
@@ -118,26 +138,12 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
   const archivierteProjekte = projekte.filter((p) => p.archiviert)
   const anzeigePool = archivAnsicht ? archivierteProjekte : aktiveProjekte
 
-  const statusOptionen = [
-    { value: '',               label: 'Alle' },
-    { value: 'offen',          label: 'Offen' },
-    { value: 'in_bearbeitung', label: 'In Bearbeitung' },
-    { value: 'freigegeben',    label: 'Freigegeben' },
-    { value: 'abgeschlossen',  label: 'Abgeschlossen' },
-  ]
-
-  const counts: Record<string, number> = {}
-  for (const p of anzeigePool) {
-    counts[p.status] = (counts[p.status] ?? 0) + 1
-  }
-
   const gefiltert = anzeigePool.filter((p) => {
-    const matchSuche = !suche.trim() ||
-      p.name.toLowerCase().includes(suche.toLowerCase()) ||
-      p.kunden?.name.toLowerCase().includes(suche.toLowerCase()) ||
-      p.standort?.toLowerCase().includes(suche.toLowerCase())
-    const matchFilter = !tabStatus || p.status === tabStatus
-    return matchSuche && matchFilter
+    if (!suche.trim()) return true
+    const q = suche.toLowerCase()
+    return p.name.toLowerCase().includes(q)
+      || (p.kunden?.name.toLowerCase().includes(q) ?? false)
+      || (p.standort?.toLowerCase().includes(q) ?? false)
   })
 
   return (
@@ -145,7 +151,7 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
       {/* Aktiv / Archiviert Toggle */}
       <div className="flex items-center gap-2 mb-4">
         <button
-          onClick={() => { setArchivAnsicht(false); setTabStatus('') }}
+          onClick={() => { setArchivAnsicht(false) }}
           className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
             !archivAnsicht
               ? 'bg-wellbeing-green text-white'
@@ -160,7 +166,7 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
           </span>
         </button>
         <button
-          onClick={() => { setArchivAnsicht(true); setTabStatus('') }}
+          onClick={() => { setArchivAnsicht(true) }}
           className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
             archivAnsicht
               ? 'bg-gray-600 text-white'
@@ -177,34 +183,6 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
             </span>
           )}
         </button>
-      </div>
-
-      {/* Status-Tabs */}
-      <div className="flex items-center gap-0 mb-5 border-b border-gray-200">
-        {statusOptionen.map((opt) => {
-          const anzahl = opt.value ? (counts[opt.value] ?? 0) : anzeigePool.length
-          const aktiv  = tabStatus === opt.value
-          return (
-            <button
-              key={opt.value}
-              onClick={() => setTabStatus(opt.value)}
-              className={`px-5 py-3 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-2 ${
-                aktiv
-                  ? 'border-wellbeing-green text-wellbeing-green'
-                  : 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300'
-              }`}
-            >
-              {opt.label}
-              {anzahl > 0 && (
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                  aktiv ? 'bg-wellbeing-cream text-wellbeing-green-dark' : 'bg-gray-100 text-gray-500'
-                }`}>
-                  {anzahl}
-                </span>
-              )}
-            </button>
-          )
-        })}
       </div>
 
       {/* Toolbar */}
@@ -228,9 +206,9 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
         </div>
       </div>
 
-      {gefiltert.length === 0 && (suche || tabStatus) && (
+      {gefiltert.length === 0 && suche && (
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl shadow-sm">
-          <p className="text-sm text-gray-400">Kein Projekt entspricht den Filtern.</p>
+          <p className="text-sm text-gray-400">Kein Projekt entspricht der Suche.</p>
         </div>
       )}
 
@@ -241,6 +219,7 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
             const kunde = p.kunden
             const deadline = !p.archiviert && p.deadline ? deadlineChip(p.deadline) : null
             const DeadlineIcon = deadline?.Icon
+            const hatProdukte = p.produkteGesamt > 0
             return (
               <Link
                 key={p.id}
@@ -251,19 +230,9 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
                     : 'border-gray-200 hover:border-wellbeing-green/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-gray-200/70'
                 }`}
               >
-                {/* Status-Accent-Stripe am oberen Rand */}
-                <div className={`h-1 w-full ${
-                  p.archiviert ? 'bg-gray-200'
-                  : p.status === 'freigegeben' ? 'bg-emerald-400'
-                  : p.status === 'in_bearbeitung' ? 'bg-blue-400'
-                  : p.status === 'abgeschlossen' ? 'bg-gray-300'
-                  : 'bg-wellbeing-green-light'
-                }`} />
-
                 <div className="p-5">
-                  {/* Kopf: Kunden-Avatar + Status-Badge + Deadline */}
+                  {/* Kopf: Kunden-Avatar + Deadline-Chip (ggf. Archiv-Badge) */}
                   <div className="flex items-start justify-between gap-2 mb-4">
-                    {/* Kunde */}
                     {kunde?.logo_url ? (
                       <div className="w-11 h-11 rounded-xl overflow-hidden border border-gray-200 bg-white shrink-0">
                         <Image src={kunde.logo_url} alt={kunde.name} width={44} height={44} className="w-full h-full object-cover" unoptimized />
@@ -275,19 +244,15 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
                     )}
 
                     <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                      {deadline && DeadlineIcon && (
+                      {deadline && DeadlineIcon && !p.archiviert && (
                         <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${deadline.cls}`}>
                           <DeadlineIcon className="w-2.5 h-2.5" />
                           {deadline.label}
                         </span>
                       )}
-                      {p.archiviert ? (
+                      {p.archiviert && (
                         <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-semibold bg-gray-100 text-gray-500">
                           <Archive className="w-2.5 h-2.5" /> Archiviert
-                        </span>
-                      ) : (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${statusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {statusLabel[p.status] ?? p.status}
                         </span>
                       )}
                     </div>
@@ -325,18 +290,24 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
                     )}
                   </div>
 
-                  {/* Footer: Räume + offene Freigaben + Standort */}
-                  <div className="flex items-center gap-3 pt-3 border-t border-gray-100 text-xs">
+                  {/* Progress-Block: echter Projekt-Fortschritt */}
+                  {hatProdukte && (
+                    <div className="pt-3 mt-0 border-t border-gray-100 space-y-1.5">
+                      <ProgressZeile label="Freigabe"  done={p.freigegeben} total={p.produkteGesamt} Icon={CheckCircle2} farbe="bg-emerald-400" />
+                      <ProgressZeile label="Bestellt"  done={p.bestellt}    total={p.produkteGesamt} Icon={Package}      farbe="bg-blue-400" />
+                      <ProgressZeile label="Geliefert" done={p.geliefert}   total={p.produkteGesamt} Icon={Truck}        farbe="bg-wellbeing-green" />
+                    </div>
+                  )}
+
+                  {/* Footer: Räume + Standort */}
+                  <div className="flex items-center gap-3 pt-3 mt-3 border-t border-gray-100 text-xs">
                     <span className="inline-flex items-center gap-1 text-gray-500">
                       <DoorOpen className="w-3.5 h-3.5 text-gray-400" />
                       <span className="font-medium">{p.raeumCount}</span>
                       <span className="text-gray-400">{p.raeumCount === 1 ? 'Raum' : 'Räume'}</span>
                     </span>
-                    {p.offeneFreigaben > 0 && (
-                      <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md font-medium">
-                        <AlertCircle className="w-3 h-3" />
-                        {p.offeneFreigaben}
-                      </span>
+                    {!hatProdukte && (
+                      <span className="text-gray-400">· Noch keine Produkte</span>
                     )}
                     {p.standort && (
                       <span className="inline-flex items-center gap-1 text-gray-400 ml-auto min-w-0">
@@ -361,11 +332,12 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
                 <tr className="border-b border-gray-100 bg-gray-50">
                   <th className={th + ' text-left'}>Projekt</th>
                   <th className={th + ' text-left'}>Kunde</th>
-                  <th className={th}>Status</th>
                   <th className={th}>Budget</th>
                   <th className={th}>VP netto</th>
                   <th className={th}>Räume</th>
-                  <th className={th}>Offen</th>
+                  <th className={th}>Freigabe</th>
+                  <th className={th}>Bestellt</th>
+                  <th className={th}>Geliefert</th>
                   <th className="w-16" />
                 </tr>
               </thead>
@@ -373,28 +345,28 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
                 {gefiltert.map((p, i) => (
                   <tr key={p.id} className={`hover:bg-gray-50 transition-colors group ${i < gefiltert.length - 1 ? 'border-b border-gray-100' : ''} ${p.archiviert ? 'opacity-60 hover:opacity-100' : ''}`}>
                     <td className="px-4 py-3.5">
-                      <p className="font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors">{p.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors">{p.name}</p>
+                        {p.archiviert && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
+                            <Archive className="w-2.5 h-2.5" /> Archiv
+                          </span>
+                        )}
+                      </div>
                       {p.standort && <p className="text-xs text-gray-400 mt-0.5">{p.standort}</p>}
                     </td>
                     <td className="px-4 py-3.5 text-gray-600">{p.kunden?.name ?? '–'}</td>
-                    <td className="px-4 py-3.5 text-center">
-                      {p.archiviert ? (
-                        <span className="flex items-center justify-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium bg-gray-100 text-gray-500">
-                          <Archive className="w-3 h-3" /> Archiviert
-                        </span>
-                      ) : (
-                        <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {statusLabel[p.status] ?? p.status}
-                        </span>
-                      )}
-                    </td>
                     <td className="px-4 py-3.5 text-center font-mono text-gray-600">{p.gesamtbudget != null ? eur(p.gesamtbudget) : '–'}</td>
                     <td className="px-4 py-3.5 text-center font-mono text-wellbeing-green font-semibold">{p.vpGesamt > 0 ? eur(p.vpGesamt) : '–'}</td>
                     <td className="px-4 py-3.5 text-center text-gray-500">{p.raeumCount}</td>
-                    <td className="px-4 py-3.5 text-center">
-                      {p.offeneFreigaben > 0
-                        ? <span className="text-xs font-medium text-amber-600">{p.offeneFreigaben}</span>
-                        : <span className="text-gray-300">–</span>}
+                    <td className="px-4 py-3.5 text-center tabular-nums text-gray-600">
+                      {p.produkteGesamt > 0 ? `${p.freigegeben}/${p.produkteGesamt}` : <span className="text-gray-300">–</span>}
+                    </td>
+                    <td className="px-4 py-3.5 text-center tabular-nums text-gray-600">
+                      {p.produkteGesamt > 0 ? `${p.bestellt}/${p.produkteGesamt}` : <span className="text-gray-300">–</span>}
+                    </td>
+                    <td className="px-4 py-3.5 text-center tabular-nums text-gray-600">
+                      {p.produkteGesamt > 0 ? `${p.geliefert}/${p.produkteGesamt}` : <span className="text-gray-300">–</span>}
                     </td>
                     <td className="px-3 py-3.5">
                       <Link href={`/dashboard/projekte/${p.id}`} className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors opacity-0 group-hover:opacity-100 whitespace-nowrap">Öffnen →</Link>

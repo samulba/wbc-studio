@@ -12,21 +12,6 @@ import KundenPortalSection from '@/components/KundenPortalSection'
 import KommunikationBlock from '@/components/KommunikationBlock'
 import type { Projekt } from '@/lib/supabase/types'
 
-const projektStatusLabel: Record<string, string> = {
-  offen: 'Offen',
-  in_bearbeitung: 'In Bearbeitung',
-  freigegeben: 'Freigegeben',
-  abgeschlossen: 'Abgeschlossen',
-}
-
-const projektStatusFarbe: Record<string, string> = {
-  offen:          'bg-gray-100 text-gray-600',
-  in_bearbeitung: 'bg-blue-50 text-blue-700',
-  freigegeben:    'bg-emerald-50 text-emerald-700',
-  abgeschlossen:  'bg-gray-100 text-gray-500',
-}
-
-
 async function getKunde(id: string) {
   const supabase = await createClient()
   const { data } = await supabase.from('kunden').select('*').eq('id', id).is('deleted_at', null).single()
@@ -143,12 +128,17 @@ export default async function KundeDetailPage({ params }: { params: { id: string
                   <li key={p.id}>
                     <Link
                       href={`/dashboard/projekte/${p.id}`}
-                      className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 cursor-pointer transition-colors group"
+                      className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-gray-50 cursor-pointer transition-colors group"
                     >
-                      <p className="text-sm font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors">{p.name}</p>
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${projektStatusFarbe[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {projektStatusLabel[p.status] ?? p.status}
-                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors truncate">{p.name}</p>
+                        {p.projektart && <p className="text-xs text-gray-400 mt-0.5 truncate">{p.projektart}</p>}
+                      </div>
+                      {p.archiviert && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 shrink-0">
+                          Archiv
+                        </span>
+                      )}
                     </Link>
                   </li>
                 ))}
