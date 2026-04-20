@@ -12,8 +12,32 @@ export interface ChangelogSektion {
 }
 
 export interface ChangelogPunkt {
+  /** Zeile zerlegt in alternierende Text-/Bold-Segmente (Inline-Markdown). */
+  segmente: ChangelogPunktSegment[]
+}
+
+export interface ChangelogPunktSegment {
   text: string
-  fett: string | null            // Text zwischen **...** am Zeilenanfang
+  bold: boolean
+}
+
+/** Zerlegt eine Zeile an `**...**` in Segmente. Bewahrt Leerzeichen. */
+function zerlegePunkt(zeile: string): ChangelogPunktSegment[] {
+  const segmente: ChangelogPunktSegment[] = []
+  const regex = /\*\*(.+?)\*\*/g
+  let zuletzt = 0
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(zeile)) !== null) {
+    if (match.index > zuletzt) {
+      segmente.push({ text: zeile.slice(zuletzt, match.index), bold: false })
+    }
+    segmente.push({ text: match[1], bold: true })
+    zuletzt = match.index + match[0].length
+  }
+  if (zuletzt < zeile.length) {
+    segmente.push({ text: zeile.slice(zuletzt), bold: false })
+  }
+  return segmente.length > 0 ? segmente : [{ text: zeile, bold: false }]
 }
 
 /**
@@ -59,13 +83,7 @@ export function parseChangelog(raw: string): ChangelogEntry[] {
         aktuelleSektion = { titel: null, punkte: [] }
         aktuellerEintrag.sektionen.push(aktuelleSektion)
       }
-      const text = punktMatch[1]
-      // Fett-Prefix extrahieren: **Foo**: Rest → fett='Foo', text=': Rest'
-      const fettMatch = text.match(/^\*\*(.+?)\*\*(.*)/)
-      aktuelleSektion.punkte.push({
-        text: fettMatch ? fettMatch[2].trim() : text,
-        fett: fettMatch ? fettMatch[1] : null,
-      })
+      aktuelleSektion.punkte.push({ segmente: zerlegePunkt(punktMatch[1]) })
     }
   }
 

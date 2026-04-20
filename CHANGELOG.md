@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-21
 
+### Änderungen-Tab aufgeräumt
+- Pro Datum jetzt **einklappbare Blöcke** — nur neuester ist automatisch offen
+- Pro Block steht dahinter wie viele Einträge drin sind
+- Fehlende Leerzeichen nach fett-Texten gefixt (z.B. „Nur Admins sehen…")
+- **Fett-Text** funktioniert jetzt auch mittendrin im Satz, nicht nur am Zeilenanfang
+
 ### Produktanlegen: Bibliothek zuerst
 - „Neues Produkt"-Popup zeigt jetzt **„Zur Produktbibliothek"** an erster Stelle (grün hervorgehoben)
 - „Zu einem Projekt hinzufügen" rutscht auf Platz 2
