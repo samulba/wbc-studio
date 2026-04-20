@@ -2,16 +2,26 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense } from 'react'
-import { getMwstSatz } from '@/app/actions/einstellungen'
+import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import { getRaumProdukte } from '@/app/actions/raum-produkte'
 import { raumEventsAbrufen } from '@/app/actions/timeline'
 import FilterBar from '@/components/FilterBar'
 import SortableProduktTabelle from '@/components/SortableProduktTabelle'
 import { Timeline } from '@/components/Timeline'
-import type { RaumProduktMitDetails } from '@/lib/supabase/types'
+import type { Partner, RaumProduktMitDetails } from '@/lib/supabase/types'
 import { LayoutDashboard } from 'lucide-react'
 import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
 import ProduktHinzufuegenModal from '@/components/ProduktHinzufuegenModal'
+
+async function getPartner(): Promise<Pick<Partner, 'id' | 'name'>[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('partner')
+    .select('id, name')
+    .is('deleted_at', null)
+    .order('name')
+  return data ?? []
+}
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
@@ -36,29 +46,17 @@ async function getRaum(raumId: string, projektId: string): Promise<RaumMitProjek
   return data as RaumMitProjekt | null
 }
 
-// ── Filter + Sort ─────────────────────────────────────────────
-type SearchParams = { kategorie?: string; status?: string; sort?: string }
+// ── Filter ─────────────────────────────────────────────────────
+type SearchParams = { kategorie?: string; status?: string; partner_id?: string }
 
-function filterUndSortieren(
+function filtern(
   eintraege: RaumProduktMitDetails[],
   sp: SearchParams
 ): RaumProduktMitDetails[] {
-  let result = [...eintraege]
-
-  if (sp.kategorie) result = result.filter((e) => e.produkte.kategorie === sp.kategorie)
-  if (sp.status)    result = result.filter((e) => (e.produkte.produktstatus?.status ?? 'ausstehend') === sp.status)
-
-  const effVP = (e: RaumProduktMitDetails) => e.verkaufspreis_override ?? e.produkte.verkaufspreis ?? 0
-
-  switch (sp.sort) {
-    case 'name_asc':   result.sort((a, b) => a.produkte.name.localeCompare(b.produkte.name, 'de')); break
-    case 'name_desc':  result.sort((a, b) => b.produkte.name.localeCompare(a.produkte.name, 'de')); break
-    case 'preis_asc':  result.sort((a, b) => effVP(a) - effVP(b)); break
-    case 'preis_desc': result.sort((a, b) => effVP(b) - effVP(a)); break
-    case 'status':     result.sort((a, b) =>
-      (a.produkte.produktstatus?.status ?? '').localeCompare(b.produkte.produktstatus?.status ?? '')
-    ); break
-  }
+  let result = eintraege
+  if (sp.kategorie)  result = result.filter((e) => e.produkte.kategorie === sp.kategorie)
+  if (sp.status)     result = result.filter((e) => (e.produkte.produktstatus?.status ?? 'ausstehend') === sp.status)
+  if (sp.partner_id) result = result.filter((e) => e.produkte.partner_id === sp.partner_id)
   return result
 }
 
@@ -70,23 +68,44 @@ export default async function RaumDetailPage({
   params: { id: string; raumId: string }
   searchParams: SearchParams
 }) {
-  const [raum, alleEintraege, MWST, timelineEvents] = await Promise.all([
+  const [raum, alleEintraege, MWST, timelineEvents, kategorienDB, partnerListe] = await Promise.all([
     getRaum(params.raumId, params.id),
     getRaumProdukte(params.raumId),
     getMwstSatz(),
     raumEventsAbrufen(params.raumId),
+    getKategorien('produktkategorie'),
+    getPartner(),
   ])
 
   if (!raum) notFound()
 
-  const eintraege = filterUndSortieren(alleEintraege, searchParams)
+  const eintraege = filtern(alleEintraege, searchParams)
   const projekt   = raum.projekte
   const kunde     = projekt?.kunden
 
-  // Unique Kategorien für FilterBar
-  const kategorien = Array.from(
-    new Set(alleEintraege.map((e) => e.produkte.kategorie).filter(Boolean) as string[])
-  ).sort()
+  // Kategorien-Optionen für Filter: nur die, die in diesem Raum wirklich verwendet werden,
+  // angereichert mit dem firmenweit hinterlegten Icon.
+  const verwendeteKategorien = new Set(
+    alleEintraege.map((e) => e.produkte.kategorie).filter(Boolean) as string[]
+  )
+  const kategorienFuerFilter = kategorienDB
+    .filter((k) => verwendeteKategorien.has(k.name))
+    .map((k) => ({ name: k.name, icon: k.icon }))
+  // Fallback: falls ein Produkt eine Kategorie hat, die (noch) nicht in der Firmen-Tabelle ist
+  Array.from(verwendeteKategorien).forEach((name) => {
+    if (!kategorienFuerFilter.some((k) => k.name === name)) {
+      kategorienFuerFilter.push({ name, icon: 'Package' })
+    }
+  })
+  kategorienFuerFilter.sort((a, b) => a.name.localeCompare(b.name, 'de'))
+
+  // Partner-Optionen: nur Partner, deren Produkte tatsächlich im Raum liegen
+  const verwendetePartnerIds = new Set(
+    alleEintraege.map((e) => e.produkte.partner_id).filter(Boolean) as string[]
+  )
+  const partnerFuerFilter = partnerListe
+    .filter((p) => verwendetePartnerIds.has(p.id))
+    .map((p) => ({ id: p.id, name: p.name }))
 
   // Effektiver VP pro Eintrag
   const effVP = (e: RaumProduktMitDetails) => e.verkaufspreis_override ?? e.produkte.verkaufspreis ?? 0
@@ -185,7 +204,7 @@ export default async function RaumDetailPage({
       {alleEintraege.length > 0 && (
         <div className="mb-4">
           <Suspense fallback={null}>
-            <FilterBar kategorien={kategorien} />
+            <FilterBar kategorien={kategorienFuerFilter} partner={partnerFuerFilter} />
           </Suspense>
         </div>
       )}
@@ -214,7 +233,7 @@ export default async function RaumDetailPage({
       {eintraege.length > 0 && (
         <>
           {/* Anzahl-Hinweis bei aktiven Filtern */}
-          {(searchParams.kategorie || searchParams.status || searchParams.sort) && (
+          {(searchParams.kategorie || searchParams.status || searchParams.partner_id) && (
             <p className="text-xs text-gray-400 mb-2">
               {eintraege.length} von {alleEintraege.length} Produkten
             </p>
@@ -238,11 +257,6 @@ export default async function RaumDetailPage({
               </div>
             </div>
           </div>
-
-          <p className="text-xs text-red-400/60 text-right">
-            <span className="inline-block w-2 h-2 rounded-full bg-red-300/60 mr-1" />
-            Rot markierte Spalten sind interne Felder und werden Kunden nie angezeigt
-          </p>
         </>
       )}
 

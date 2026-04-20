@@ -257,6 +257,10 @@ export interface Produkt {
   produkt_url: string | null
   reihenfolge: number
   bestellstatus: BestellStatus
+  // Bestell- & Liefer-Tracking (liefertermin via Migration 029, bestellt_am/lieferung_erhalten_am via 057)
+  liefertermin?: string | null
+  bestellt_am?: string | null
+  lieferung_erhalten_am?: string | null
   // Varianten (Migration 041)
   ist_variante: boolean
   eltern_produkt_id: string | null

@@ -313,6 +313,29 @@ export async function bestellstatusAendern(
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
 }
 
+export type ProduktDatumFeld = 'bestellt_am' | 'liefertermin' | 'lieferung_erhalten_am'
+
+/** Aktualisiert ein einzelnes Datumsfeld auf produkte. Leerstring = NULL. */
+export async function produktDatumAktualisieren(
+  produktId: string,
+  raumId: string,
+  projektId: string,
+  feld: ProduktDatumFeld,
+  datum: string | null,
+): Promise<{ fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const wert = datum && datum.trim() ? datum : null
+  const { error } = await supabase
+    .from('produkte')
+    .update({ [feld]: wert })
+    .eq('id', produktId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Datum konnte nicht gespeichert werden.' }
+  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  return {}
+}
+
 export async function produktStatusAendern(
   produktId: string,
   raumId: string,
