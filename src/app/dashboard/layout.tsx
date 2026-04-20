@@ -16,15 +16,16 @@ export default async function DashboardLayout({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const userName = (user.user_metadata?.full_name as string | undefined) || undefined
-
   // ── Sekundäre Daten – nie crashen ────────────────────────────
   let freigabenCount = 0
   let anfragenCount  = 0
   let rolle: Rolle   = 'viewer'
+  let userAvatarUrl: string | null = null
+  let userVorname:   string | null = null
+  let userNachname:  string | null = null
 
   try {
-    const [freigabenRes, anfragenRes, rolleRes] = await Promise.allSettled([
+    const [freigabenRes, anfragenRes, rolleRes, meRes] = await Promise.allSettled([
       supabase
         .from('produktstatus')
         .select('*', { count: 'exact', head: true })
@@ -35,14 +36,31 @@ export default async function DashboardLayout({
         .eq('status', 'offen')
         .not('kunde_name', 'is', null),
       meineRolleAbrufen(),
+      supabase
+        .from('team_mitglieder')
+        .select('avatar_url, vorname, nachname')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle(),
     ])
 
     freigabenCount = freigabenRes.status === 'fulfilled' ? (freigabenRes.value.count ?? 0) : 0
     anfragenCount  = anfragenRes.status  === 'fulfilled' ? (anfragenRes.value.count  ?? 0) : 0
     rolle          = rolleRes.status     === 'fulfilled' ? rolleRes.value : 'viewer'
+    if (meRes.status === 'fulfilled' && meRes.value.data) {
+      userAvatarUrl = (meRes.value.data.avatar_url as string | null) ?? null
+      userVorname   = (meRes.value.data.vorname    as string | null) ?? null
+      userNachname  = (meRes.value.data.nachname   as string | null) ?? null
+    }
   } catch {
     // Fallback: defaults bleiben – Layout wird trotzdem gerendert
   }
+
+  // Anzeigename-Präferenz: Vor+Nachname > user_metadata.full_name > Email-Prefix
+  const vollerName = [userVorname, userNachname].filter(Boolean).join(' ')
+  const userName = vollerName
+    || (user.user_metadata?.full_name as string | undefined)
+    || undefined
 
   return (
     <MobileGuard>
@@ -51,6 +69,7 @@ export default async function DashboardLayout({
         <NavSidebar
           userEmail={user.email ?? ''}
           userName={userName}
+          userAvatarUrl={userAvatarUrl}
           userRolle={rolle}
           offeneFreigaben={freigabenCount}
           offeneAnfragen={anfragenCount}

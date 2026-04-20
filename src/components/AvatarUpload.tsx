@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import Image from 'next/image'
+import { useRouter } from 'next/navigation'
 import { Camera, Loader2, AlertCircle, Check } from 'lucide-react'
 import { benutzerAvatarHochladen } from '@/app/actions/logo-upload'
 
@@ -23,6 +24,7 @@ export default function AvatarUpload({
   initialUrl: string | null
   userLabel: string
 }) {
+  const router = useRouter()
   const [url, setUrl]       = useState<string | null>(initialUrl)
   const [fehler, setFehler] = useState<string | null>(null)
   const [erfolg, setErfolg] = useState(false)
@@ -51,6 +53,9 @@ export default function AvatarUpload({
         setUrl(res.url)
         setErfolg(true)
         setTimeout(() => setErfolg(false), 2200)
+        // Dashboard-Layout (Server Component mit Avatar-URL) neu rendern,
+        // damit die Sidebar unten links sofort das neue Bild zeigt.
+        router.refresh()
       }
     })
   }

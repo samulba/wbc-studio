@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -49,12 +50,14 @@ function DepthStackIcon() {
 export default function NavSidebar({
   userEmail,
   userName,
+  userAvatarUrl,
   userRolle = 'admin',
   offeneFreigaben = 0,
   offeneAnfragen = 0,
 }: {
   userEmail: string
   userName?: string
+  userAvatarUrl?: string | null
   userRolle?: Rolle
   offeneFreigaben?: number
   offeneAnfragen?: number
@@ -154,11 +157,24 @@ export default function NavSidebar({
             href="/dashboard/einstellungen?tab=profil"
             className="flex items-center gap-3 flex-1 min-w-0 hover:bg-white/[0.04] rounded-lg px-1 py-1 transition-colors group"
           >
-            <div
-              className={`w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0 ${farbe}`}
-            >
-              {kuerzel}
-            </div>
+            {userAvatarUrl ? (
+              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-white/10 shrink-0 bg-white/5">
+                <Image
+                  src={userAvatarUrl}
+                  alt={displayName}
+                  width={36}
+                  height={36}
+                  className="w-full h-full object-cover"
+                  unoptimized
+                />
+              </div>
+            ) : (
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0 ${farbe}`}
+              >
+                {kuerzel}
+              </div>
+            )}
             <div className="min-w-0">
               <p className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors truncate leading-none">
                 {displayName}
