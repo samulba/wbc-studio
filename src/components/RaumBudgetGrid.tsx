@@ -1,122 +1,108 @@
 import Link from 'next/link'
-import { AlertTriangle } from 'lucide-react'
+import { ChevronRight, DoorOpen } from 'lucide-react'
 import type { RaumBudgetDetail } from '@/app/actions/raeume'
 
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 
-function ampel(prozent: number): { farbe: string; text: string } {
-  if (prozent >= 100) return { farbe: '#ef4444', text: 'text-red-600' }
-  if (prozent >= 80)  return { farbe: '#f59e0b', text: 'text-amber-600' }
-  return { farbe: '#445c49', text: 'text-wellbeing-green' }
+// Deterministische Kategorie-Farben (hash-basiert) — damit gleicher Name
+// zwischen Räumen denselben Farbton bekommt.
+const KATEGORIE_FARBEN = [
+  '#94c1a4', // wellbeing-green-light
+  '#cba178', // wellbeing-sand
+  '#823509', // wellbeing-terracotta
+  '#f6ede2', // wellbeing-cream — light
+  '#a78bfa', // violet
+  '#60a5fa', // blue
+  '#fbbf24', // amber
+  '#f87171', // rose
+]
+function katFarbe(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0
+  return KATEGORIE_FARBEN[Math.abs(hash) % KATEGORIE_FARBEN.length]
 }
 
-function MiniDonut({ prozent, farbe }: { prozent: number; farbe: string }) {
-  const clamped = Math.min(100, Math.max(0, prozent))
-  const R = 28
-  const C = 2 * Math.PI * R
-  const dash = (clamped / 100) * C
-  return (
-    <svg width="64" height="64" viewBox="0 0 64 64" className="shrink-0">
-      <circle cx="32" cy="32" r={R} fill="none" stroke="#e5e7eb" strokeWidth="5" />
-      <circle
-        cx="32" cy="32" r={R}
-        fill="none"
-        stroke={farbe}
-        strokeWidth="5"
-        strokeLinecap="round"
-        strokeDasharray={`${dash} ${C - dash}`}
-        strokeDashoffset={C / 4}
-        transform="rotate(-90 32 32)"
-        style={{ transition: 'stroke-dasharray 0.4s ease' }}
-      />
-      <text
-        x="32" y="36"
-        textAnchor="middle"
-        className="font-syne font-bold"
-        fontSize="14"
-        fill={farbe}
-      >
-        {Math.round(clamped)}%
-      </text>
-    </svg>
-  )
-}
-
-function RaumBudgetCard({
+/**
+ * Zeile pro Raum — kompakt, alle Infos auf einen Blick:
+ *   [Name + Produktzahl]   [gestackte Kategorie-Bar]   [Gesamt-VP]  [›]
+ */
+function RaumZeile({
   detail,
   projektId,
+  isLast,
+  maxVerbraucht,
 }: {
   detail: RaumBudgetDetail
   projektId: string
+  isLast: boolean
+  maxVerbraucht: number
 }) {
-  const prozent = detail.budget && detail.budget > 0
-    ? (detail.verbraucht / detail.budget) * 100
-    : 0
-  const farbton = ampel(prozent)
-  const ueberzogen = detail.budget != null && detail.verbraucht > detail.budget
+  const hatProdukte = detail.verbraucht > 0 && detail.top3Kategorien.length > 0
 
   return (
     <Link
       href={`/dashboard/projekte/${projektId}/raeume/${detail.raumId}`}
-      className="group block bg-white border border-gray-200 rounded-xl p-4 hover:border-wellbeing-green/40 hover:shadow-sm transition-all"
+      className={`group flex items-center gap-4 px-4 py-3 hover:bg-gray-50/60 transition-colors ${
+        isLast ? '' : 'border-b border-gray-100'
+      }`}
     >
-      <div className="flex items-start gap-3 mb-3">
-        {detail.budget != null && detail.budget > 0 ? (
-          <MiniDonut prozent={prozent} farbe={farbton.farbe} />
-        ) : (
-          <div className="w-16 h-16 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
-            <span className="text-[10px] text-gray-400 text-center leading-tight">Kein<br/>Budget</span>
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-gray-900 text-sm truncate group-hover:text-wellbeing-green transition-colors">
-            {detail.name}
-          </p>
-          {detail.budget != null && detail.budget > 0 ? (
-            <p className={`text-[12px] mt-0.5 ${farbton.text} font-medium tabular-nums`}>
-              {eur(detail.verbraucht)} <span className="text-gray-400 font-normal">von {eur(detail.budget)}</span>
-            </p>
-          ) : (
-            <p className="text-[12px] mt-0.5 text-gray-500 tabular-nums">
-              {eur(detail.verbraucht)} verbraucht
-            </p>
-          )}
-          {ueberzogen && (
-            <p className="flex items-center gap-1 text-[11px] text-red-600 mt-0.5">
-              <AlertTriangle className="w-3 h-3" />
-              überzogen um {eur(detail.verbraucht - (detail.budget ?? 0))}
-            </p>
-          )}
-        </div>
+      {/* Links: Name + Produktzahl */}
+      <div className="flex items-center gap-2 min-w-0 w-48 shrink-0">
+        <DoorOpen className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+        <span className="text-sm font-medium text-gray-800 truncate group-hover:text-wellbeing-green transition-colors">
+          {detail.name}
+        </span>
       </div>
 
-      {detail.top3Kategorien.length > 0 && (
-        <div className="space-y-1.5 pt-2 border-t border-gray-100">
-          {detail.top3Kategorien.map((k) => (
-            <div key={k.kategorie} className="flex items-center gap-2 text-[11px]">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-gray-600 truncate">{k.kategorie}</span>
-                  <span className="text-gray-500 font-mono tabular-nums shrink-0 ml-2">{eur(k.betrag)}</span>
-                </div>
-                <div className="h-1 rounded-full bg-gray-100 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-wellbeing-green-light"
-                    style={{ width: `${Math.round(k.anteil * 100)}%` }}
-                  />
-                </div>
-              </div>
+      {/* Mitte: gestackte Kategorie-Bar (proportional zur höchsten Raum-Summe) */}
+      <div className="flex-1 min-w-0">
+        {hatProdukte ? (
+          <>
+            <div
+              className="h-2 rounded-full overflow-hidden flex bg-gray-100"
+              style={{
+                width: `${maxVerbraucht > 0 ? (detail.verbraucht / maxVerbraucht) * 100 : 0}%`,
+                minWidth: '8%',
+              }}
+            >
+              {detail.top3Kategorien.map((k) => (
+                <div
+                  key={k.kategorie}
+                  style={{
+                    width: `${k.anteil * 100}%`,
+                    backgroundColor: katFarbe(k.kategorie),
+                  }}
+                  title={`${k.kategorie}: ${eur(k.betrag)} (${Math.round(k.anteil * 100)}%)`}
+                />
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+            {/* Top-Kategorien-Legende: 1–2 prominenteste inline */}
+            <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-400 flex-wrap">
+              {detail.top3Kategorien.slice(0, 3).map((k) => (
+                <span key={k.kategorie} className="inline-flex items-center gap-1">
+                  <span
+                    className="inline-block w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: katFarbe(k.kategorie) }}
+                  />
+                  <span>{k.kategorie}</span>
+                  <span className="text-gray-300">{eur(k.betrag)}</span>
+                </span>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-[11px] text-gray-400 italic">Noch keine Produkte im Raum</p>
+        )}
+      </div>
 
-      {detail.verbraucht === 0 && (
-        <p className="text-[11px] text-gray-400 pt-2 border-t border-gray-100 italic">
-          Noch keine Produkte im Raum
+      {/* Rechts: Summe + Chevron */}
+      <div className="text-right shrink-0">
+        <p className="text-sm font-mono font-semibold text-gray-900 tabular-nums">
+          {hatProdukte ? eur(detail.verbraucht) : '—'}
         </p>
-      )}
+      </div>
+      <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-wellbeing-green transition-colors shrink-0" />
     </Link>
   )
 }
@@ -129,11 +115,34 @@ export default function RaumBudgetGrid({
   projektId: string
 }) {
   if (details.length === 0) return null
+
+  const maxVerbraucht = Math.max(...details.map((d) => d.verbraucht), 0)
+  const summe = details.reduce((s, d) => s + d.verbraucht, 0)
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      {details.map((d) => (
-        <RaumBudgetCard key={d.raumId} detail={d} projektId={projektId} />
-      ))}
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      {/* Optional: dezenter Summen-Footer oben, zeigt Kontext */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50/40 border-b border-gray-100">
+        <span className="text-[11px] text-gray-500">
+          Aufteilung nach Räumen · {details.length} {details.length === 1 ? 'Raum' : 'Räume'}
+        </span>
+        <span className="text-[11px] text-gray-500 tabular-nums">
+          Summe <span className="font-mono font-semibold text-gray-800">{eur(summe)}</span>
+        </span>
+      </div>
+
+      {/* Raum-Zeilen */}
+      <div>
+        {details.map((d, i) => (
+          <RaumZeile
+            key={d.raumId}
+            detail={d}
+            projektId={projektId}
+            isLast={i === details.length - 1}
+            maxVerbraucht={maxVerbraucht}
+          />
+        ))}
+      </div>
     </div>
   )
 }
