@@ -218,7 +218,7 @@ export default function Features() {
                   </m.span>
                 </AnimatePresence>
 
-                {/* Animated Blob */}
+                {/* Animated Blob — absolute zentriert */}
                 <AnimatePresence mode="wait">
                   <m.div
                     key={`blob-${active}`}
@@ -226,11 +226,11 @@ export default function Features() {
                     animate={{ opacity: 1, scale: 1, rotate: 0 }}
                     exit={{ opacity: 0, scale: 1.3, rotate: 15 }}
                     transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                    className={`relative w-[280px] h-[280px] md:w-[340px] md:h-[340px] rounded-[46%_54%_60%_40%_/_48%_42%_58%_52%] ${f.blob} ${f.ring}`}
+                    className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] md:w-[340px] md:h-[340px] rounded-[46%_54%_60%_40%_/_48%_42%_58%_52%] ${f.blob} ${f.ring}`}
                   />
                 </AnimatePresence>
 
-                {/* Icon on top */}
+                {/* Icon im Blob-Zentrum — absolute zentriert, oberhalb */}
                 <AnimatePresence mode="wait">
                   <m.div
                     key={`icon-${active}`}
@@ -238,13 +238,13 @@ export default function Features() {
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 1.2, y: -10 }}
                     transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-                    className="relative z-10 w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white flex items-center justify-center shadow-2xl shadow-black/5 border border-white"
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white flex items-center justify-center shadow-2xl shadow-black/10 border border-white"
                   >
                     <Icon className={`w-12 h-12 md:w-16 md:h-16 ${f.chip}`} strokeWidth={1.5} />
                   </m.div>
                 </AnimatePresence>
 
-                {/* Floating mini chip */}
+                {/* Floating mini chip — top-right vom Container */}
                 <AnimatePresence mode="wait">
                   <m.div
                     key={`chip-${active}`}
@@ -252,7 +252,7 @@ export default function Features() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.5, delay: 0.15 }}
-                    className="absolute top-8 right-8 bg-white rounded-full px-3.5 py-1.5 shadow-lg border border-gray-100"
+                    className="absolute top-6 right-6 md:top-8 md:right-8 z-20 bg-white rounded-full px-3.5 py-1.5 shadow-lg border border-gray-100"
                   >
                     <span className={`text-[11px] font-bold uppercase tracking-widest ${f.chip}`}>
                       {f.tag}
