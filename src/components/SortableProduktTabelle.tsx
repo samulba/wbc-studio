@@ -65,11 +65,21 @@ function BestellStatusDropdown({ status, onChange }: { status: BestellStatus; on
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
     function handleOutside(e: MouseEvent) {
-      if (buttonRef.current && !buttonRef.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      // Schließen NUR wenn Klick wirklich außerhalb des Buttons UND des Popovers lag.
+      // Vorher wurde das Popover beim mousedown geschlossen, bevor der onClick
+      // auf dem Item-Button feuern konnte → Status blieb unverändert.
+      if (
+        buttonRef.current && !buttonRef.current.contains(target) &&
+        (!popoverRef.current || !popoverRef.current.contains(target))
+      ) {
+        setOpen(false)
+      }
     }
     const handleScroll = () => setOpen(false)
     document.addEventListener('mousedown', handleOutside)
@@ -106,6 +116,7 @@ function BestellStatusDropdown({ status, onChange }: { status: BestellStatus; on
       </button>
       {open && pos && (
         <div
+          ref={popoverRef}
           style={{ position: 'fixed', top: pos.top, left: pos.left, minWidth: pos.width, zIndex: 9999 }}
           className="bg-white border border-gray-200 rounded-xl shadow-xl py-1"
         >
@@ -114,7 +125,15 @@ function BestellStatusDropdown({ status, onChange }: { status: BestellStatus; on
             return (
               <button
                 key={key}
-                onClick={() => { onChange(key); setOpen(false) }}
+                type="button"
+                // onMouseDown statt onClick: mousedown feuert VOR dem outside-Handler,
+                // so ist der State-Update garantiert, auch falls ein anderer Handler
+                // zwischen mousedown und click das Popover unmountet.
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  onChange(key)
+                  setOpen(false)
+                }}
                 className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors ${status === key ? 'bg-gray-50 font-medium' : ''}`}
               >
                 <ItemIcon className={`w-3.5 h-3.5 ${cfg.text}`} />
