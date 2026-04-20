@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-21
 
+### Bug gefixt: Tippen im Kunde-Löschen-Dialog
+- Beim Eintippen des Bestätigungs-Namens sprang der Fokus nach dem ersten Buchstaben auf das X weg → Eingabe abgebrochen
+- Ursache lag im Modal-Hook (Auto-Focus lief bei jedem Re-Render neu)
+- Jetzt landet der Cursor direkt im Textfeld und bleibt dort beim Tippen
+
 ### Änderungen-Tab aufgeräumt
 - Pro Datum jetzt **einklappbare Blöcke** — nur neuester ist automatisch offen
 - Pro Block steht dahinter wie viele Einträge drin sind

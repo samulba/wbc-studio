@@ -8,14 +8,24 @@ import { useEffect, useRef } from 'react'
  *  - ESC-Taste schließt das Modal (onClose)
  *  - Body-Scroll-Lock während das Modal offen ist
  *  - Focus-Trap: TAB/Shift+TAB bleiben innerhalb des Modal-Containers
+ *  - Initialer Auto-Focus EINMAL beim Öffnen (kein Re-Focus bei Re-Renders)
  *  - Rückgabe: containerRef (an das äußerste Modal-div hängen)
  *
  * Verwendung:
  *   const ref = useModal(isOpen, onClose)
  *   return <div ref={ref} role="dialog" aria-modal="true" aria-labelledby="titel-id">…</div>
+ *
+ * Achtung: onClose wird intern per Ref gehalten — damit führt eine bei
+ * jedem Render neu erzeugte onClose-Funktion NICHT dazu, dass der Effect
+ * neu läuft und der Auto-Focus ins Modal zurück springt (→ Input-Fokus-
+ * Verlust beim Tippen).
  */
 export function useModal(isOpen: boolean, onClose: () => void) {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const onCloseRef   = useRef(onClose)
+
+  // onClose immer aktuell halten, ohne Effect-Dep
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
 
   useEffect(() => {
     if (!isOpen) return
@@ -27,7 +37,7 @@ export function useModal(isOpen: boolean, onClose: () => void) {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.stopPropagation()
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key !== 'Tab') return
@@ -59,12 +69,19 @@ export function useModal(isOpen: boolean, onClose: () => void) {
 
     window.addEventListener('keydown', onKeyDown)
 
-    // Initialer Focus auf das erste fokussierbare Element im Container
+    // Initialer Focus EINMAL beim Öffnen auf das erste Input (falls vorhanden),
+    // sonst auf das erste fokussierbare Element. Buttons werden übersprungen,
+    // wenn ein Input im Modal existiert — damit der Cursor direkt im Textfeld
+    // landet und der User tippen kann ohne dass der X-Button markiert wird.
     const timer = window.setTimeout(() => {
       const root = containerRef.current
       if (!root) return
+      const firstInput = root.querySelector<HTMLElement>(
+        'input:not([type="hidden"]):not([disabled]), textarea:not([disabled])'
+      )
+      if (firstInput) { firstInput.focus(); return }
       const firstFocusable = root.querySelector<HTMLElement>(
-        'input:not([type="hidden"]), button, textarea, select, [tabindex]:not([tabindex="-1"])'
+        'button:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
       )
       firstFocusable?.focus()
     }, 50)
@@ -74,7 +91,9 @@ export function useModal(isOpen: boolean, onClose: () => void) {
       window.removeEventListener('keydown', onKeyDown)
       window.clearTimeout(timer)
     }
-  }, [isOpen, onClose])
+    // Nur auf isOpen reagieren — onClose per Ref, damit kein Re-Run beim Tippen
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen])
 
   return containerRef
 }
