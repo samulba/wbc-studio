@@ -253,54 +253,59 @@ export default async function DashboardPage() {
   } = await getDashboardData()
 
   return (
-    <div className="h-full overflow-y-auto px-6 py-5 space-y-4 animate-fadeIn">
+    <div className="h-full overflow-y-auto animate-fadeIn">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-syne text-[28px] font-bold text-gray-900 leading-tight">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Willkommen im Wellbeing Spaces Studio.</p>
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-gray-100 px-6 py-4">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <h1 className="font-syne text-[24px] font-bold text-gray-900 leading-tight tracking-tight">Dashboard</h1>
+            <p className="text-xs text-gray-500 mt-0.5">Willkommen im Wellbeing Spaces Studio.</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/dashboard/kunden/neu"
+              className="text-sm px-4 py-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 rounded-lg font-medium transition-colors"
+            >
+              + Kunde
+            </Link>
+            <Link
+              href="/dashboard/projekte/neu"
+              className="text-sm px-4 py-2 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg font-semibold transition-colors"
+            >
+              + Neues Projekt
+            </Link>
+          </div>
         </div>
-        <div className="flex items-center gap-2.5">
-          <Link
-            href="/dashboard/kunden/neu"
-            className="text-sm px-4 py-2.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 rounded-lg font-medium transition-colors"
-          >
-            + Kunde
-          </Link>
-          <Link
-            href="/dashboard/projekte/neu"
-            className="text-sm px-5 py-2.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white rounded-lg font-semibold transition-colors min-w-[140px] text-center"
-          >
-            + Neues Projekt
-          </Link>
+      </div>
+
+      <div className="px-6 py-5 space-y-4">
+
+        {/* ROW 1: KPI-Kacheln */}
+        <KpiKartenReihe
+          aktiveKunden={aktiveKunden}
+          laufendeProjekte={laufendeProjekte}
+          offeneAngebote={offeneAngebote}
+          monatsumsatz={monatsumsatz}
+        />
+
+        {/* ROW 2: Deadlines + Follow-ups */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[220px]">
+          <NaechsteDeadlines projekte={naechsteDeadlines} />
+          <OffeneFollowUps eintraege={followUpEintraege} />
         </div>
+
+        {/* ROW 3: Budget-Übersicht */}
+        <div className="min-h-[220px]">
+          <BudgetUebersicht projekte={budgetProjekte} />
+        </div>
+
+        {/* ROW 4: Letzte Projekte */}
+        <div className="min-h-[280px]">
+          <LetzteProjekte projekte={letzteProjekte} />
+        </div>
+
       </div>
-
-      {/* ROW 1: KPI-Kacheln – Icons werden client-seitig in KpiKartenReihe aufgelöst */}
-      <KpiKartenReihe
-        aktiveKunden={aktiveKunden}
-        laufendeProjekte={laufendeProjekte}
-        offeneAngebote={offeneAngebote}
-        monatsumsatz={monatsumsatz}
-      />
-
-      {/* ROW 2: Deadlines + Follow-ups */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[220px]">
-        <NaechsteDeadlines projekte={naechsteDeadlines} />
-        <OffeneFollowUps eintraege={followUpEintraege} />
-      </div>
-
-      {/* ROW 3: Budget-Übersicht */}
-      <div className="min-h-[220px]">
-        <BudgetUebersicht projekte={budgetProjekte} />
-      </div>
-
-      {/* ROW 4: Letzte Projekte */}
-      <div className="min-h-[280px]">
-        <LetzteProjekte projekte={letzteProjekte} />
-      </div>
-
     </div>
   )
 }

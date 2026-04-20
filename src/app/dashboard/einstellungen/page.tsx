@@ -24,6 +24,18 @@ export default async function EinstellungenPage({
     getVorlagen(),
   ])
 
+  // Avatar-URL aus team_mitglieder laden (Migration 061)
+  let userAvatarUrl: string | null = null
+  if (user) {
+    const { data: me } = await supabase
+      .from('team_mitglieder')
+      .select('avatar_url')
+      .eq('user_id', user.id)
+      .limit(1)
+      .maybeSingle()
+    userAvatarUrl = (me?.avatar_url as string | null) ?? null
+  }
+
   return (
     <div className="flex-1 overflow-y-auto animate-fadeIn">
       <StickyPageHeader title="Einstellungen" />
@@ -35,6 +47,7 @@ export default async function EinstellungenPage({
           userRolle={userRolle}
           userEmail={user?.email ?? ''}
           userId={user?.id ?? ''}
+          userAvatarUrl={userAvatarUrl}
           lastSignIn={user?.last_sign_in_at ?? null}
           branding={branding}
           vorlagen={vorlagen}

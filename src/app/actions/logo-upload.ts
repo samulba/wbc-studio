@@ -77,6 +77,58 @@ export async function kundeLogoHochladen(
   return { url: logo_url }
 }
 
+/**
+ * User-Profilbild hochladen. Schreibt in Bucket `team-avatare`, aktualisiert
+ * team_mitglieder.avatar_url für den aktuellen User.
+ */
+export async function benutzerAvatarHochladen(
+  prevState: LogoUploadState,
+  formData: FormData,
+): Promise<LogoUploadState> {
+  const file = formData.get('logo') as File | null
+  if (!file || file.size === 0) return { fehler: 'Keine Datei ausgewählt.' }
+  if (file.size > 50 * 1024 * 1024) return { fehler: 'Datei ist zu groß (max. 50 MB).' }
+
+  const userClient = await createClient()
+  const { data: { user } } = await userClient.auth.getUser()
+  if (!user) return { fehler: 'Nicht angemeldet.' }
+
+  const admin = createAdminClient()
+  const path  = `${user.id}.${safeExt(file.name)}`
+  const bytes = new Uint8Array(await file.arrayBuffer())
+
+  const { error: uploadError } = await admin.storage
+    .from('team-avatare')
+    .upload(path, bytes, {
+      upsert: true,
+      contentType: file.type || 'application/octet-stream',
+    })
+
+  if (uploadError) {
+    console.error('[benutzerAvatarHochladen] Storage-Upload fehlgeschlagen:', uploadError)
+    return { fehler: `Upload fehlgeschlagen: ${uploadError.message}` }
+  }
+
+  const { data: urlData } = admin.storage.from('team-avatare').getPublicUrl(path)
+  const avatar_url = `${urlData.publicUrl}?t=${Date.now()}`
+
+  // team_mitglieder hat einen Eintrag pro user_id — evtl. auch mehrere (wenn
+  // User in mehreren Orgs ist). Alle Einträge des Users updaten.
+  const { error: dbError } = await admin
+    .from('team_mitglieder')
+    .update({ avatar_url })
+    .eq('user_id', user.id)
+
+  if (dbError) {
+    console.error('[benutzerAvatarHochladen] DB-Update fehlgeschlagen:', dbError)
+    return { fehler: 'URL konnte nicht gespeichert werden.' }
+  }
+
+  revalidatePath('/dashboard/einstellungen')
+  revalidatePath('/dashboard')
+  return { url: avatar_url }
+}
+
 export async function partnerLogoHochladen(
   partnerId: string,
   prevState: LogoUploadState,

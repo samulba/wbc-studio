@@ -18,6 +18,7 @@ import {
   type TeamActionState,
 } from '@/app/actions/team'
 import { updatePasswort, type ProfilActionState } from '@/app/actions/profil'
+import AvatarUpload from './AvatarUpload'
 import type { TeamMitglied, Rolle, Branding } from '@/lib/supabase/types'
 import { ROLLEN_CONFIG } from '@/lib/permissions'
 import HandbuchClient from '@/app/dashboard/einstellungen/handbuch/HandbuchClient'
@@ -136,14 +137,15 @@ function Abschnitt({
 
 function ProfilTab({
   userEmail,
+  userAvatarUrl,
   lastSignIn,
 }: {
   userEmail: string
+  userAvatarUrl: string | null
   lastSignIn: string | null
 }) {
   const [passwortState, passwortAction] = useFormState(updatePasswort, null)
 
-  const kuerzel = userEmail ? userEmail.slice(0, 2).toUpperCase() : 'ME'
   const letzteAnmeldung = lastSignIn
     ? new Date(lastSignIn).toLocaleString('de-DE', {
         day: '2-digit', month: '2-digit', year: 'numeric',
@@ -153,17 +155,13 @@ function ProfilTab({
 
   return (
     <div className="space-y-6 max-w-2xl">
+      {/* Profilbild */}
+      <Abschnitt titel="Profilbild" beschreibung="Erscheint im Team-Tab und in Kommentaren">
+        <AvatarUpload initialUrl={userAvatarUrl} userLabel={userEmail} />
+      </Abschnitt>
+
       {/* Konto-Info */}
       <Abschnitt titel="Mein Konto" beschreibung="Persönliche Anmeldedaten">
-        <div className="flex items-center gap-4 pb-4 mb-4 border-b border-gray-100">
-          <div className="w-14 h-14 rounded-full bg-wellbeing-green flex items-center justify-center text-xl font-bold text-white shrink-0">
-            {kuerzel}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-900">{userEmail}</p>
-            <p className="text-xs text-gray-400 mt-0.5">Administrator</p>
-          </div>
-        </div>
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">E-Mail-Adresse</label>
@@ -1052,6 +1050,7 @@ export default function EinstellungenTabs({
   userRolle,
   userEmail,
   userId,
+  userAvatarUrl,
   lastSignIn,
   branding,
   vorlagen,
@@ -1062,6 +1061,7 @@ export default function EinstellungenTabs({
   userRolle: Rolle
   userEmail: string
   userId: string
+  userAvatarUrl: string | null
   lastSignIn: string | null
   branding: Branding | null
   vorlagen: VertragsVorlage[]
@@ -1090,7 +1090,7 @@ export default function EinstellungenTabs({
       </div>
 
       {/* Inhalt */}
-      {aktuellerTab === 'profil'             && <ProfilTab userEmail={userEmail} lastSignIn={lastSignIn} />}
+      {aktuellerTab === 'profil'             && <ProfilTab userEmail={userEmail} userAvatarUrl={userAvatarUrl} lastSignIn={lastSignIn} />}
       {aktuellerTab === 'workspace'          && <WorkspaceTab einstellungen={einstellungen} />}
       {aktuellerTab === 'branding' && istAdmin && <BrandingTab branding={branding} />}
       {aktuellerTab === 'team'               && <TeamTab team={team} userRolle={userRolle} userId={userId} userEmail={userEmail} lastSignIn={lastSignIn} />}

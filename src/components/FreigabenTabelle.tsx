@@ -438,10 +438,10 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
     <div className="flex flex-col min-h-0">
 
       {/* ── Sticky Header: Titel + Chart + Tabs ───────────────── */}
-      <div className="sticky top-0 z-20 bg-gray-50 px-6 pt-6 shadow-sm">
-        <div className="mb-4">
-          <h1 className="text-xl font-semibold text-gray-900">Freigaben</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Produktfreigaben aller Projekte im Überblick</p>
+      <div className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-gray-100 px-6 pt-4 pb-3">
+        <div className="mb-3">
+          <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Freigaben</h1>
+          <p className="text-xs text-gray-500 mt-0.5">Produktfreigaben aller Projekte im Überblick</p>
         </div>
 
         <FreigabeChart eintraege={eintraege} activeTab={tab} onTabChange={setTab} />

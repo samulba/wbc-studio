@@ -16,7 +16,9 @@ export default async function OnboardingPage() {
   const anfragen = (data ?? []) as OnboardingAnfrage[]
 
   return (
-    <div className="flex-1 overflow-y-auto animate-fadeIn">
+    <div className="flex-1 min-h-0 animate-fadeIn">
+      {/* OnboardingTabelle bringt eigene h-full flex flex-col mit — Header bleibt fix,
+          Liste scrollt intern. Kein overflow hier, sonst würde der Header doch mitscrollen. */}
       <OnboardingTabelle anfragen={anfragen} vorlagen={vorlagen} />
     </div>
   )

@@ -379,10 +379,10 @@ export default function OnboardingTabelle({
 
       <div className="h-full flex flex-col">
 
-        {/* ── Header ─────────────────────────────────────────── */}
-        <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        {/* ── Header (sticky, bleibt beim Scrollen stehen) ───── */}
+        <div className="bg-white/85 backdrop-blur-md border-b border-gray-100 px-6 py-4 flex items-center justify-between shrink-0">
           <div>
-            <h1 className="text-lg font-semibold text-gray-900">Onboarding</h1>
+            <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Onboarding</h1>
             <p className="text-xs text-gray-500 mt-0.5">
               {anfragen.length} Links
               {ausgefuelltCount > 0 && (

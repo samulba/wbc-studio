@@ -259,13 +259,13 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
   const totalGrundriss = raeume.filter((r) =>  r.grundriss_json).length
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
+    <div className="flex-1 overflow-y-auto animate-fadeIn">
 
-      {/* Sticky Header + Toolbar */}
-      <div className="sticky top-0 z-20 bg-[#f9fafb] pb-4 mb-2 border-b border-gray-100">
-        <div className="mb-4">
-          <h1 className="text-xl font-semibold text-gray-900">Raumplaner</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+      {/* Sticky Header (Titel + Toolbar) — deckt oben vollständig ab, kein Gap */}
+      <div className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-gray-100 px-6 pt-4 pb-3">
+        <div className="mb-3">
+          <h1 className="text-xl font-semibold text-gray-900 tracking-tight">Raumplaner</h1>
+          <p className="text-xs text-gray-500 mt-0.5">
             {raeume.length} {raeume.length === 1 ? 'Raum' : 'Räume'} gesamt
             {' · '}{totalGrundriss} mit Grundriss
             {' · '}{raeume.length - totalGrundriss} ohne Grundriss
@@ -343,6 +343,8 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
         </div>
       </div>
 
+      <div className="px-6 py-6">
+
       {/* Keine Räume insgesamt */}
       {raeume.length === 0 && (
         <div className="text-center py-20 bg-white border border-gray-200 rounded-xl shadow-sm">
@@ -410,6 +412,8 @@ export default function RaumplanerUebersichtClient({ raeume, projekte }: Props) 
           ))}
         </div>
       )}
+
+      </div>
 
       {/* ── EXPORT-MODAL ── */}
       {exportRaum && (
