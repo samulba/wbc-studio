@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Mail, Lock, ArrowRight, Loader2, AlertCircle, Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react'
 import Image from 'next/image'
@@ -104,7 +104,6 @@ function PasswortResetModal({ onClose }: { onClose: () => void }) {
 // ── Inner-Komponente (useSearchParams braucht Suspense) ───────
 
 function LoginForm() {
-  const router       = useRouter()
   const searchParams = useSearchParams()
   const redirectTo   = searchParams.get('redirect') ?? '/dashboard'
   const isExpired    = searchParams.get('expired') === 'true'
@@ -132,18 +131,20 @@ function LoginForm() {
       return
     }
 
-    // Domain-aware Redirect nach erfolgreichem Login
+    // Full-Page-Reload statt router.push/refresh:
+    // signInWithPassword setzt Auth-Cookies im Browser, aber Next.js'
+    // client-side Navigation würde den Request senden, bevor die Cookies
+    // vom Middleware-Handler gesehen werden → ging erst beim zweiten Klick.
+    // window.location.href erzwingt einen frischen HTTP-Request, bei dem
+    // die Cookies garantiert anhängen.
     const isMainDomain =
       typeof window !== 'undefined' &&
       (window.location.hostname === 'wellbeing-spaces.de' ||
        window.location.hostname === 'www.wellbeing-spaces.de')
 
-    if (isMainDomain) {
-      window.location.href = `https://${APP_DOMAIN}${redirectTo}`
-    } else {
-      router.push(redirectTo)
-      router.refresh()
-    }
+    window.location.href = isMainDomain
+      ? `https://${APP_DOMAIN}${redirectTo}`
+      : redirectTo
   }
 
   return (

@@ -101,86 +101,117 @@ export default function HowItWorks() {
     <section id="wie-es-funktioniert" className="bg-white relative">
       <div ref={outerRef} className="relative" style={{ height: '320vh' }}>
         <div className="sticky top-0 h-screen w-full flex items-center overflow-hidden">
-          <div className="w-full max-w-[1300px] mx-auto px-8">
+          <div className="w-full max-w-[1100px] mx-auto px-8">
 
             {/* Heading */}
-            <div className="text-center mb-12">
+            <div className="text-center mb-10">
               <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-3">
                 So funktionierts
               </p>
-              <h2 className="font-syne font-bold text-[40px] md:text-[56px] text-[#445c49] leading-[1.05]">
+              <h2 className="font-syne font-bold text-[36px] md:text-[52px] text-[#445c49] leading-[1.05]">
                 In 3 Schritten zum<br className="hidden md:block" /> professionellen Projekt
               </h2>
             </div>
 
-            <div className="grid grid-cols-[auto_1fr] gap-12 items-center">
-
-              {/* Left: vertical progress + step markers */}
-              <div className="relative flex flex-col gap-16 pl-2">
-                <div className="absolute left-[27px] top-3 bottom-3 w-[2px] bg-wellbeing-cream" aria-hidden />
-                <m.div
-                  style={{ scaleY: lineScale, transformOrigin: '0% 0%' }}
-                  className="absolute left-[27px] top-3 bottom-3 w-[2px] bg-[#445c49]"
-                  aria-hidden
-                />
-                {steps.map((s, i) => {
-                  const isActive = i === active
-                  const isDone   = i < active
-                  return (
-                    <div key={s.num} className="relative flex items-center gap-4 z-10">
-                      <m.div
-                        animate={{
-                          scale: isActive ? 1 : 0.82,
-                          backgroundColor: isActive || isDone ? '#445c49' : '#ffffff',
-                        }}
-                        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                        className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 shadow-lg ${
-                          isActive || isDone ? 'border-[#445c49]' : 'border-gray-200'
-                        }`}
-                      >
-                        <span className={`font-syne font-bold text-[14px] ${isActive || isDone ? 'text-white' : 'text-gray-400'}`}>
-                          {s.num}
-                        </span>
-                      </m.div>
-                      <span className={`text-[14px] font-semibold transition-colors ${isActive ? 'text-[#445c49]' : 'text-gray-400'}`}>
-                        {s.title}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Right: active step stage */}
-              <div className="relative min-h-[360px] flex items-center">
-                <AnimatePresence mode="wait">
-                  <m.div
-                    key={active}
-                    initial={{ opacity: 0, y: 24, filter: 'blur(6px)' }}
-                    animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                    exit={{ opacity: 0, y: -16, filter: 'blur(4px)' }}
-                    transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                    className="flex items-start gap-8"
+            {/* Progress Chips - horizontal, zentriert */}
+            <div className="flex items-center justify-center gap-3 md:gap-5 mb-4 relative">
+              {/* Horizontale Progress-Linie */}
+              <div className="absolute left-[12%] right-[12%] top-1/2 -translate-y-1/2 h-[2px] bg-wellbeing-cream rounded-full" aria-hidden />
+              <m.div
+                style={{ scaleX: lineScale, transformOrigin: '0% 50%' }}
+                className="absolute left-[12%] right-[12%] top-1/2 -translate-y-1/2 h-[2px] bg-[#445c49] rounded-full"
+                aria-hidden
+              />
+              {steps.map((s, i) => {
+                const isActive = i === active
+                const isDone   = i < active
+                return (
+                  <m.button
+                    key={s.num}
+                    type="button"
+                    animate={{
+                      scale: isActive ? 1 : 0.9,
+                    }}
+                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    className={`relative z-10 inline-flex items-center gap-2.5 px-4 py-2 rounded-full border-2 transition-colors ${
+                      isActive
+                        ? 'bg-[#445c49] border-[#445c49] shadow-lg shadow-wellbeing-green-light/40'
+                        : isDone
+                          ? 'bg-white border-[#445c49]'
+                          : 'bg-white border-gray-200'
+                    }`}
                   >
-                    <div className="w-24 h-24 rounded-3xl bg-[#445c49] flex items-center justify-center shadow-xl shadow-wellbeing-green-light/60 shrink-0">
-                      <ActiveIcon className="w-10 h-10 text-white" strokeWidth={1.6} />
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.2em] mb-2">
-                        Schritt {steps[active].num}
-                      </p>
-                      <h3 className="font-syne font-bold text-[32px] md:text-[40px] text-[#445c49] leading-tight mb-4">
-                        {steps[active].title}
-                      </h3>
-                      <p className="text-[16px] md:text-[18px] text-gray-500 leading-relaxed max-w-[520px]">
-                        {steps[active].desc}
-                      </p>
-                    </div>
-                  </m.div>
-                </AnimatePresence>
-              </div>
+                    <span className={`font-syne font-bold text-[12px] ${
+                      isActive ? 'text-white' : isDone ? 'text-[#445c49]' : 'text-gray-400'
+                    }`}>
+                      {s.num}
+                    </span>
+                    <span className={`text-[12px] font-semibold ${
+                      isActive ? 'text-white' : isDone ? 'text-[#445c49]' : 'text-gray-400'
+                    } hidden sm:inline`}>
+                      {s.title}
+                    </span>
+                  </m.button>
+                )
+              })}
             </div>
 
-            <div className="mt-14 flex justify-center">
+            {/* Central Stage — mittig, mit großer Ghost-Nummer als Backdrop */}
+            <div className="relative min-h-[360px] flex items-center justify-center mt-6">
+
+              {/* Ghost-Nummer im Hintergrund */}
+              <AnimatePresence mode="wait">
+                <m.div
+                  key={`ghost-${active}`}
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 1.1 }}
+                  transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center select-none"
+                >
+                  <span
+                    className="font-syne font-bold leading-none tracking-tight"
+                    style={{
+                      fontSize: 'clamp(180px, 28vw, 360px)',
+                      background: 'linear-gradient(135deg, #e8f0ea 0%, #f6ede2 55%, #e8f0ea 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                    }}
+                  >
+                    {steps[active].num}
+                  </span>
+                </m.div>
+              </AnimatePresence>
+
+              {/* Foreground Content */}
+              <AnimatePresence mode="wait">
+                <m.div
+                  key={`fg-${active}`}
+                  initial={{ opacity: 0, y: 20, filter: 'blur(6px)' }}
+                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, y: -14, filter: 'blur(4px)' }}
+                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                  className="relative z-10 flex flex-col items-center text-center max-w-[620px] mx-auto"
+                >
+                  <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-[#445c49] flex items-center justify-center shadow-xl shadow-wellbeing-green-light/60 mb-5">
+                    <ActiveIcon className="w-8 h-8 md:w-10 md:h-10 text-white" strokeWidth={1.6} />
+                  </div>
+                  <p className="text-[11px] font-bold text-[#445c49] uppercase tracking-[0.25em] mb-3">
+                    Schritt {steps[active].num}
+                  </p>
+                  <h3 className="font-syne font-bold text-[34px] md:text-[46px] text-[#445c49] leading-[1.05] tracking-tight mb-4">
+                    {steps[active].title}
+                  </h3>
+                  <p className="text-[16px] md:text-[18px] text-gray-500 leading-relaxed">
+                    {steps[active].desc}
+                  </p>
+                </m.div>
+              </AnimatePresence>
+            </div>
+
+            <div className="mt-10 flex justify-center">
               <div className="inline-flex items-center gap-3 px-6 py-3.5 bg-wellbeing-cream border border-wellbeing-cream rounded-2xl">
                 <span className="text-[13px] font-semibold text-[#445c49]">Durchschnittliche Setup-Zeit:</span>
                 <span className="font-syne font-bold text-[#445c49] text-[15px]">unter 5 Minuten</span>
