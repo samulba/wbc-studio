@@ -1,8 +1,9 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useTransition } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { loginAction } from './actions'
 import { Mail, Lock, ArrowRight, Loader2, AlertCircle, Eye, EyeOff, ArrowLeft, CheckCircle } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -115,36 +116,34 @@ function LoginForm() {
   const [fehler,         setFehler]         = useState<string | null>(
     isExpired ? 'Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.' : null
   )
-  const [laedt, setLaedt] = useState(false)
+  const [isPending, startTransition] = useTransition()
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setFehler(null)
-    setLaedt(true)
 
-    const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password: passwort })
+    startTransition(async () => {
+      const formData = new FormData()
+      formData.set('email', email)
+      formData.set('passwort', passwort)
 
-    if (error) {
-      setFehler('E-Mail oder Passwort ungültig.')
-      setLaedt(false)
-      return
-    }
+      const result = await loginAction(formData)
+      if (result.fehler) {
+        setFehler(result.fehler)
+        return
+      }
 
-    // Full-Page-Reload statt router.push/refresh:
-    // signInWithPassword setzt Auth-Cookies im Browser, aber Next.js'
-    // client-side Navigation würde den Request senden, bevor die Cookies
-    // vom Middleware-Handler gesehen werden → ging erst beim zweiten Klick.
-    // window.location.href erzwingt einen frischen HTTP-Request, bei dem
-    // die Cookies garantiert anhängen.
-    const isMainDomain =
-      typeof window !== 'undefined' &&
-      (window.location.hostname === 'wellbeing-spaces.de' ||
-       window.location.hostname === 'www.wellbeing-spaces.de')
+      // Server-Action hat den Auth-Cookie bereits via Response-Header gesetzt.
+      // Browser hat ihn beim nächsten Request garantiert dabei → kein Double-Click mehr.
+      const isMainDomain =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'wellbeing-spaces.de' ||
+         window.location.hostname === 'www.wellbeing-spaces.de')
 
-    window.location.href = isMainDomain
-      ? `https://${APP_DOMAIN}${redirectTo}`
-      : redirectTo
+      window.location.href = isMainDomain
+        ? `https://${APP_DOMAIN}${redirectTo}`
+        : redirectTo
+    })
   }
 
   return (
@@ -223,10 +222,10 @@ function LoginForm() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={laedt}
+          disabled={isPending}
           className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#445c49] hover:bg-wellbeing-green active:bg-wellbeing-green-dark disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-all shadow-sm hover:shadow-md mt-1"
         >
-          {laedt ? (
+          {isPending ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
               Anmelden…
