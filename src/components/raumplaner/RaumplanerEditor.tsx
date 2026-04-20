@@ -78,16 +78,9 @@ interface TuerFensterVariante {
 const TUER_VARIANTEN: TuerFensterVariante[] = [
   { id: 'tuer-links',   label: 'Standard L', kategorie: 'tuer',    breite: 80,  beschreibung: 'Öffnung links'    },
   { id: 'tuer-rechts',  label: 'Standard R', kategorie: 'tuer',    breite: 80,  beschreibung: 'Öffnung rechts'   },
-  { id: 'tuer-doppel',  label: 'Doppeltür',  kategorie: 'tuer',    breite: 160, beschreibung: 'Zweiflügelig'     },
   { id: 'tuer-schiebe', label: 'Schiebetür', kategorie: 'tuer',    breite: 100, beschreibung: 'Schiebend'        },
-  { id: 'tuer-falt',    label: 'Falttür',    kategorie: 'tuer',    breite: 80,  beschreibung: 'Faltend'          },
-  { id: 'tuer-glas',    label: 'Glastür',    kategorie: 'tuer',    breite: 80,  beschreibung: 'Transparent'      },
   { id: 'fen-standard', label: 'Standard',   kategorie: 'fenster', breite: 100, beschreibung: '100 cm'           },
-  { id: 'fen-breit',    label: 'Breit',      kategorie: 'fenster', breite: 150, beschreibung: '150 cm'           },
   { id: 'fen-bodentief',label: 'Bodentief',  kategorie: 'fenster', breite: 100, beschreibung: '200 cm hoch'      },
-  { id: 'fen-dach',     label: 'Dachfenster',kategorie: 'fenster', breite: 80,  beschreibung: 'Flach, mit Kreuz' },
-  { id: 'fen-bogen',    label: 'Bogenfenster',kategorie: 'fenster',breite: 100, beschreibung: 'Mit Rundbogen'    },
-  { id: 'fen-rund',     label: 'Rundfenster',kategorie: 'fenster', breite: 80,  beschreibung: 'Rund, Ø 80 cm'   },
 ]
 
 function TuerFensterPreviewSvg({ variant }: { variant: TuerFensterVariante }) {
@@ -109,34 +102,12 @@ function TuerFensterPreviewSvg({ variant }: { variant: TuerFensterVariante }) {
           <line x1={w*0.3} y1={h/2-T/2} x2={w*0.3} y2={h/2+T/2} stroke="#64748b" strokeWidth="0.8"/>
         </svg>
       )
-      case 'tuer-doppel': return (
-        <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
-          <rect x="1" y={h/2-T/2} width={w-2} height={T} fill="#e2e8f0" stroke="#64748b" strokeWidth="0.8"/>
-          <path d={`M ${w/2},${h/2+T/2} A ${w/2-1},${w/2-1} 0 0 0 1,${h/2-T/2}`} stroke="#445c49" strokeWidth="1" strokeDasharray="3,2" fill="rgba(68,92,73,0.05)"/>
-          <path d={`M ${w/2},${h/2+T/2} A ${w/2-1},${w/2-1} 0 0 1 ${w-1},${h/2-T/2}`} stroke="#445c49" strokeWidth="1" strokeDasharray="3,2" fill="rgba(68,92,73,0.05)"/>
-        </svg>
-      )
       case 'tuer-schiebe': return (
         <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
           <rect x="1" y={h/2-T/2} width={w-2} height={T} fill="#e2e8f0" stroke="#64748b" strokeWidth="0.8"/>
           <rect x="3" y={h/2-T/2+1} width={w/2-4} height={T-2} fill="rgba(100,116,139,0.2)" stroke="#94a3b8" strokeWidth="0.5"/>
           <path d={`M ${w*0.3},${h/2} L ${w*0.15},${h/2-3} M ${w*0.3},${h/2} L ${w*0.15},${h/2+3}`} stroke="#445c49" strokeWidth="1"/>
           <path d={`M ${w*0.7},${h/2} L ${w*0.85},${h/2-3} M ${w*0.7},${h/2} L ${w*0.85},${h/2+3}`} stroke="#445c49" strokeWidth="1"/>
-        </svg>
-      )
-      case 'tuer-falt': return (
-        <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
-          <rect x="1" y={h/2-T/2} width={w/2} height={T} fill="#e2e8f0" stroke="#64748b" strokeWidth="0.8"/>
-          <path d={`M 1,${h/2+T/2} L ${w*0.2},${h*0.1} L ${w*0.4},${h/2+T/2} L ${w/2},${h*0.1}`} stroke="#445c49" strokeWidth="1" fill="none"/>
-          <path d={`M 1,${h/2+T/2} A ${w*0.5},${w*0.5} 0 0 0 ${w/2},${h/2-T/2}`} stroke="#94a3b8" strokeWidth="0.5" strokeDasharray="2,2"/>
-        </svg>
-      )
-      case 'tuer-glas': return (
-        <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
-          <rect x="0" y={h/2-T/2} width={w*0.7} height={T} fill="rgba(147,197,253,0.3)" stroke="#64748b" strokeWidth="0.8"/>
-          <line x1={w*0.15} y1={h/2-T/2+1} x2={w*0.15} y2={h/2+T/2-1} stroke="#93c5fd" strokeWidth="0.7"/>
-          <line x1={w*0.25} y1={h/2-T/2+1} x2={w*0.25} y2={h/2+T/2-1} stroke="#93c5fd" strokeWidth="0.7"/>
-          <path d={`M 0,${h/2+T/2} A ${w*0.7},${w*0.7} 0 0 0 ${w*0.7},${h/2-T/2}`} stroke="#445c49" strokeWidth="1" strokeDasharray="3,2" fill="rgba(147,197,253,0.08)"/>
         </svg>
       )
       default: return <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}><rect x="1" y={h/2-T/2} width={w-2} height={T} fill="#e2e8f0" stroke="#64748b" strokeWidth="0.8"/></svg>
@@ -151,40 +122,11 @@ function TuerFensterPreviewSvg({ variant }: { variant: TuerFensterVariante }) {
         <line x1={w*0.66} y1={h/2-T/2+1} x2={w*0.66} y2={h/2+T/2-1} stroke="#94c1a4" strokeWidth="1.5"/>
       </svg>
     )
-    case 'fen-breit': return (
-      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
-        <rect x="1" y={h/2-T/2} width={w-2} height={T} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
-        <line x1={w*0.25} y1={h/2-T/2+1} x2={w*0.25} y2={h/2+T/2-1} stroke="#94c1a4" strokeWidth="1.2"/>
-        <line x1={w*0.5}  y1={h/2-T/2+1} x2={w*0.5}  y2={h/2+T/2-1} stroke="#94c1a4" strokeWidth="1.2"/>
-        <line x1={w*0.75} y1={h/2-T/2+1} x2={w*0.75} y2={h/2+T/2-1} stroke="#94c1a4" strokeWidth="1.2"/>
-      </svg>
-    )
     case 'fen-bodentief': return (
       <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
         <rect x={w*0.2} y="1" width={w*0.6} height={h-2} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
         <line x1={w*0.5} y1="1" x2={w*0.5} y2={h-1} stroke="#94c1a4" strokeWidth="1.2"/>
         <line x1={w*0.2+1} y1={h/2} x2={w*0.8-1} y2={h/2} stroke="#94c1a4" strokeWidth="0.7" strokeDasharray="2,2"/>
-      </svg>
-    )
-    case 'fen-dach': return (
-      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
-        <rect x="4" y="4" width={w-8} height={h-8} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
-        <line x1="4" y1="4" x2={w-4} y2={h-4} stroke="#94c1a4" strokeWidth="1"/>
-        <line x1={w-4} y1="4" x2="4" y2={h-4} stroke="#94c1a4" strokeWidth="1"/>
-      </svg>
-    )
-    case 'fen-bogen': return (
-      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
-        <rect x="3" y={h/2} width={w-6} height={h/2-2} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
-        <path d={`M 3,${h/2} A ${(w-6)/2},${h/2-2} 0 0 1 ${w-3},${h/2}`} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
-        <line x1={w/2} y1="2" x2={w/2} y2={h-2} stroke="#94c1a4" strokeWidth="1"/>
-      </svg>
-    )
-    case 'fen-rund': return (
-      <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} fill="none">
-        <circle cx={w/2} cy={h/2} r={h/2-2} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/>
-        <line x1={w/2} y1="2" x2={w/2} y2={h-2} stroke="#94c1a4" strokeWidth="1"/>
-        <line x1="3" y1={h/2} x2={w-3} y2={h/2} stroke="#94c1a4" strokeWidth="1"/>
       </svg>
     )
     default: return <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h}><rect x="1" y={h/2-T/2} width={w-2} height={T} fill="#e0f2fe" stroke="#64748b" strokeWidth="0.8"/></svg>
@@ -197,23 +139,17 @@ const FLOOR_TEXTURES: Record<string, FloorTexture> = {
   'none':           { name: 'Kein',          preview: '#f8f9fa' },
   'holz-hell':      { name: 'Holz hell',     preview: '#d4a574' },
   'holz-dunkel':    { name: 'Holz dunkel',   preview: '#7c5c3a' },
-  'parkett':        { name: 'Parkett',       preview: '#c49a6c' },
-  'laminat-grau':   { name: 'Laminat',       preview: '#9ca3af' },
   'fliesen-weiss':  { name: 'Fliesen weiß',  preview: '#f5f5f5' },
   'fliesen-grau':   { name: 'Fliesen grau',  preview: '#d1d5db' },
-  'fliesen-schwarz':{ name: 'Fliesen schwarz',preview: '#374151' },
   'marmor':         { name: 'Marmor',        preview: '#e8e0d8' },
   'beton':          { name: 'Beton',         preview: '#9ca3af' },
-  'teppich-beige':  { name: 'Teppich beige', preview: '#d4b896' },
-  'teppich-grau':   { name: 'Teppich grau',  preview: '#9ca3af' },
 }
 
 // Wand-Farbpalette
 const WANDFARBEN = [
   '#ffffff', '#f5f5dc', '#e8e8e8', '#d3d3d3',
-  '#c2b280', '#cba178', '#add8e6', '#98e8c0',
-  '#ffe4e1', '#e6e6fa', '#e2725b', '#9dc183',
-  '#1e293b', '#445c49', '#2d3e31', '#4b4b4b',
+  '#cba178', '#add8e6',
+  '#445c49', '#2d3e31',
 ]
 
 function createPatternCanvas(textur: string): HTMLCanvasElement | null {
@@ -241,29 +177,6 @@ function createPatternCanvas(textur: string): HTMLCanvasElement | null {
       ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(4, 120); ctx.stroke()
       break
     }
-    case 'parkett': {
-      c.width = 40; c.height = 40
-      // Fischgrät - zwei diagonale Planken
-      ctx.fillStyle = '#c49a6c'; ctx.fillRect(0, 0, 40, 40)
-      ctx.strokeStyle = '#a07848'; ctx.lineWidth = 1
-      // Plank 1
-      ctx.fillStyle = '#c49a6c'
-      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(20, 0); ctx.lineTo(20, 20); ctx.lineTo(0, 20); ctx.closePath(); ctx.fill(); ctx.stroke()
-      ctx.fillStyle = '#b8904e'
-      ctx.beginPath(); ctx.moveTo(20, 20); ctx.lineTo(40, 20); ctx.lineTo(40, 40); ctx.lineTo(20, 40); ctx.closePath(); ctx.fill(); ctx.stroke()
-      ctx.fillStyle = '#c49a6c'
-      ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(40, 0); ctx.lineTo(40, 20); ctx.lineTo(20, 20); ctx.closePath(); ctx.fill(); ctx.stroke()
-      ctx.fillStyle = '#b8904e'
-      ctx.beginPath(); ctx.moveTo(0, 20); ctx.lineTo(20, 20); ctx.lineTo(20, 40); ctx.lineTo(0, 40); ctx.closePath(); ctx.fill(); ctx.stroke()
-      break
-    }
-    case 'laminat-grau': {
-      c.width = 20; c.height = 80
-      ctx.fillStyle = '#b0b8c0'; ctx.fillRect(0, 0, 20, 80)
-      ctx.strokeStyle = '#8a9299'; ctx.lineWidth = 1
-      ctx.strokeRect(0.5, 0.5, 19, 79)
-      break
-    }
     case 'fliesen-weiss': {
       c.width = 52; c.height = 52
       ctx.fillStyle = '#f8f8f8'; ctx.fillRect(0, 0, 52, 52)
@@ -275,13 +188,6 @@ function createPatternCanvas(textur: string): HTMLCanvasElement | null {
       c.width = 52; c.height = 52
       ctx.fillStyle = '#d1d5db'; ctx.fillRect(0, 0, 52, 52)
       ctx.strokeStyle = '#9ca3af'; ctx.lineWidth = 2
-      ctx.strokeRect(1, 1, 50, 50)
-      break
-    }
-    case 'fliesen-schwarz': {
-      c.width = 52; c.height = 52
-      ctx.fillStyle = '#374151'; ctx.fillRect(0, 0, 52, 52)
-      ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 2
       ctx.strokeRect(1, 1, 50, 50)
       break
     }
@@ -309,20 +215,6 @@ function createPatternCanvas(textur: string): HTMLCanvasElement | null {
       ctx.strokeStyle = 'rgba(107,114,128,0.3)'; ctx.lineWidth = 0.5
       ctx.beginPath(); ctx.moveTo(0, 40); ctx.lineTo(80, 40); ctx.stroke()
       ctx.beginPath(); ctx.moveTo(40, 0); ctx.lineTo(40, 80); ctx.stroke()
-      break
-    }
-    case 'teppich-beige': {
-      c.width = 8; c.height = 8
-      ctx.fillStyle = '#d4b896'; ctx.fillRect(0, 0, 8, 8)
-      ctx.fillStyle = '#c4a886'; ctx.fillRect(0, 0, 4, 4)
-      ctx.fillRect(4, 4, 4, 4)
-      break
-    }
-    case 'teppich-grau': {
-      c.width = 8; c.height = 8
-      ctx.fillStyle = '#9ca3af'; ctx.fillRect(0, 0, 8, 8)
-      ctx.fillStyle = '#8c939e'; ctx.fillRect(0, 0, 4, 4)
-      ctx.fillRect(4, 4, 4, 4)
       break
     }
     default: return null
@@ -515,45 +407,12 @@ const RAUM_TEMPLATES: RaumTemplate[] = [
     ],
   },
   {
-    name: 'Büro', emoji: '💼', beschreibung: 'L-Schreibtisch, Bürostuhl, Aktenschrank',
-    objekte: [
-      { name: 'Schreibtisch L-Form', x: 40, y: 40,  breite: 180, tiefe: 150, farbe: '#d4b896' },
-      { name: 'Bürostuhl',           x: 110, y: 210, breite: 45,  tiefe:  45, farbe: '#b8cfc7' },
-      { name: 'Aktenschrank',        x: 280, y: 40,  breite: 80,  tiefe:  45, farbe: '#c8c8c8' },
-      { name: 'Regal',               x: 370, y: 40,  breite: 120, tiefe:  35, farbe: '#d4b896' },
-    ],
-  },
-  {
-    name: 'Küche', emoji: '🍳', beschreibung: 'Küchenzeile, Herd, Kühlschrank, Esstisch',
-    objekte: [
-      { name: 'Küchenzeile 3m', x: 30,  y: 30,  breite: 300, tiefe:  60, farbe: '#e0e0e0' },
-      { name: 'Herd',           x: 330, y: 30,  breite:  60, tiefe:  60, farbe: '#e0e0e0' },
-      { name: 'Kühlschrank',    x: 390, y: 30,  breite:  70, tiefe:  70, farbe: '#e0e0e0' },
-      { name: 'Esstisch 4P',    x: 100, y: 180, breite: 120, tiefe:  80, farbe: '#d4b896' },
-      { name: 'Esszimmerstuhl', x: 105, y: 120, breite:  45, tiefe:  45, farbe: '#b8cfc7' },
-      { name: 'Esszimmerstuhl', x: 175, y: 120, breite:  45, tiefe:  45, farbe: '#b8cfc7' },
-    ],
-  },
-  {
     name: 'Badezimmer', emoji: '🛁', beschreibung: 'Badewanne, Dusche, WC, Waschbecken',
     objekte: [
       { name: 'Badewanne freistehend', x: 30,  y: 30,  breite: 180, tiefe:  80, farbe: '#aed4e8' },
       { name: 'Dusche 90x90',          x: 240, y: 30,  breite:  90, tiefe:  90, farbe: '#aed4e8' },
       { name: 'WC wandhängend',        x: 30,  y: 210, breite:  40, tiefe:  55, farbe: '#aed4e8' },
       { name: 'Waschbecken',           x: 100, y: 215, breite:  60, tiefe:  45, farbe: '#aed4e8' },
-    ],
-  },
-  {
-    name: 'Esszimmer', emoji: '🍽️', beschreibung: 'Esstisch 6P mit Stühlen und Vitrine',
-    objekte: [
-      { name: 'Esstisch 6P',    x: 80,  y: 130, breite: 180, tiefe:  90, farbe: '#d4b896' },
-      { name: 'Esszimmerstuhl', x: 90,  y: 65,  breite:  45, tiefe:  45, farbe: '#b8cfc7' },
-      { name: 'Esszimmerstuhl', x: 160, y: 65,  breite:  45, tiefe:  45, farbe: '#b8cfc7' },
-      { name: 'Esszimmerstuhl', x: 230, y: 65,  breite:  45, tiefe:  45, farbe: '#b8cfc7' },
-      { name: 'Esszimmerstuhl', x: 90,  y: 245, breite:  45, tiefe:  45, farbe: '#b8cfc7' },
-      { name: 'Esszimmerstuhl', x: 160, y: 245, breite:  45, tiefe:  45, farbe: '#b8cfc7' },
-      { name: 'Esszimmerstuhl', x: 230, y: 245, breite:  45, tiefe:  45, farbe: '#b8cfc7' },
-      { name: 'Vitrine',        x: 380, y: 130, breite: 100, tiefe:  45, farbe: '#d4b896' },
     ],
   },
 ]
