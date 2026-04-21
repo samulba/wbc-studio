@@ -415,7 +415,7 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
             <FreigabeLinkKarte
               projektId={projekt.id}
               initialToken={aktiverToken ?? null}
-              initialHatPin={projekt.freigabe_pin != null}
+              initialHatPin={!!projekt.freigabe_pin && projekt.freigabe_pin.toString().trim().length >= 4}
             />
           </div>
 

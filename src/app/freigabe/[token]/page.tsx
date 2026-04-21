@@ -141,7 +141,7 @@ export default async function FreigabePage({ params }: Props) {
       kundeName={kundeName}
       raeume={raeume}
       mwst={mwst}
-      hatPin={projekt.freigabe_pin != null}
+      hatPin={!!projekt.freigabe_pin && projekt.freigabe_pin.toString().trim().length >= 4}
       branding={branding}
     />
   )

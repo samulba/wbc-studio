@@ -279,16 +279,26 @@ export async function projektDuplizieren(
 // ── PIN-Schutz ────────────────────────────────────────────────
 
 /** PIN setzen (4-6 Ziffern) oder entfernen (null). */
-export async function pinSetzen(projektId: string, pin: string | null): Promise<void> {
+export async function pinSetzen(
+  projektId: string,
+  pin: string | null,
+): Promise<{ fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
-  await supabase
+  // Normalize: leerer String wird zu null (kein PIN), sonst trim.
+  const normalisiert = pin == null ? null : pin.trim() || null
+  const { error } = await supabase
     .from('projekte')
-    .update({ freigabe_pin: pin })
+    .update({ freigabe_pin: normalisiert })
     .eq('id', projektId)
     .eq('organisation_id', orgId)
     .is('deleted_at', null)
+  if (error) {
+    console.error('[pinSetzen]', { projektId, code: error.code, message: error.message })
+    return { fehler: error.message }
+  }
   revalidatePath(`/dashboard/projekte/${projektId}`)
+  return {}
 }
 
 /**
@@ -309,7 +319,6 @@ export async function pinPruefen(token: string, pin: string): Promise<boolean> {
 
   if (!tokenData) return false
 
-  // PIN vergleichen
   const { data: projekt } = await supabase
     .from('projekte')
     .select('freigabe_pin')
@@ -318,5 +327,10 @@ export async function pinPruefen(token: string, pin: string): Promise<boolean> {
     .single()
 
   if (!projekt) return false
-  return projekt.freigabe_pin === pin
+  // Beidseitig trimmen + als String normalisieren, damit Legacy-PINs
+  // mit Whitespace nicht mehr falsch zurückgewiesen werden.
+  const gespeichert = (projekt.freigabe_pin ?? '').toString().trim()
+  const eingabe     = (pin ?? '').toString().trim()
+  if (!gespeichert) return false
+  return gespeichert === eingabe
 }

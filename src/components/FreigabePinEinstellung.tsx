@@ -35,7 +35,11 @@ export default function FreigabePinEinstellung({ projektId, hatPin: initialHatPi
       return
     }
     startTransition(async () => {
-      await pinSetzen(projektId, pin)
+      const res = await pinSetzen(projektId, pin)
+      if (res?.fehler) {
+        setFehler(`Fehler beim Speichern: ${res.fehler}`)
+        return
+      }
       setHatPin(true)
       setEditMode(false)
       setPinInput('')
@@ -48,12 +52,17 @@ export default function FreigabePinEinstellung({ projektId, hatPin: initialHatPi
 
   function handleEntfernen() {
     startTransition(async () => {
-      await pinSetzen(projektId, null)
+      const res = await pinSetzen(projektId, null)
+      if (res?.fehler) {
+        setFehler(`Fehler beim Entfernen: ${res.fehler}`)
+        return
+      }
       setHatPin(false)
       setEditMode(false)
       setPinInput('')
       setGespeicherterPin(null)
       setFehler(null)
+      showToast('PIN entfernt')
     })
   }
 
