@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronUp, Check, Plus, User, Mail, Phone, MapPin,
   Home, Euro, Clock, Palette, MessageSquare, ExternalLink, Trash2,
   X, ChevronRight, Settings2, Briefcase, Inbox, CheckCircle2,
+  UserPlus, Layers,
 } from 'lucide-react'
 import {
   onboardingLinkErstellen,
@@ -19,6 +20,38 @@ import type { OnboardingAnfrage, OnboardingStatus, OnboardingVorlage } from '@/l
 
 // ── Filter-Typ ────────────────────────────────────────────────
 type FilterTyp = 'alle' | 'offen' | 'ausgefuellt' | 'abgeschlossen' | 'abgelehnt'
+
+// ── Vorlage-Typ-Info ──────────────────────────────────────────
+function getTypInfo(typ: string | null | undefined): {
+  icon: React.ReactNode
+  label: string
+  bg: string
+  text: string
+} {
+  switch (typ) {
+    case 'neukunde':
+      return {
+        icon: <UserPlus className="w-4 h-4" />,
+        label: 'Neukunde',
+        bg: 'bg-amber-50',
+        text: 'text-amber-600',
+      }
+    case 'projekt':
+      return {
+        icon: <Briefcase className="w-4 h-4" />,
+        label: 'Projekt',
+        bg: 'bg-blue-50',
+        text: 'text-blue-600',
+      }
+    default:
+      return {
+        icon: <Layers className="w-4 h-4" />,
+        label: 'Universal',
+        bg: 'bg-gray-100',
+        text: 'text-gray-500',
+      }
+  }
+}
 
 // ── Badge-Konfiguration ───────────────────────────────────────
 function getBadge(a: OnboardingAnfrage): { label: string; cls: string } {
@@ -484,6 +517,8 @@ export default function OnboardingTabelle({
   const abgeschlossenCount = anfragen.filter((a) => a.status === 'abgeschlossen').length
   const abgelehntCount     = anfragen.filter((a) => a.status === 'abgelehnt').length
 
+  const vorlagenMap = new Map(vorlagen.map((v) => [v.id, v]))
+
   const anfragenGefiltert = anfragen.filter((a) => {
     if (filter === 'alle')          return true
     if (filter === 'offen')         return a.status === 'offen' && !a.kunde_name
@@ -631,13 +666,19 @@ export default function OnboardingTabelle({
           ) : (
             <div className="space-y-2">
               {anfragenGefiltert.map((anfrage) => {
-                const badge   = getBadge(anfrage)
+                const badge    = getBadge(anfrage)
+                const vorlage  = anfrage.vorlage_id ? vorlagenMap.get(anfrage.vorlage_id) : undefined
+                const typInfo  = getTypInfo(vorlage?.typ)
                 const istOffen = offeneId === anfrage.id
                 const loeschen = loeschenId === anfrage.id
                 return (
                   <div
                     key={anfrage.id}
-                    className="bg-white border border-gray-200 rounded-xl overflow-hidden"
+                    className={`bg-white border rounded-xl overflow-hidden transition-all ${
+                      istOffen
+                        ? 'border-wellbeing-green/40 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
                   >
                     {/* ── Zeile ──────────────────────────────── */}
                     <button
@@ -646,33 +687,67 @@ export default function OnboardingTabelle({
                         setOffeneId(istOffen ? null : anfrage.id)
                         setLoeschenId(null)
                       }}
-                      className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-gray-50/80 transition-colors"
                     >
-                      {/* Status-Badge */}
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${badge.cls}`}>
-                        {badge.label}
-                      </span>
+                      {/* Typ-Avatar */}
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${typInfo.bg} ${typInfo.text}`}
+                        title={typInfo.label}
+                      >
+                        {typInfo.icon}
+                      </div>
 
-                      {/* Name / Platzhalter */}
+                      {/* Name + Kontakt */}
                       <div className="flex-1 min-w-0">
                         {anfrage.kunde_name ? (
                           <>
-                            <p className="text-sm font-medium text-gray-900 truncate">{anfrage.kunde_name}</p>
-                            <p className="text-xs text-gray-400 truncate">{anfrage.kunde_email}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-semibold text-gray-900 truncate">
+                                {anfrage.kunde_name}
+                              </p>
+                              {anfrage.projekt_name && (
+                                <span className="text-[11px] text-gray-400 truncate hidden sm:inline">
+                                  · {anfrage.projekt_name}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-400 truncate mt-0.5">
+                              {anfrage.kunde_email || '—'}
+                            </p>
                           </>
                         ) : (
-                          <p className="text-sm text-gray-400 italic">Noch nicht ausgefüllt</p>
+                          <>
+                            <p className="text-sm text-gray-400 italic">Noch nicht ausgefüllt</p>
+                            <p className="text-[11px] text-gray-400 mt-0.5">
+                              Erstellt {formatDatum(anfrage.created_at)}
+                            </p>
+                          </>
                         )}
                       </div>
 
-                      {/* Datum */}
-                      <div className="text-right hidden md:block shrink-0">
-                        <p className="text-xs text-gray-400">
-                          {anfrage.kunde_name
-                            ? `Ausgefüllt ${formatDatum(anfrage.updated_at)}`
-                            : `Erstellt ${formatDatum(anfrage.created_at)}`}
-                        </p>
+                      {/* Meta rechts: Vorlage-Badge + Status + Datum */}
+                      <div className="hidden md:flex flex-col items-end gap-1 shrink-0 max-w-[180px]">
+                        <div className="flex items-center gap-1.5">
+                          {vorlage && (
+                            <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full truncate max-w-[120px]">
+                              {vorlage.name}
+                            </span>
+                          )}
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${badge.cls}`}>
+                            {badge.label}
+                          </span>
+                        </div>
+                        {anfrage.kunde_name && (
+                          <p className="text-[11px] text-gray-400">
+                            Ausgefüllt {formatDatum(anfrage.updated_at)}
+                          </p>
+                        )}
                       </div>
+
+                      {/* Status-Badge nur Mobile */}
+                      <span className={`md:hidden text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${badge.cls}`}>
+                        {badge.label}
+                      </span>
 
                       {/* Expand-Icon */}
                       <span className="text-gray-400 shrink-0">
