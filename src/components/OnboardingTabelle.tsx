@@ -17,6 +17,9 @@ import {
 import { kundeUndProjektAusOnboarding } from '@/app/actions/onboarding-erweitert'
 import type { OnboardingAnfrage, OnboardingStatus, OnboardingVorlage } from '@/lib/supabase/types'
 
+// ── Filter-Typ ────────────────────────────────────────────────
+type FilterTyp = 'alle' | 'offen' | 'ausgefuellt' | 'abgeschlossen' | 'abgelehnt'
+
 // ── Badge-Konfiguration ───────────────────────────────────────
 function getBadge(a: OnboardingAnfrage): { label: string; cls: string } {
   if (a.status === 'abgeschlossen') return { label: 'Abgeschlossen', cls: 'bg-blue-100 text-blue-700' }
@@ -409,6 +412,45 @@ function StatCard({
   )
 }
 
+function FilterTab({
+  aktiv,
+  onClick,
+  label,
+  count,
+  highlight,
+}: {
+  aktiv: boolean
+  onClick: () => void
+  label: string
+  count: number
+  highlight?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+        aktiv
+          ? 'bg-wellbeing-green/10 text-wellbeing-green-dark'
+          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+      }`}
+    >
+      <span>{label}</span>
+      <span
+        className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${
+          aktiv
+            ? 'bg-wellbeing-green text-white'
+            : highlight && count > 0
+              ? 'bg-emerald-100 text-emerald-700'
+              : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'
+        }`}
+      >
+        {count}
+      </span>
+    </button>
+  )
+}
+
 function DetailZeile({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
     <div className="flex items-start gap-2 text-sm text-gray-700">
@@ -433,12 +475,23 @@ export default function OnboardingTabelle({
   const [offeneId, setOffeneId]         = useState<string | null>(null)
   const [modalOffen, setModalOffen]     = useState(false)
   const [loeschenId, setLoeschenId]     = useState<string | null>(null)
+  const [filter, setFilter]             = useState<FilterTyp>('alle')
   const [isPendingDel, startDeleteTransition] = useTransition()
 
   const gesamt        = anfragen.length
   const offenCount    = anfragen.filter((a) => a.status === 'offen' && !a.kunde_name).length
   const ausgefuelltCount = anfragen.filter((a) => a.status === 'offen' && !!a.kunde_name).length
   const abgeschlossenCount = anfragen.filter((a) => a.status === 'abgeschlossen').length
+  const abgelehntCount     = anfragen.filter((a) => a.status === 'abgelehnt').length
+
+  const anfragenGefiltert = anfragen.filter((a) => {
+    if (filter === 'alle')          return true
+    if (filter === 'offen')         return a.status === 'offen' && !a.kunde_name
+    if (filter === 'ausgefuellt')   return a.status === 'offen' && !!a.kunde_name
+    if (filter === 'abgeschlossen') return a.status === 'abgeschlossen'
+    if (filter === 'abgelehnt')     return a.status === 'abgelehnt'
+    return true
+  })
 
   function handleLoeschen(id: string) {
     startDeleteTransition(async () => {
@@ -494,6 +547,21 @@ export default function OnboardingTabelle({
           </div>
         </div>
 
+        {/* ── Filter-Tabs ──────────────────────────────────────── */}
+        {anfragen.length > 0 && (
+          <div className="bg-white border-b border-gray-100 px-6 shrink-0 overflow-x-auto">
+            <div className="flex items-center gap-1 py-2 min-w-max">
+              <FilterTab aktiv={filter === 'alle'}          onClick={() => setFilter('alle')}          label="Alle"          count={gesamt} />
+              <FilterTab aktiv={filter === 'offen'}         onClick={() => setFilter('offen')}         label="Offen"         count={offenCount} />
+              <FilterTab aktiv={filter === 'ausgefuellt'}   onClick={() => setFilter('ausgefuellt')}   label="Ausgefüllt"    count={ausgefuelltCount} highlight />
+              <FilterTab aktiv={filter === 'abgeschlossen'} onClick={() => setFilter('abgeschlossen')} label="Abgeschlossen" count={abgeschlossenCount} />
+              {abgelehntCount > 0 && (
+                <FilterTab aktiv={filter === 'abgelehnt'}   onClick={() => setFilter('abgelehnt')}     label="Abgelehnt"     count={abgelehntCount} />
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ── Liste ──────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {anfragen.length === 0 ? (
@@ -544,9 +612,25 @@ export default function OnboardingTabelle({
                 </div>
               )}
             </div>
+          ) : anfragenGefiltert.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+              <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+                <Inbox className="w-6 h-6 text-gray-400" />
+              </div>
+              <h3 className="text-sm font-semibold text-gray-800 mb-1">Keine Einträge in diesem Filter</h3>
+              <p className="text-xs text-gray-400 max-w-xs mb-4">
+                Wechsle zurück auf „Alle“ oder wähle einen anderen Status.
+              </p>
+              <button
+                onClick={() => setFilter('alle')}
+                className="px-3 py-1.5 text-xs font-medium text-wellbeing-green border border-wellbeing-green/20 hover:bg-wellbeing-green/5 rounded-lg transition-colors"
+              >
+                Alle anzeigen
+              </button>
+            </div>
           ) : (
             <div className="space-y-2">
-              {anfragen.map((anfrage) => {
+              {anfragenGefiltert.map((anfrage) => {
                 const badge   = getBadge(anfrage)
                 const istOffen = offeneId === anfrage.id
                 const loeschen = loeschenId === anfrage.id
