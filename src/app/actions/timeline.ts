@@ -158,7 +158,9 @@ const QUELLE_KUNDE_SICHTBAR_DEFAULT: Record<AutoEventQuelle, boolean> = {
 
 /**
  * Legt einen Auto-Event an oder aktualisiert ihn. Bei optionen.loeschen=true
- * wird er stattdessen entfernt. Idempotent via UPSERT.
+ * wird er stattdessen entfernt. Idempotent.
+ * Gibt { error } zurück wenn etwas schiefgeht (z.B. Migration 075 nicht
+ * ausgeführt) — Aufrufer können das in die UI durchreichen.
  */
 export async function syncAutoEvent(
   quelle:   AutoEventQuelle,
@@ -166,9 +168,17 @@ export async function syncAutoEvent(
   projektId: string,
   daten: SyncAutoEventDaten | null,
   optionen?: { loeschen?: boolean },
-): Promise<void> {
+): Promise<{ error?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+
+  const formatErr = (phase: string, err: { message?: string; code?: string; hint?: string; details?: string }) => {
+    const hint =
+      err.code === '42703' || (err.message?.includes('column') && err.message?.includes('does not exist'))
+        ? ' (Migration 075 fehlt?)'
+        : ''
+    return `[${phase}] ${err.message ?? 'Unbekannter Fehler'}${hint}`
+  }
 
   // Löschung
   if (optionen?.loeschen) {
@@ -179,21 +189,22 @@ export async function syncAutoEvent(
       .eq('quelle', quelle)
       .eq('quelle_id', quelleId)
     if (error) {
-      console.error('[syncAutoEvent:delete]', { quelle, quelleId, message: error.message, hint: error.hint, details: error.details })
+      const msg = formatErr(`syncAutoEvent:delete:${quelle}`, error)
+      console.error(msg, { quelleId, projektId })
+      return { error: msg }
     }
     revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
     revalidatePath(`/dashboard/projekte/${projektId}`)
-    return
+    return {}
   }
 
-  if (!daten) return
+  if (!daten) return {}
 
   const kundeSichtbar = daten.kunde_sichtbar ?? QUELLE_KUNDE_SICHTBAR_DEFAULT[quelle]
 
   // Manuelles SELECT + INSERT/UPDATE statt supabase.upsert(),
   // weil PostgREST bei partial unique indexes keine WHERE-Prädikate
-  // durchreicht — ein Upsert würde sonst mit
-  // "no unique or exclusion constraint matching the ON CONFLICT specification" fehlschlagen.
+  // durchreicht.
   const { data: existing, error: selectErr } = await supabase
     .from('timeline_events')
     .select('id')
@@ -203,11 +214,9 @@ export async function syncAutoEvent(
     .maybeSingle()
 
   if (selectErr) {
-    console.error('[syncAutoEvent:select]', {
-      quelle, quelleId, projektId,
-      message: selectErr.message, code: selectErr.code, hint: selectErr.hint,
-    })
-    return
+    const msg = formatErr(`syncAutoEvent:select:${quelle}`, selectErr)
+    console.error(msg, { quelleId, projektId })
+    return { error: msg }
   }
 
   const payload = {
@@ -229,10 +238,9 @@ export async function syncAutoEvent(
       .eq('id', existing.id)
       .eq('organisation_id', orgId)
     if (error) {
-      console.error('[syncAutoEvent:update]', {
-        quelle, quelleId, projektId,
-        message: error.message, code: error.code, hint: error.hint, details: error.details,
-      })
+      const msg = formatErr(`syncAutoEvent:update:${quelle}`, error)
+      console.error(msg, { quelleId, projektId })
+      return { error: msg }
     }
   } else {
     const { error } = await supabase
@@ -244,10 +252,9 @@ export async function syncAutoEvent(
         quelle_id:       quelleId,
       })
     if (error) {
-      console.error('[syncAutoEvent:insert]', {
-        quelle, quelleId, projektId,
-        message: error.message, code: error.code, hint: error.hint, details: error.details,
-      })
+      const msg = formatErr(`syncAutoEvent:insert:${quelle}`, error)
+      console.error(msg, { quelleId, projektId })
+      return { error: msg }
     }
   }
 
@@ -256,6 +263,7 @@ export async function syncAutoEvent(
   if (daten.raum_id) {
     revalidatePath(`/dashboard/projekte/${projektId}/raeume/${daten.raum_id}`)
   }
+  return {}
 }
 
 

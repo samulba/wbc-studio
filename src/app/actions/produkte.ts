@@ -16,7 +16,8 @@ export type ProduktActionState = { fehler: string } | null
  */
 async function syncProduktTimeline(
   produktId: string, projektId: string, raumId: string,
-): Promise<void> {
+): Promise<{ error?: string }> {
+  const errors: string[] = []
   try {
     const supabase = await createClient()
     const { data: p, error: readErr } = await supabase
@@ -25,12 +26,14 @@ async function syncProduktTimeline(
       .eq('id', produktId)
       .maybeSingle()
     if (readErr) {
-      console.error('[syncProduktTimeline:read]', { produktId, message: readErr.message, code: readErr.code })
-      return
+      const msg = `[syncProduktTimeline:read] ${readErr.message}`
+      console.error(msg, { produktId })
+      return { error: msg }
     }
     if (!p) {
-      console.warn('[syncProduktTimeline] Produkt nicht gefunden (RLS?):', produktId)
-      return
+      const msg = `[syncProduktTimeline] Produkt nicht gefunden (RLS?): ${produktId}`
+      console.warn(msg)
+      return { error: msg }
     }
     console.info('[syncProduktTimeline]', {
       produktId, projektId, raumId,
@@ -40,20 +43,22 @@ async function syncProduktTimeline(
     })
 
     // Liefertermin-Event (quelle=produkt) — Kunden-sichtbar
+    let res: { error?: string } = {}
     if (p.liefertermin) {
-      await syncAutoEvent('produkt', produktId, projektId, {
+      res = await syncAutoEvent('produkt', produktId, projektId, {
         titel:       `Lieferung: ${p.name}`,
         typ:         'lieferung',
         start_datum: p.liefertermin,
         raum_id:     raumId,
       })
     } else {
-      await syncAutoEvent('produkt', produktId, projektId, null, { loeschen: true })
+      res = await syncAutoEvent('produkt', produktId, projektId, null, { loeschen: true })
     }
+    if (res.error) errors.push(res.error)
 
     // Bestellstatus-Event (quelle=bestellstatus) — intern, NICHT im Portal
     if (p.bestellstatus === 'geliefert' && p.lieferung_erhalten_am) {
-      await syncAutoEvent('bestellstatus', produktId, projektId, {
+      res = await syncAutoEvent('bestellstatus', produktId, projektId, {
         titel:       `Geliefert: ${p.name}`,
         typ:         'lieferung',
         start_datum: p.lieferung_erhalten_am,
@@ -61,7 +66,7 @@ async function syncProduktTimeline(
         raum_id:     raumId,
       })
     } else if ((p.bestellstatus === 'bestellt' || p.bestellstatus === 'rechnung_erhalten') && p.bestellt_am) {
-      await syncAutoEvent('bestellstatus', produktId, projektId, {
+      res = await syncAutoEvent('bestellstatus', produktId, projektId, {
         titel:       `Bestellt: ${p.name}`,
         typ:         'lieferung',
         start_datum: p.bestellt_am,
@@ -69,11 +74,15 @@ async function syncProduktTimeline(
         raum_id:     raumId,
       })
     } else {
-      await syncAutoEvent('bestellstatus', produktId, projektId, null, { loeschen: true })
+      res = await syncAutoEvent('bestellstatus', produktId, projektId, null, { loeschen: true })
     }
+    if (res.error) errors.push(res.error)
   } catch (err) {
-    console.error('[syncProduktTimeline]', err)
+    const msg = `[syncProduktTimeline] ${err instanceof Error ? err.message : String(err)}`
+    console.error(msg)
+    errors.push(msg)
   }
+  return errors.length > 0 ? { error: errors.join(' | ') } : {}
 }
 
 function parseOptionalNumber(val: FormDataEntryValue | null): number | null {
@@ -382,7 +391,7 @@ export async function bestellstatusAendern(
   raumId: string,
   projektId: string,
   neuerStatus: BestellStatus
-): Promise<{ fehler?: string }> {
+): Promise<{ fehler?: string; sync_fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
@@ -421,11 +430,11 @@ export async function bestellstatusAendern(
     return { fehler: error.message }
   }
 
-  // Timeline-Auto-Sync (nicht-blockierend)
-  await syncProduktTimeline(produktId, projektId, raumId)
+  // Timeline-Auto-Sync (nicht-blockierend, Fehler werden an Client durchgereicht)
+  const syncRes = await syncProduktTimeline(produktId, projektId, raumId)
 
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
-  return {}
+  return syncRes.error ? { sync_fehler: syncRes.error } : {}
 }
 
 export type ProduktDatumFeld = 'bestellt_am' | 'liefertermin' | 'lieferung_erhalten_am'
@@ -452,7 +461,7 @@ export async function produktDatumAktualisieren(
   projektId: string,
   feld: ProduktDatumFeld,
   datum: string | null,
-): Promise<{ fehler?: string; bestellstatus?: BestellStatus }> {
+): Promise<{ fehler?: string; bestellstatus?: BestellStatus; sync_fehler?: string }> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
   const wert = datum && datum.trim() ? datum : null
@@ -487,11 +496,11 @@ export async function produktDatumAktualisieren(
     .is('deleted_at', null)
   if (error) return { fehler: 'Datum konnte nicht gespeichert werden.' }
 
-  // Timeline-Auto-Sync (nicht-blockierend)
-  await syncProduktTimeline(produktId, projektId, raumId)
+  // Timeline-Auto-Sync (Fehler werden an Client durchgereicht)
+  const syncRes = await syncProduktTimeline(produktId, projektId, raumId)
 
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
-  return { bestellstatus: neuerStatus }
+  return { bestellstatus: neuerStatus, sync_fehler: syncRes.error }
 }
 
 export async function produktStatusAendern(

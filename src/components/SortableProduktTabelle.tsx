@@ -736,10 +736,10 @@ export default function SortableProduktTabelle({
       setTimeout(() => setFehlerToast(null), 4000)
       return
     }
-    // Refresh damit die Raum-Timeline (gleicher Serverrender) den neu
-    // angelegten Auto-Event sofort anzeigt. Der optimistische Status im
-    // Dropdown wird durch den Server-State ersetzt, der exakt den gleichen
-    // Wert hat — also keine Flicker-Gefahr.
+    if (res?.sync_fehler) {
+      setFehlerToast(`Timeline-Sync fehlgeschlagen: ${res.sync_fehler}`)
+      setTimeout(() => setFehlerToast(null), 10000)
+    }
     router.refresh()
   }
 
@@ -750,6 +750,10 @@ export default function SortableProduktTabelle({
     const eintrag = eintraege.find((e) => e.id === raumProduktId)
     if (!eintrag) return
     const res = await produktDatumAktualisieren(eintrag.produkt_id, raumId, projektId, feld, wert)
+    if (res?.fehler) {
+      setFehlerToast(res.fehler)
+      setTimeout(() => setFehlerToast(null), 6000)
+    }
     // Server-Action kann den Bestellstatus automatisch hochsetzen → State synchronisieren
     if (res?.bestellstatus) {
       const neu = res.bestellstatus
@@ -759,8 +763,10 @@ export default function SortableProduktTabelle({
         ),
       )
     }
-    // Raum-Timeline ist Teil desselben Serverrenders — nach dem Sync
-    // einmal refresh, damit neue Auto-Events sofort sichtbar sind.
+    if (res?.sync_fehler) {
+      setFehlerToast(`Timeline-Sync fehlgeschlagen: ${res.sync_fehler}`)
+      setTimeout(() => setFehlerToast(null), 10000)
+    }
     router.refresh()
   }
 
