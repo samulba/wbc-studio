@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-21
 
+### Bestell-/Liefer-/Freigabe-Status pro Raum
+- Bisher hat derselbe Artikel (z.B. dieselbe IKEA-Leuchte) in zwei verschiedenen Räumen oder Projekten zwingend denselben Bestellstatus, Liefertermin und Freigabe-Status geteilt — wurde er in Raum A bestellt, stand er in Raum B ebenfalls auf „Bestellt". Das war ein Bug.
+- Ab jetzt hat jede Raum↔Produkt-Verknüpfung ihre eigenen Daten: Bestellt/Geplante Lieferung/Geliefert-Datumsfelder, Bestellstatus und Freigabe-Status mit Kommentar.
+- Timeline-Auto-Events (Lieferung, Bestellt, Geliefert) sind jetzt pro Raum eindeutig — derselbe Artikel in zwei Räumen kann zwei unabhängige Events haben, die sich nicht mehr gegenseitig überschreiben.
+- Migration 076 kopiert die bisherigen globalen Werte einmalig in alle betroffenen Raum-Produkt-Zeilen, sodass keine Daten verloren gehen. Migration 077 räumt alte Auto-Events auf, die noch den alten Schlüssel hatten.
+
 ### Onboarding-Dashboard komplett neu gestaltet
 - Oben ein Hero-Band in Wellbeing-Grün mit 4 Kennzahl-Kacheln (Gesamt · Offen · Ausgefüllt · Abgeschlossen) — auf einen Blick sichtbar, wie viele Anfragen in welchem Zustand sind
 - Filter-Tabs direkt darunter (Alle · Offen · Ausgefüllt · Abgeschlossen · Abgelehnt) mit Zähler-Badges
