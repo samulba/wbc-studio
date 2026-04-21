@@ -583,19 +583,21 @@ export async function portalNachrichtSenden(
 
   const supabase = createAdminClient()
 
-  // Projekt gehört dem Kunden?
+  // Projekt gehört dem Kunden? + organisation_id mitnehmen (für Admin-Queries
+  // mit org-scope in src/app/actions/nachrichten.ts)
   const { data: projekt } = await supabase
     .from('projekte')
-    .select('id')
+    .select('id, organisation_id')
     .eq('id', projektId)
     .eq('kunde_id', session.kundeId)
     .maybeSingle()
   if (!projekt) return { fehler: 'Kein Zugriff.' }
 
   await supabase.from('client_nachrichten').insert({
-    projekt_id:     projektId,
-    client_user_id: session.id,
-    von_kunde:      true,
+    organisation_id: projekt.organisation_id,
+    projekt_id:      projektId,
+    client_user_id:  session.id,
+    von_kunde:       true,
     nachricht,
   })
 

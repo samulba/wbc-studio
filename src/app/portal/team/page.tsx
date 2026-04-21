@@ -41,24 +41,24 @@ export default async function PortalTeamPage() {
               backgroundSize: '28px 28px',
             }}
           />
-          <div className="relative p-8 md:p-10 lg:p-12 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6 items-center">
+          <div className="relative p-6 md:p-8 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-5 items-center">
             <div className="text-white min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70 mb-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70 mb-2">
                 Team
               </p>
               <h1
-                className="font-bold leading-[1.02] tracking-tight break-words"
-                style={{ fontSize: 'clamp(32px, 5vw, 56px)' }}
+                className="font-bold leading-[1.05] tracking-tight break-words"
+                style={{ fontSize: 'clamp(22px, 3.8vw, 38px)' }}
               >
                 Wer darf ins Portal?
               </h1>
-              <p className="mt-4 text-[15px] md:text-[17px] text-white/85 leading-relaxed max-w-2xl">
+              <p className="mt-2 text-[13px] md:text-[14px] text-white/85 leading-relaxed max-w-2xl">
                 Lade Mitarbeiter oder Gäste ein. Jeder bekommt eigene Login-Daten
                 und nur die Rechte, die du vergibst.
               </p>
             </div>
-            <div className="w-20 h-20 rounded-3xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 text-white">
-              <Users className="w-9 h-9" />
+            <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 text-white">
+              <Users className="w-6 h-6" />
             </div>
           </div>
         </section>

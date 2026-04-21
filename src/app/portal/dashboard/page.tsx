@@ -43,9 +43,9 @@ export default async function PortalDashboardPage() {
         {/* ── Bento-Grid: Hero + Side-Rail ─────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-5 mb-5 md:mb-6">
 
-          {/* Hero — dramatisch, groß */}
+          {/* Hero — kompakt */}
           <section
-            className="lg:col-span-8 relative overflow-hidden rounded-3xl border border-black/[0.05] min-h-[340px] md:min-h-[380px] flex flex-col justify-end p-8 md:p-10"
+            className="lg:col-span-8 relative overflow-hidden rounded-3xl border border-black/[0.05] min-h-[220px] md:min-h-[260px] flex flex-col justify-end p-6 md:p-8"
             style={{
               background: heroImage
                 ? undefined
@@ -76,17 +76,17 @@ export default async function PortalDashboardPage() {
             )}
 
             <div className="relative z-10">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-semibold mb-5 bg-white/20 backdrop-blur-md text-white border border-white/20">
+              <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-[10px] font-semibold mb-3 bg-white/20 backdrop-blur-md text-white border border-white/20">
                 <Sparkles className="w-3 h-3" />
                 {heute}
               </div>
               <h1
-                className="font-bold text-white leading-[1.02] tracking-tight mb-4"
-                style={{ fontSize: 'clamp(36px, 5.5vw, 64px)' }}
+                className="font-bold text-white leading-[1.05] tracking-tight mb-2"
+                style={{ fontSize: 'clamp(26px, 4vw, 44px)' }}
               >
                 Hi {session.vorname}.
               </h1>
-              <p className="text-[15px] md:text-[17px] text-white/85 leading-relaxed max-w-lg">
+              <p className="text-[14px] md:text-[15px] text-white/85 leading-relaxed max-w-lg">
                 {welcomeText ?? `Dein Überblick bei ${firma} — Projekte, Freigaben und Nachrichten.`}
               </p>
             </div>
@@ -324,7 +324,7 @@ function StatCard({
           <ArrowUpRight className="w-4 h-4 opacity-30 group-hover:opacity-70 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
         )}
       </div>
-      <p className="mt-4 text-4xl font-bold tabular-nums leading-none" style={{ color: valueColor }}>
+      <p className="mt-3 text-[28px] font-bold tabular-nums leading-none" style={{ color: valueColor }}>
         {wert}
       </p>
       {sub && <p className="mt-1.5 text-[11px] opacity-60 truncate">{sub}</p>}
@@ -371,7 +371,7 @@ function ProjektCard({
       className="group relative block rounded-3xl bg-white border border-black/[0.05] overflow-hidden transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-black/[0.06]"
     >
       {/* Color-Block Kopf */}
-      <div className="relative h-24 overflow-hidden" style={{ background: `linear-gradient(135deg, ${accent} 0%, ${prim} 100%)` }}>
+      <div className="relative h-16 overflow-hidden" style={{ background: `linear-gradient(135deg, ${accent} 0%, ${prim} 100%)` }}>
         <div aria-hidden className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-white/20 blur-xl" />
         <div
           aria-hidden
@@ -383,14 +383,14 @@ function ProjektCard({
         />
         {/* Progress-Ring rechts oben */}
         {gesamt > 0 && (
-          <div className="absolute top-4 right-4">
-            <div className="relative w-14 h-14">
-              <svg viewBox="0 0 56 56" className="w-14 h-14 -rotate-90">
-                <circle cx="28" cy="28" r="22" stroke="rgba(255,255,255,0.25)" strokeWidth="4" fill="none" />
-                <circle cx="28" cy="28" r="22" stroke="#fff" strokeWidth="4" fill="none" strokeLinecap="round"
-                  strokeDasharray={`${(pct / 100) * (2 * Math.PI * 22)} ${2 * Math.PI * 22}`} />
+          <div className="absolute top-2.5 right-3">
+            <div className="relative w-10 h-10">
+              <svg viewBox="0 0 40 40" className="w-10 h-10 -rotate-90">
+                <circle cx="20" cy="20" r="16" stroke="rgba(255,255,255,0.25)" strokeWidth="3" fill="none" />
+                <circle cx="20" cy="20" r="16" stroke="#fff" strokeWidth="3" fill="none" strokeLinecap="round"
+                  strokeDasharray={`${(pct / 100) * (2 * Math.PI * 16)} ${2 * Math.PI * 16}`} />
               </svg>
-              <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-white tabular-nums">
+              <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-white tabular-nums">
                 {pct}%
               </span>
             </div>
@@ -398,7 +398,7 @@ function ProjektCard({
         )}
       </div>
 
-      <div className="p-5">
+      <div className="p-4">
         <p className="text-[16px] font-bold text-gray-900 truncate mb-1 group-hover:opacity-85 transition-opacity">
           {name}
         </p>

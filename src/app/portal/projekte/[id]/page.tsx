@@ -62,21 +62,21 @@ export default async function PortalProjektPage({ params }: Props) {
             }}
           />
 
-          <div className="relative p-8 md:p-10 lg:p-12 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-8 items-center">
+          <div className="relative p-6 md:p-8 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6 items-center">
             {/* Titel-Bereich */}
             <div className="text-white min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70 mb-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70 mb-2">
                 Projekt
               </p>
               <h1
-                className="font-bold leading-[1.02] tracking-tight break-words"
-                style={{ fontSize: 'clamp(32px, 5vw, 56px)' }}
+                className="font-bold leading-[1.05] tracking-tight break-words"
+                style={{ fontSize: 'clamp(22px, 3.8vw, 38px)' }}
               >
                 {projekt.name}
               </h1>
               {projekt.standort && (
-                <p className="text-[15px] text-white/80 mt-3 inline-flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5" />
+                <p className="text-[13px] text-white/80 mt-2 inline-flex items-center gap-1.5">
+                  <MapPin className="w-3 h-3" />
                   {projekt.standort}
                 </p>
               )}
@@ -84,32 +84,31 @@ export default async function PortalProjektPage({ params }: Props) {
 
             {/* Progress-Ring rechts */}
             {gesamt > 0 && (
-              <div className="flex items-center gap-5 shrink-0">
-                <div className="relative w-24 h-24 shrink-0">
-                  <svg viewBox="0 0 96 96" className="w-24 h-24 -rotate-90">
-                    <circle cx="48" cy="48" r="42" stroke="rgba(255,255,255,0.18)" strokeWidth="6" fill="none" />
+              <div className="flex items-center gap-4 shrink-0">
+                <div className="relative w-16 h-16 shrink-0">
+                  <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
+                    <circle cx="32" cy="32" r="28" stroke="rgba(255,255,255,0.18)" strokeWidth="4.5" fill="none" />
                     <circle
-                      cx="48" cy="48" r="42"
+                      cx="32" cy="32" r="28"
                       stroke="#fff"
-                      strokeWidth="6"
+                      strokeWidth="4.5"
                       fill="none"
                       strokeLinecap="round"
-                      strokeDasharray={`${(pct / 100) * (2 * Math.PI * 42)} ${2 * Math.PI * 42}`}
+                      strokeDasharray={`${(pct / 100) * (2 * Math.PI * 28)} ${2 * Math.PI * 28}`}
                     />
                   </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-[22px] font-bold text-white tabular-nums leading-none">{pct}%</span>
-                    <span className="text-[9px] font-semibold text-white/70 uppercase tracking-wider mt-0.5">freigegeben</span>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-[15px] font-bold text-white tabular-nums leading-none">{pct}%</span>
                   </div>
                 </div>
-                <div className="flex flex-col gap-1 text-white">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-3.5 h-3.5 text-white/70" />
-                    <span className="text-sm tabular-nums"><strong>{gesamt}</strong> Produkt{gesamt !== 1 ? 'e' : ''}</span>
+                <div className="flex flex-col gap-0.5 text-white">
+                  <div className="flex items-center gap-1.5">
+                    <Package className="w-3 h-3 text-white/70" />
+                    <span className="text-xs tabular-nums"><strong>{gesamt}</strong> Produkt{gesamt !== 1 ? 'e' : ''}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-3.5 h-3.5 text-white/70" />
-                    <span className="text-sm tabular-nums"><strong>{ausstehend}</strong> ausstehend</span>
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3 h-3 text-white/70" />
+                    <span className="text-xs tabular-nums"><strong>{ausstehend}</strong> ausstehend</span>
                   </div>
                 </div>
               </div>

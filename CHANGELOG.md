@@ -5,6 +5,17 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-21
 
+### Bug-Fix: Kunden-Nachrichten kamen nicht im Admin an
+- Nachrichten aus dem Kundenportal waren für den Admin unsichtbar, weil der Datensatz keine Organisation-ID bekommen hat (seit RLS-Umstellung in Migration 068)
+- Neue Nachrichten werden ab sofort mit der richtigen Organisation verknüpft
+- Migration 074 trägt die Organisation für alle bestehenden Portal-Nachrichten nach
+
+### Portal-Design etwas kompakter
+- Hero-Bänder auf allen Portal-Seiten kleiner (ca. 60% der vorherigen Höhe)
+- Headlines kleiner (clamp 22–38px statt 32–56/64px)
+- Projekt-Cards mit schlankerem Farb-Header (h-16 statt h-24)
+- Stats-Zahlen 28px statt 36px — Fokus auf Inhalt statt Ornament
+
 ### Portal-Team & Einstellungen im neuen Stil
 - Beide Seiten bekommen den gleichen **Hero-Band-Look** wie Dashboard und Projektdetail
 - Großes Icon-Badge rechts im Hero, konsistente Typografie
