@@ -332,11 +332,22 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
       if (leer) e[f.id] = 'Dieses Feld ist erforderlich.'
     }
     setFeldFehler(e)
+    // Scroll zum ersten Fehler, damit klar wird was fehlt
+    if (Object.keys(e).length > 0) {
+      const ersteId = Object.keys(e)[0]
+      setTimeout(() => {
+        const el = document.getElementById(`frage-${ersteId}`)
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+    }
     return Object.keys(e).length === 0
   }
 
   function absenden() {
-    if (!validieren()) return
+    if (!validieren()) {
+      setFehlerMsg('Bitte füllen Sie alle markierten Pflichtfelder aus.')
+      return
+    }
     setFehlerMsg(null)
     startTransition(async () => {
       // Versuche Standard-Felder aus bekannten IDs zu extrahieren
@@ -396,14 +407,15 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
             </div>
 
             {vorlage.fragen.map((frage) => (
-              <DynamischesFeld
-                key={frage.id}
-                frage={frage}
-                wert={antworten[frage.id]}
-                fehler={feldFehler[frage.id]}
-                onChange={(v) => setAntwort(frage.id, v)}
-                onToggle={(opt) => toggleOption(frage.id, opt, frage.typ === 'mehrfachauswahl')}
-              />
+              <div key={frage.id} id={`frage-${frage.id}`}>
+                <DynamischesFeld
+                  frage={frage}
+                  wert={antworten[frage.id]}
+                  fehler={feldFehler[frage.id]}
+                  onChange={(v) => setAntwort(frage.id, v)}
+                  onToggle={(opt) => toggleOption(frage.id, opt, frage.typ === 'mehrfachauswahl')}
+                />
+              </div>
             ))}
           </div>
 
@@ -443,12 +455,18 @@ function DynamischesFeld({
   onToggle: (opt: string) => void
 }) {
   const label = frage.titel + (frage.pflichtfeld ? ' *' : '')
+  const hilfe = frage.beschreibung
 
-  if (frage.typ === 'text' || frage.typ === 'datum') {
+  if (frage.typ === 'text' || frage.typ === 'datum' || frage.typ === 'email' || frage.typ === 'telefon' || frage.typ === 'url') {
+    const htmlType = frage.typ === 'datum' ? 'date'
+      : frage.typ === 'email' ? 'email'
+      : frage.typ === 'telefon' ? 'tel'
+      : frage.typ === 'url' ? 'url'
+      : 'text'
     return (
-      <FormFeld label={label} fehler={fehler}>
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe}>
         <input
-          type={frage.typ === 'datum' ? 'date' : 'text'}
+          type={htmlType}
           placeholder={frage.placeholder ?? ''}
           value={(wert as string) ?? ''}
           onChange={(e) => onChange(e.target.value)}
@@ -460,7 +478,7 @@ function DynamischesFeld({
 
   if (frage.typ === 'zahl') {
     return (
-      <FormFeld label={label} fehler={fehler}>
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe}>
         <input
           type="number"
           placeholder={frage.placeholder ?? ''}
@@ -474,7 +492,7 @@ function DynamischesFeld({
 
   if (frage.typ === 'textarea') {
     return (
-      <FormFeld label={label} fehler={fehler}>
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe}>
         <textarea
           rows={4}
           placeholder={frage.placeholder ?? ''}
@@ -490,6 +508,81 @@ function DynamischesFeld({
     )
   }
 
+  if (frage.typ === 'ja_nein') {
+    const val = wert as string | undefined
+    return (
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe}>
+        <div className="flex gap-2">
+          {['Ja', 'Nein'].map((opt) => {
+            const aktiv = val === opt
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => onChange(aktiv ? '' : opt)}
+                className={`flex-1 px-4 py-2.5 text-sm rounded-xl border font-medium transition-all ${
+                  aktiv
+                    ? 'bg-wellbeing-green/10 border-wellbeing-green text-wellbeing-green-dark'
+                    : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {aktiv && '✓ '}{opt}
+              </button>
+            )
+          })}
+        </div>
+      </FormFeld>
+    )
+  }
+
+  if (frage.typ === 'bewertung') {
+    const val = Number(wert) || 0
+    return (
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe}>
+        <div className="flex gap-1.5">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => onChange(val === n ? 0 : n)}
+              className={`w-10 h-10 rounded-xl text-lg transition-all ${
+                n <= val ? 'bg-wellbeing-green text-white' : 'bg-gray-50 border border-gray-200 text-gray-300 hover:border-gray-300'
+              }`}
+              aria-label={`${n} von 5`}
+            >
+              ★
+            </button>
+          ))}
+        </div>
+      </FormFeld>
+    )
+  }
+
+  if (frage.typ === 'skala' || frage.typ === 'slider') {
+    const val = Number(wert)
+    const anzeige = Number.isFinite(val) ? val : 5
+    return (
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe}>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span>1</span>
+            <span className="text-sm font-semibold text-wellbeing-green-dark">{anzeige}</span>
+            <span>10</span>
+          </div>
+          <input
+            type="range"
+            min={1}
+            max={10}
+            step={1}
+            value={anzeige}
+            onChange={(e) => onChange(Number(e.target.value))}
+            className="w-full accent-wellbeing-green"
+          />
+        </div>
+      </FormFeld>
+    )
+  }
+
   if (frage.typ === 'auswahl' || frage.typ === 'mehrfachauswahl') {
     const mehrfach = frage.typ === 'mehrfachauswahl'
     const ausgewaehlt = mehrfach
@@ -497,7 +590,7 @@ function DynamischesFeld({
       : wert as string | undefined
 
     return (
-      <FormFeld label={label} fehler={fehler}>
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe}>
         <div className="flex flex-wrap gap-2">
           {(frage.optionen ?? []).map((opt) => {
             const aktiv = mehrfach
@@ -523,7 +616,24 @@ function DynamischesFeld({
     )
   }
 
-  return null
+  // Fallback für komplexere Typen (upload/inventar/prioritaeten/budget_verteilung/…):
+  // Textarea mit Hinweis, damit der Kunde die Frage trotzdem beantworten kann
+  // statt dass der Button nur "nichts tut".
+  return (
+    <FormFeld label={label} fehler={fehler} hilfe={hilfe ?? 'Bitte beantworten Sie diese Frage im Freitext.'}>
+      <textarea
+        rows={3}
+        placeholder={frage.placeholder ?? 'Ihre Antwort…'}
+        value={(wert as string) ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full px-4 py-3 text-sm border rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 transition bg-gray-50 resize-none ${
+          fehler
+            ? 'border-red-300 focus:ring-red-200 focus:border-red-400'
+            : 'border-gray-200 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light'
+        }`}
+      />
+    </FormFeld>
+  )
 }
 
 // ── Schritt 1: Kontaktdaten ───────────────────────────────────
@@ -809,15 +919,17 @@ function inputCls(hatFehler: boolean) {
 }
 
 function FormFeld({
-  label, fehler, children,
+  label, fehler, hilfe, children,
 }: {
   label: string
   fehler?: string
+  hilfe?: string
   children: React.ReactNode
 }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+      {hilfe && <p className="text-xs text-gray-500 mb-2">{hilfe}</p>}
       {children}
       {fehler && <p className="text-xs text-red-500 mt-1">{fehler}</p>}
     </div>
