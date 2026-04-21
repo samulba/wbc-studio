@@ -80,6 +80,18 @@ export default async function RaumDetailPage({
 
   if (!raum) notFound()
 
+  // ── Debug: Events im gesamten Projekt zählen (hilft beim Diagnose
+  //    von raum_id-Mismatches im Timeline-Auto-Sync).
+  const supabaseDebug = await createClient()
+  const { data: alleProjektEvents } = await supabaseDebug
+    .from('timeline_events')
+    .select('id, raum_id, titel, quelle')
+    .eq('projekt_id', params.id)
+  const alleCount   = alleProjektEvents?.length ?? 0
+  const raumCount   = timelineEvents.length
+  const orphanCount = (alleProjektEvents ?? []).filter((e) => !e.raum_id).length
+  const anderenCount = alleCount - raumCount - orphanCount
+
   const eintraege = filtern(alleEintraege, searchParams)
   const projekt   = raum.projekte
   const kunde     = projekt?.kunden
@@ -263,7 +275,7 @@ export default async function RaumDetailPage({
 
       {/* Raum-Timeline */}
       <div className="mt-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4 gap-3">
+        <div className="flex items-center justify-between mb-2 gap-3">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Raum-Timeline</p>
           <div className="flex items-center gap-3">
             <RaumEventButton projektId={params.id} raumId={params.raumId} />
@@ -274,6 +286,20 @@ export default async function RaumDetailPage({
               Zur Projekt-Timeline →
             </Link>
           </div>
+        </div>
+        {/* Debug-Badge */}
+        <div className="mb-4 flex flex-wrap gap-2 text-[11px]">
+          <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+            In diesem Raum: <strong className="text-gray-900">{raumCount}</strong>
+          </span>
+          {(orphanCount > 0 || anderenCount > 0) && (
+            <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full" title="Events mit falschem oder fehlendem raum_id">
+              Verwaist: <strong>{orphanCount}</strong> · Andere Räume: <strong>{anderenCount}</strong>
+            </span>
+          )}
+          <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+            Gesamt Projekt: <strong className="text-gray-900">{alleCount}</strong>
+          </span>
         </div>
         <Timeline events={timelineEvents} />
       </div>
