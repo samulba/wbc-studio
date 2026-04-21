@@ -736,8 +736,11 @@ export default function SortableProduktTabelle({
       setTimeout(() => setFehlerToast(null), 4000)
       return
     }
-    // Kein router.refresh() hier — sonst überschreibt Server-State unseren optimistischen
-    // Update bevor revalidatePath durch ist. Der nächste page-load holt eh frische Daten.
+    // Refresh damit die Raum-Timeline (gleicher Serverrender) den neu
+    // angelegten Auto-Event sofort anzeigt. Der optimistische Status im
+    // Dropdown wird durch den Server-State ersetzt, der exakt den gleichen
+    // Wert hat — also keine Flicker-Gefahr.
+    router.refresh()
   }
 
   async function handleDatumChange(raumProduktId: string, feld: ProduktDatumFeld, wert: string | null) {
@@ -756,6 +759,9 @@ export default function SortableProduktTabelle({
         ),
       )
     }
+    // Raum-Timeline ist Teil desselben Serverrenders — nach dem Sync
+    // einmal refresh, damit neue Auto-Events sofort sichtbar sind.
+    router.refresh()
   }
 
   async function handleRabattChange(raumProduktId: string, neuerRabatt: number | null) {

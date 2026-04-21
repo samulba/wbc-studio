@@ -19,12 +19,25 @@ async function syncProduktTimeline(
 ): Promise<void> {
   try {
     const supabase = await createClient()
-    const { data: p } = await supabase
+    const { data: p, error: readErr } = await supabase
       .from('produkte')
       .select('name, bestellstatus, bestellt_am, lieferung_erhalten_am, liefertermin')
       .eq('id', produktId)
       .maybeSingle()
-    if (!p) return
+    if (readErr) {
+      console.error('[syncProduktTimeline:read]', { produktId, message: readErr.message, code: readErr.code })
+      return
+    }
+    if (!p) {
+      console.warn('[syncProduktTimeline] Produkt nicht gefunden (RLS?):', produktId)
+      return
+    }
+    console.info('[syncProduktTimeline]', {
+      produktId, projektId, raumId,
+      name: p.name, status: p.bestellstatus,
+      bestellt_am: p.bestellt_am, lieferung_erhalten_am: p.lieferung_erhalten_am,
+      liefertermin: p.liefertermin,
+    })
 
     // Liefertermin-Event (quelle=produkt) — Kunden-sichtbar
     if (p.liefertermin) {
