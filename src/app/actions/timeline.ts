@@ -190,39 +190,64 @@ export async function syncAutoEvent(
 
   const kundeSichtbar = daten.kunde_sichtbar ?? QUELLE_KUNDE_SICHTBAR_DEFAULT[quelle]
 
-  // UPSERT auf (organisation_id, quelle, quelle_id)
-  // WICHTIG: setzt Migration 075 voraus (Spalten quelle/quelle_id/kunde_sichtbar
-  // + Partial-Unique-Index). Fehlt sie, schlägt der Upsert fehl — Fehler wird
-  // hier sichtbar geloggt statt still geschluckt.
-  const { error } = await supabase
+  // Manuelles SELECT + INSERT/UPDATE statt supabase.upsert(),
+  // weil PostgREST bei partial unique indexes keine WHERE-Prädikate
+  // durchreicht — ein Upsert würde sonst mit
+  // "no unique or exclusion constraint matching the ON CONFLICT specification" fehlschlagen.
+  const { data: existing, error: selectErr } = await supabase
     .from('timeline_events')
-    .upsert({
-      organisation_id: orgId,
-      projekt_id:      projektId,
-      quelle,
-      quelle_id:       quelleId,
-      titel:           daten.titel,
-      beschreibung:    daten.beschreibung ?? null,
-      typ:             daten.typ,
-      start_datum:     daten.start_datum,
-      end_datum:       daten.end_datum ?? null,
-      status:          daten.status ?? 'geplant',
-      raum_id:         daten.raum_id ?? null,
-      kunde_sichtbar:  kundeSichtbar,
-    }, {
-      onConflict: 'organisation_id,quelle,quelle_id',
-    })
+    .select('id')
+    .eq('organisation_id', orgId)
+    .eq('quelle', quelle)
+    .eq('quelle_id', quelleId)
+    .maybeSingle()
 
-  if (error) {
-    console.error('[syncAutoEvent:upsert]', {
+  if (selectErr) {
+    console.error('[syncAutoEvent:select]', {
       quelle, quelleId, projektId,
-      message: error.message, hint: error.hint, details: error.details, code: error.code,
+      message: selectErr.message, code: selectErr.code, hint: selectErr.hint,
     })
-    if (error.message?.includes('quelle') || error.code === '42703') {
-      console.error(
-        '[syncAutoEvent] Migration 075 wurde vermutlich noch nicht ausgeführt. ' +
-        'Bitte supabase/migrations/075_timeline_quelle_sichtbar.sql im Supabase-SQL-Editor laufen lassen.'
-      )
+    return
+  }
+
+  const payload = {
+    projekt_id:      projektId,
+    titel:           daten.titel,
+    beschreibung:    daten.beschreibung ?? null,
+    typ:             daten.typ,
+    start_datum:     daten.start_datum,
+    end_datum:       daten.end_datum ?? null,
+    status:          daten.status ?? 'geplant',
+    raum_id:         daten.raum_id ?? null,
+    kunde_sichtbar:  kundeSichtbar,
+  }
+
+  if (existing) {
+    const { error } = await supabase
+      .from('timeline_events')
+      .update(payload)
+      .eq('id', existing.id)
+      .eq('organisation_id', orgId)
+    if (error) {
+      console.error('[syncAutoEvent:update]', {
+        quelle, quelleId, projektId,
+        message: error.message, code: error.code, hint: error.hint, details: error.details,
+      })
+    }
+  } else {
+    const { error } = await supabase
+      .from('timeline_events')
+      .insert({
+        ...payload,
+        organisation_id: orgId,
+        quelle,
+        quelle_id:       quelleId,
+      })
+    if (error) {
+      console.error('[syncAutoEvent:insert]', {
+        quelle, quelleId, projektId,
+        message: error.message, code: error.code, hint: error.hint, details: error.details,
+      })
     }
   }
 
