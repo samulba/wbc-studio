@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-21
 
+### Bug-Fix: Landingpage — Icon-Bubble bei Features zentriert
+- Auf Desktop saß der rosa Glow-Kreis unter/neben dem Icon statt dahinter — sah aus wie ein Anzeigefehler
+- Ursache: die Scale-Animation von Framer Motion hat die Zentrier-Verschiebung überschrieben
+- Jetzt liegt der Glow perfekt hinter dem Icon — beide über einen statischen Positionier-Wrapper zentriert
+
 ### Bug-Fix: Kunden-Nachrichten kamen nicht im Admin an
 - Nachrichten aus dem Kundenportal waren für den Admin unsichtbar, weil der Datensatz keine Organisation-ID bekommen hat (seit RLS-Umstellung in Migration 068)
 - Neue Nachrichten werden ab sofort mit der richtigen Organisation verknüpft

@@ -214,35 +214,40 @@ export default function Features() {
                   </m.span>
                 </AnimatePresence>
 
-                {/* Weicher Glow — perfekt radial zentriert (kein asymmetrischer Blob mehr) */}
-                <AnimatePresence mode="wait">
-                  <m.div
-                    key={`glow-${active}`}
-                    initial={{ opacity: 0, scale: 0.6 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 1.15 }}
-                    transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[320px] md:w-[400px] md:h-[400px] rounded-full"
-                    style={{
-                      background: `radial-gradient(circle at center, rgba(${f.glow}, 0.32) 0%, rgba(${f.glow}, 0.18) 35%, rgba(${f.glow}, 0.05) 65%, transparent 100%)`,
-                      filter: 'blur(8px)',
-                    }}
-                  />
-                </AnimatePresence>
+                {/* Weicher Glow — statischer Positionier-Wrapper verhindert, dass
+                    die Scale-Animation den -translate-Transform überschreibt */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <AnimatePresence mode="wait">
+                    <m.div
+                      key={`glow-${active}`}
+                      initial={{ opacity: 0, scale: 0.6 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 1.15 }}
+                      transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                      className="w-[320px] h-[320px] md:w-[400px] md:h-[400px] rounded-full"
+                      style={{
+                        background: `radial-gradient(circle at center, rgba(${f.glow}, 0.32) 0%, rgba(${f.glow}, 0.18) 35%, rgba(${f.glow}, 0.05) 65%, transparent 100%)`,
+                        filter: 'blur(8px)',
+                      }}
+                    />
+                  </AnimatePresence>
+                </div>
 
-                {/* Icon im Blob-Zentrum — absolute zentriert, oberhalb */}
-                <AnimatePresence mode="wait">
-                  <m.div
-                    key={`icon-${active}`}
-                    initial={{ opacity: 0, scale: 0.5, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 1.2, y: -10 }}
-                    transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white flex items-center justify-center shadow-2xl shadow-black/10 border border-white"
-                  >
-                    <Icon className={`w-12 h-12 md:w-16 md:h-16 ${f.chip}`} strokeWidth={1.5} />
-                  </m.div>
-                </AnimatePresence>
+                {/* Icon im Glow-Zentrum — ebenfalls statischer Wrapper */}
+                <div className="absolute inset-0 flex items-center justify-center z-10">
+                  <AnimatePresence mode="wait">
+                    <m.div
+                      key={`icon-${active}`}
+                      initial={{ opacity: 0, scale: 0.5, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 1.2, y: -10 }}
+                      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+                      className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white flex items-center justify-center shadow-2xl shadow-black/10 border border-white"
+                    >
+                      <Icon className={`w-12 h-12 md:w-16 md:h-16 ${f.chip}`} strokeWidth={1.5} />
+                    </m.div>
+                  </AnimatePresence>
+                </div>
 
                 {/* Floating mini chip — top-right vom Container */}
                 <AnimatePresence mode="wait">
