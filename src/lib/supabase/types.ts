@@ -907,3 +907,17 @@ export interface OnboardingAnfrage {
   created_at: string
   updated_at: string
 }
+
+// ── Kunden-Portal-Chat (Mig. 030) ─────────────────────────────
+export interface ClientNachricht {
+  id: string
+  organisation_id: string | null
+  projekt_id: string
+  client_user_id: string | null
+  team_user_id: string | null
+  von_kunde: boolean
+  nachricht: string
+  gelesen: boolean
+  gelesen_am: string | null
+  created_at: string
+}

@@ -5,6 +5,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-21
 
+### Admin-Chat mit Portal-Kunden
+- Neuer Menüpunkt **„Chats"** in der Sidebar mit **Badge** für ungelesene Nachrichten
+- **Chat-Block direkt auf der Projekt-Detailseite** — solange der Kunde Portal-Zugang hat
+- Beide Ansichten rendern denselben Chat — Nachrichten aktualisieren sich automatisch alle 10 Sekunden (Polling pausiert wenn der Tab nicht aktiv ist)
+- Admin-Nachrichten rechts (wellbeing-green), Kunden-Nachrichten links — Auto-Scroll zum Ende, Enter = senden, Shift+Enter = Zeilenumbruch
+- Öffnen des Chats markiert Kunden-Nachrichten automatisch als gelesen → Badge verschwindet
+- **Chats-Übersichtsseite** sortiert Projekte nach letzter Aktivität mit Preview der letzten Nachricht
+
 ### Kategorien: Altlasten raus
 - Alte Default-Einträge die nicht mehr ins neue Schema passen werden entfernt:
   - **Raumtypen**: Studio, Wellness, Hotel, Privat, Wohnung, Sonstiges (das sind Projektarten, keine Räume)

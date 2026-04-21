@@ -6,6 +6,7 @@ import { RolleProvider } from '@/lib/RolleContext'
 import { meineRolleAbrufen } from '@/app/actions/team'
 import type { Rolle } from '@/lib/supabase/types'
 import { getChangelog } from '@/lib/changelog'
+import { getGlobalUnreadCount } from '@/app/actions/nachrichten'
 
 export default async function DashboardLayout({
   children,
@@ -20,13 +21,14 @@ export default async function DashboardLayout({
   // ── Sekundäre Daten – nie crashen ────────────────────────────
   let freigabenCount = 0
   let anfragenCount  = 0
+  let nachrichtenCount = 0
   let rolle: Rolle   = 'viewer'
   let userAvatarUrl: string | null = null
   let userVorname:   string | null = null
   let userNachname:  string | null = null
 
   try {
-    const [freigabenRes, anfragenRes, rolleRes, meRes] = await Promise.allSettled([
+    const [freigabenRes, anfragenRes, rolleRes, meRes, nachrichtenRes] = await Promise.allSettled([
       supabase
         .from('produktstatus')
         .select('*', { count: 'exact', head: true })
@@ -43,11 +45,13 @@ export default async function DashboardLayout({
         .eq('user_id', user.id)
         .limit(1)
         .maybeSingle(),
+      getGlobalUnreadCount(),
     ])
 
-    freigabenCount = freigabenRes.status === 'fulfilled' ? (freigabenRes.value.count ?? 0) : 0
-    anfragenCount  = anfragenRes.status  === 'fulfilled' ? (anfragenRes.value.count  ?? 0) : 0
-    rolle          = rolleRes.status     === 'fulfilled' ? rolleRes.value : 'viewer'
+    freigabenCount   = freigabenRes.status   === 'fulfilled' ? (freigabenRes.value.count ?? 0) : 0
+    anfragenCount    = anfragenRes.status    === 'fulfilled' ? (anfragenRes.value.count  ?? 0) : 0
+    rolle            = rolleRes.status       === 'fulfilled' ? rolleRes.value : 'viewer'
+    nachrichtenCount = nachrichtenRes.status === 'fulfilled' ? nachrichtenRes.value : 0
     if (meRes.status === 'fulfilled' && meRes.value.data) {
       userAvatarUrl = (meRes.value.data.avatar_url as string | null) ?? null
       userVorname   = (meRes.value.data.vorname    as string | null) ?? null
@@ -78,6 +82,7 @@ export default async function DashboardLayout({
           userRolle={rolle}
           offeneFreigaben={freigabenCount}
           offeneAnfragen={anfragenCount}
+          offeneNachrichten={nachrichtenCount}
           neuestesChangelogDatum={neuestesChangelogDatum}
         />
         <main className="flex-1 overflow-hidden flex flex-col">

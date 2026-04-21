@@ -604,17 +604,40 @@ export async function portalNachrichtSenden(
 
 // ── ADMIN: NACHRICHT AN KUNDEN ────────────────────────────────
 
+/**
+ * Admin sendet Nachricht an Kunden-Portal.
+ * Org-Check als Defense-in-Depth + organisation_id in Insert (wichtig
+ * für RLS auf client_nachrichten seit Mig. 068).
+ */
 export async function teamNachrichtSenden(
   projektId: string,
-  nachricht: string
-): Promise<void> {
+  nachricht: string,
+): Promise<{ fehler?: string }> {
+  const text = nachricht.trim()
+  if (!text) return { fehler: 'Nachricht darf nicht leer sein.' }
+
+  const { getOrganisationId } = await import('@/lib/supabase/server')
+  let orgId: string
+  try { orgId = await getOrganisationId() } catch { return { fehler: 'Nicht angemeldet.' } }
+
   const supabase = createAdminClient()
-  await supabase.from('client_nachrichten').insert({
-    projekt_id: projektId,
-    von_kunde:  false,
-    nachricht,
+
+  // Projekt gehört zur eigenen Org?
+  const { data: projekt } = await supabase
+    .from('projekte').select('id').eq('id', projektId).eq('organisation_id', orgId).maybeSingle()
+  if (!projekt) return { fehler: 'Projekt nicht gefunden.' }
+
+  const { error } = await supabase.from('client_nachrichten').insert({
+    organisation_id: orgId,
+    projekt_id:      projektId,
+    von_kunde:       false,
+    nachricht:       text,
   })
+  if (error) return { fehler: 'Fehler beim Senden.' }
+
   revalidatePath(`/dashboard/projekte/${projektId}`)
+  revalidatePath('/dashboard/chats')
+  return {}
 }
 
 // ── PORTAL: PROFIL ────────────────────────────────────────────

@@ -23,6 +23,9 @@ import { getZeiterfassung, getZeitSumme } from '@/app/actions/zeiterfassung'
 import { getRaumBudgetDetails } from '@/app/actions/raeume'
 import { effektiverVpNetto } from '@/lib/preise'
 import RaumBudgetGrid from '@/components/RaumBudgetGrid'
+import ChatBlock from '@/components/ChatBlock'
+import { getNachrichtenFuerProjekt } from '@/app/actions/nachrichten'
+import { createAdminClient } from '@/lib/supabase/admin'
 import type { ProjektMitKunde, Raum } from '@/lib/supabase/types'
 import type { DateiItem } from '@/components/DateiUpload'
 
@@ -134,7 +137,7 @@ async function getDateien(projektId: string): Promise<DateiItem[]> {
 }
 
 export default async function ProjektDetailPage({ params }: { params: { id: string } }) {
-  const [projekt, raeume, aktiverToken, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails] = await Promise.all([
+  const [projekt, raeume, aktiverToken, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktivenToken(params.id),
@@ -147,9 +150,21 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
     getZeitSumme(params.id),
     projektEventsAbrufen(params.id),
     getRaumBudgetDetails(params.id),
+    getNachrichtenFuerProjekt(params.id),
   ])
 
   if (!projekt) notFound()
+
+  // Hat der Kunde einen Portal-Zugang? (Voraussetzung für Chat)
+  let hatPortal = false
+  if (projekt.kunde_id) {
+    const admin = createAdminClient()
+    const { count } = await admin
+      .from('client_users')
+      .select('id', { count: 'exact', head: true })
+      .eq('kunde_id', projekt.kunde_id)
+    hatPortal = (count ?? 0) > 0
+  }
 
   const raumIds = raeume.map((r) => r.id)
   const raumStats = await getRaumStats(raumIds)
@@ -549,6 +564,16 @@ export default async function ProjektDetailPage({ params }: { params: { id: stri
 
           {/* Dateien */}
           <DateiUpload projektId={projekt.id} initialDateien={dateien} />
+
+          {/* Chat (nur wenn Portal aktiv) */}
+          {hatPortal && projekt.kunden && (
+            <ChatBlock
+              projektId={projekt.id}
+              kundeName={projekt.kunden.name}
+              initialNachrichten={nachrichten}
+              compact
+            />
+          )}
 
           {/* Notizen */}
           <NotizBlock typ="projekt" referenzId={projekt.id} initialNotizen={notizen} />
