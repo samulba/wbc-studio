@@ -76,21 +76,39 @@ function formatDatum(iso: string): string {
 // ── Link-Erstellen-Modal ──────────────────────────────────────
 function LinkErstellenModal({
   vorlagen,
+  kunden,
   onClose,
 }: {
   vorlagen: OnboardingVorlage[]
+  kunden: { id: string; name: string }[]
   onClose: () => void
 }) {
-  const [gewaehlt, setGewaehlt]       = useState<string>('')
+  const standard = vorlagen.find((v) => v.ist_standard)
+  const [gewaehlt, setGewaehlt]       = useState<string>(standard?.id ?? vorlagen[0]?.id ?? '')
+  const [kundeId, setKundeId]         = useState<string>('')
   const [kopiert, setKopiert]         = useState(false)
   const [isPending, startTransition]  = useTransition()
 
-  const standard = vorlagen.find((v) => v.ist_standard)
+  const aktuelleVorlage = vorlagen.find((v) => v.id === gewaehlt)
+  const istProjektVorlage = aktuelleVorlage?.typ === 'projekt'
+
+  // Wenn von Projekt- zu Nicht-Projekt-Vorlage gewechselt wird,
+  // die Kunde-Auswahl zurücksetzen.
+  function handleVorlageWechsel(id: string) {
+    const neueVorlage = vorlagen.find((v) => v.id === id)
+    if (neueVorlage?.typ !== 'projekt') {
+      setKundeId('')
+    }
+    setGewaehlt(id)
+  }
 
   function handleErstellen() {
-    const vorlage_id = gewaehlt || standard?.id || null
+    if (!gewaehlt) return
     startTransition(async () => {
-      const { pfad } = await onboardingLinkErstellen(vorlage_id)
+      const { pfad } = await onboardingLinkErstellen(
+        gewaehlt || null,
+        kundeId || null,
+      )
       const url = window.location.origin + pfad
       await navigator.clipboard.writeText(url)
       setKopiert(true)
@@ -103,59 +121,100 @@ function LinkErstellenModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-        <div className="flex items-center justify-between mb-5">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
           <h2 className="text-base font-semibold text-gray-900">Neuen Onboarding-Link erstellen</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Schließen"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="mb-5">
+        <div className="px-6 pb-4 overflow-y-auto flex-1">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Vorlage auswählen
           </label>
           <div className="space-y-2">
-            {vorlagen.map((v) => (
-              <button
-                key={v.id}
-                type="button"
-                onClick={() => setGewaehlt(v.id)}
-                className={`w-full flex items-start gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
-                  (gewaehlt === v.id || (!gewaehlt && v.ist_standard))
-                    ? 'border-wellbeing-green bg-wellbeing-green/5'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                  (gewaehlt === v.id || (!gewaehlt && v.ist_standard))
-                    ? 'border-wellbeing-green bg-wellbeing-green'
-                    : 'border-gray-300'
-                }`}>
-                  {(gewaehlt === v.id || (!gewaehlt && v.ist_standard)) && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    {v.name}
-                    {v.ist_standard && (
-                      <span className="ml-1.5 text-[10px] font-semibold text-wellbeing-green bg-wellbeing-green/10 px-1.5 py-0.5 rounded-full">
-                        Standard
+            {vorlagen.map((v) => {
+              const aktiv = gewaehlt === v.id
+              const typInfo = getTypInfo(v.typ)
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => handleVorlageWechsel(v.id)}
+                  className={`w-full flex items-start gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                    aktiv
+                      ? 'border-wellbeing-green bg-wellbeing-green/5'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div
+                    className={`mt-0.5 w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${typInfo.bg} ${typInfo.text}`}
+                  >
+                    {typInfo.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-semibold text-gray-900">{v.name}</p>
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${typInfo.bg} ${typInfo.text}`}>
+                        {typInfo.label}
                       </span>
+                      {v.ist_standard && (
+                        <span className="text-[10px] font-semibold text-wellbeing-green bg-wellbeing-green/10 px-1.5 py-0.5 rounded-full">
+                          Standard
+                        </span>
+                      )}
+                    </div>
+                    {v.beschreibung && (
+                      <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">{v.beschreibung}</p>
                     )}
-                  </p>
-                  {v.beschreibung && (
-                    <p className="text-xs text-gray-400 mt-0.5">{v.beschreibung}</p>
-                  )}
-                  <p className="text-xs text-gray-400 mt-0.5">{v.fragen.length} Fragen</p>
-                </div>
-              </button>
-            ))}
+                    <p className="text-[11px] text-gray-400 mt-0.5">{v.fragen.length} Fragen</p>
+                  </div>
+                  <div
+                    className={`mt-1 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      aktiv ? 'border-wellbeing-green bg-wellbeing-green' : 'border-gray-300'
+                    }`}
+                  >
+                    {aktiv && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                  </div>
+                </button>
+              )
+            })}
           </div>
+
+          {/* Kunden-Dropdown für Projekt-Vorlagen */}
+          {istProjektVorlage && (
+            <div className="mt-4 p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Kunden verknüpfen
+                <span className="ml-1.5 text-[11px] font-normal text-gray-400">(optional)</span>
+              </label>
+              <p className="text-[11px] text-gray-500 mb-2 leading-relaxed">
+                Wähle einen bestehenden Kunden — dann werden Kontaktdaten
+                automatisch vorausgefüllt und der Link der Person zugeordnet.
+              </p>
+              {kunden.length === 0 ? (
+                <p className="text-xs text-gray-400 italic px-3 py-2 bg-white border border-gray-100 rounded-lg">
+                  Noch keine Kunden angelegt.
+                </p>
+              ) : (
+                <select
+                  value={kundeId}
+                  onChange={(e) => setKundeId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-wellbeing-green focus:ring-2 focus:ring-wellbeing-green/20 transition-all"
+                >
+                  <option value="">— Kein Kunde (neu erfassen) —</option>
+                  {kunden.map((k) => (
+                    <option key={k.id} value={k.id}>{k.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
 
           <Link
             href="/dashboard/onboarding/vorlagen"
@@ -166,19 +225,21 @@ function LinkErstellenModal({
           </Link>
         </div>
 
-        <button
-          onClick={handleErstellen}
-          disabled={isPending || kopiert}
-          className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-white bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 rounded-xl transition-colors"
-        >
-          {kopiert ? (
-            <><Check className="w-4 h-4" /> Link kopiert!</>
-          ) : isPending ? (
-            <>Wird erstellt…</>
-          ) : (
-            <><Plus className="w-4 h-4" /> Link erstellen & kopieren</>
-          )}
-        </button>
+        <div className="px-6 pt-3 pb-6 shrink-0 border-t border-gray-100">
+          <button
+            onClick={handleErstellen}
+            disabled={isPending || kopiert || !gewaehlt}
+            className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-white bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 rounded-xl transition-colors"
+          >
+            {kopiert ? (
+              <><Check className="w-4 h-4" /> Link kopiert!</>
+            ) : isPending ? (
+              <>Wird erstellt…</>
+            ) : (
+              <><Plus className="w-4 h-4" /> Link erstellen & kopieren</>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -503,8 +564,6 @@ export default function OnboardingTabelle({
   vorlagen: OnboardingVorlage[]
   kunden?: { id: string; name: string }[]
 }) {
-  // `kunden` wird in einem späteren Step im LinkErstellenModal verwendet
-  void kunden
   const [offeneId, setOffeneId]         = useState<string | null>(null)
   const [modalOffen, setModalOffen]     = useState(false)
   const [loeschenId, setLoeschenId]     = useState<string | null>(null)
@@ -539,7 +598,11 @@ export default function OnboardingTabelle({
   return (
     <>
       {modalOffen && (
-        <LinkErstellenModal vorlagen={vorlagen} onClose={() => setModalOffen(false)} />
+        <LinkErstellenModal
+          vorlagen={vorlagen}
+          kunden={kunden}
+          onClose={() => setModalOffen(false)}
+        />
       )}
 
       <div className="h-full flex flex-col">
