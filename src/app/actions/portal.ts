@@ -476,11 +476,12 @@ export async function portalProjektAbrufen(projektId: string) {
     .eq('projekt_id', projektId)
     .order('created_at')
 
-  // Timeline Events
+  // Timeline Events – nur für Kunde freigegebene Einträge
   const { data: events } = await supabase
     .from('timeline_events')
     .select('id, titel, typ, start_datum, end_datum, status, farbe')
     .eq('projekt_id', projektId)
+    .eq('kunde_sichtbar', true)
     .order('start_datum')
 
   // Nachrichten als gelesen markieren

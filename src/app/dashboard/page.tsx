@@ -8,6 +8,8 @@ import {
   BudgetUebersicht,
   LetzteProjekte,
   type DeadlineProjekt,
+  type DeadlineEvent,
+  type DeadlineEventTyp,
   type FollowUpEintrag,
   type BudgetProjekt,
   type LetzesProjekt,
@@ -142,6 +144,53 @@ async function getDashboardData() {
       .reduce((sum, a) => sum + (a.brutto_summe ?? 0), 0)
   } catch { /* angebote-Tabelle noch nicht migriert */ }
 
+  // Timeline-Events (eigene try/catch – Tabelle evtl. nicht migriert)
+  // Anzeige: status != abgeschlossen UND start_datum <= heute + max(erinnerung_tage, 7)
+  // Da die Tage-Fenstergröße variabel ist, laden wir 30 Tage als Obergrenze
+  // und filtern danach im Code per erinnerung_tage || 7.
+  let anstehendeEvents: DeadlineEvent[] = []
+  try {
+    const in30Str = new Date(now.getTime() + 30 * 86_400_000).toISOString().slice(0, 10)
+    const vor7Str = new Date(now.getTime() - 7 * 86_400_000).toISOString().slice(0, 10)
+    const r = await safeQuery(() =>
+      supabase
+        .from('timeline_events')
+        .select('id, titel, typ, start_datum, erinnerung_tage, projekt_id, projekte(id, name)')
+        .neq('status', 'abgeschlossen')
+        .gte('start_datum', vor7Str)
+        .lte('start_datum', in30Str)
+        .order('start_datum', { ascending: true })
+        .limit(20)
+    )
+    type EventRaw = {
+      id: string
+      titel: string
+      typ: string
+      start_datum: string
+      erinnerung_tage: number | null
+      projekt_id: string
+      projekte: { id: string; name: string } | null
+    }
+    anstehendeEvents = ((r.data ?? []) as unknown as EventRaw[])
+      .map((e) => {
+        const tage = tageDiff(e.start_datum)
+        return {
+          id:              e.id,
+          titel:           e.titel,
+          projektId:       e.projekt_id,
+          projektName:     e.projekte?.name ?? null,
+          typ:             (['meilenstein', 'lieferung', 'termin', 'phase'].includes(e.typ) ? e.typ : 'termin') as DeadlineEventTyp,
+          start_datum:     e.start_datum,
+          tageVerbleibend: tage,
+          istUeberfaellig: tage < 0,
+          _fenster:        e.erinnerung_tage ?? 7,
+        }
+      })
+      .filter((e) => e.tageVerbleibend <= e._fenster) // innerhalb der Erinnerungs-Frist
+      .map(({ _fenster, ...e }) => { void _fenster; return e })
+      .slice(0, 8)
+  } catch { /* timeline_events evtl. nicht migriert */ }
+
   // Follow-ups (eigene try/catch – Tabelle evtl. nicht migriert)
   let followUpEintraege: FollowUpEintrag[] = []
   try {
@@ -236,6 +285,7 @@ async function getDashboardData() {
     offeneAngebote,
     monatsumsatz,
     naechsteDeadlines,
+    anstehendeEvents,
     followUpEintraege,
     budgetProjekte,
     letzteProjekte,
@@ -247,7 +297,7 @@ async function getDashboardData() {
 export default async function DashboardPage() {
   const {
     aktiveKunden, laufendeProjekte, offeneAngebote, monatsumsatz,
-    naechsteDeadlines, followUpEintraege,
+    naechsteDeadlines, anstehendeEvents, followUpEintraege,
     budgetProjekte,
     letzteProjekte,
   } = await getDashboardData()
@@ -291,7 +341,7 @@ export default async function DashboardPage() {
 
         {/* ROW 2: Deadlines + Follow-ups */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[220px]">
-          <NaechsteDeadlines projekte={naechsteDeadlines} />
+          <NaechsteDeadlines projekte={naechsteDeadlines} events={anstehendeEvents} />
           <OffeneFollowUps eintraege={followUpEintraege} />
         </div>
 

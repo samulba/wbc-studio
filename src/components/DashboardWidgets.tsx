@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare, FolderOpen, ReceiptText } from 'lucide-react'
+import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare, FolderOpen, ReceiptText, Flag, Truck, Layers } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
 
@@ -21,6 +21,19 @@ export interface DeadlineProjekt {
   kundenName: string | null
   deadline: string
   tageVerbleibend: number
+}
+
+export type DeadlineEventTyp = 'meilenstein' | 'lieferung' | 'termin' | 'phase'
+
+export interface DeadlineEvent {
+  id: string
+  titel: string
+  projektId: string
+  projektName: string | null
+  typ: DeadlineEventTyp
+  start_datum: string
+  tageVerbleibend: number
+  istUeberfaellig: boolean
 }
 
 export interface FollowUpEintrag {
@@ -134,20 +147,48 @@ export function KpiKartenReihe({ aktiveKunden, laufendeProjekte, offeneAngebote,
 
 // ── Nächste Deadlines ─────────────────────────────────────────
 
-export function NaechsteDeadlines({ projekte }: { projekte: DeadlineProjekt[] }) {
+const EVENT_ICON: Record<DeadlineEventTyp, React.ElementType> = {
+  meilenstein: Flag,
+  lieferung:   Truck,
+  termin:      Clock,
+  phase:       Layers,
+}
+const EVENT_COLOR: Record<DeadlineEventTyp, string> = {
+  meilenstein: 'text-purple-500 bg-purple-50',
+  lieferung:   'text-blue-500 bg-blue-50',
+  termin:      'text-emerald-500 bg-emerald-50',
+  phase:       'text-gray-500 bg-gray-50',
+}
+
+export function NaechsteDeadlines({
+  projekte,
+  events = [],
+}: {
+  projekte: DeadlineProjekt[]
+  events?: DeadlineEvent[]
+}) {
+  type Eintrag =
+    | { kind: 'projekt'; data: DeadlineProjekt; tage: number }
+    | { kind: 'event';   data: DeadlineEvent;   tage: number }
+
+  const eintraege: Eintrag[] = [
+    ...projekte.map((p) => ({ kind: 'projekt' as const, data: p, tage: p.tageVerbleibend })),
+    ...events.map((e) => ({ kind: 'event' as const,   data: e, tage: e.tageVerbleibend })),
+  ].sort((a, b) => a.tage - b.tage)
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
       <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-blue-500" />
-          <h2 className="text-sm font-semibold text-gray-900">Nächste Deadlines</h2>
+          <h2 className="text-sm font-semibold text-gray-900">Anstehende Deadlines</h2>
         </div>
         <Link href="/dashboard/projekte" className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark transition-colors font-medium">
           Alle →
         </Link>
       </div>
 
-      {projekte.length === 0 ? (
+      {eintraege.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-2 py-8">
           <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
             <Calendar className="w-5 h-5 text-blue-400" />
@@ -156,24 +197,56 @@ export function NaechsteDeadlines({ projekte }: { projekte: DeadlineProjekt[] })
         </div>
       ) : (
         <ul className="flex-1 overflow-y-auto divide-y divide-gray-50">
-          {projekte.map((p) => {
-            const farbe = deadlineFarbe(p.tageVerbleibend)
+          {eintraege.map((e) => {
+            const farbe = deadlineFarbe(e.tage)
+            if (e.kind === 'projekt') {
+              const p = e.data
+              return (
+                <li key={`p-${p.id}`}>
+                  <Link
+                    href={`/dashboard/projekte/${p.id}`}
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group"
+                  >
+                    <div className="shrink-0 w-7 h-7 rounded-lg bg-gray-50 text-gray-500 flex items-center justify-center">
+                      <FolderOpen className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-gray-900 truncate group-hover:text-wellbeing-green transition-colors">
+                        {p.name}
+                      </p>
+                      <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                        Projekt-Deadline{p.kundenName ? ` · ${p.kundenName}` : ''}
+                      </p>
+                    </div>
+                    <span className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full border ${farbe}`}>
+                      {deadlineLabel(p.tageVerbleibend)}
+                    </span>
+                  </Link>
+                </li>
+              )
+            }
+            const ev   = e.data
+            const Icon = EVENT_ICON[ev.typ]
+            const col  = EVENT_COLOR[ev.typ]
             return (
-              <li key={p.id}>
+              <li key={`e-${ev.id}`}>
                 <Link
-                  href={`/dashboard/projekte/${p.id}`}
+                  href={`/dashboard/projekte/${ev.projektId}/timeline`}
                   className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 transition-colors group"
                 >
+                  <div className={`shrink-0 w-7 h-7 rounded-lg flex items-center justify-center ${col}`}>
+                    <Icon className="w-3.5 h-3.5" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-gray-900 truncate group-hover:text-wellbeing-green transition-colors">
-                      {p.name}
+                      {ev.titel}
                     </p>
-                    {p.kundenName && (
-                      <p className="text-[11px] text-gray-400 truncate mt-0.5">{p.kundenName}</p>
+                    {ev.projektName && (
+                      <p className="text-[11px] text-gray-400 truncate mt-0.5">{ev.projektName}</p>
                     )}
                   </div>
                   <span className={`shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full border ${farbe}`}>
-                    {deadlineLabel(p.tageVerbleibend)}
+                    {deadlineLabel(ev.tageVerbleibend)}
                   </span>
                 </Link>
               </li>

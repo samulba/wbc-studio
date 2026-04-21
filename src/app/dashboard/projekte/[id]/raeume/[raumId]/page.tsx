@@ -12,6 +12,7 @@ import type { Partner, RaumProduktMitDetails } from '@/lib/supabase/types'
 import { LayoutDashboard } from 'lucide-react'
 import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
 import ProduktHinzufuegenModal from '@/components/ProduktHinzufuegenModal'
+import RaumEventButton from '@/components/RaumEventButton'
 
 async function getPartner(): Promise<Pick<Partner, 'id' | 'name'>[]> {
   const supabase = await createClient()
@@ -262,14 +263,17 @@ export default async function RaumDetailPage({
 
       {/* Raum-Timeline */}
       <div className="mt-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 gap-3">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Raum-Timeline</p>
-          <Link
-            href={`/dashboard/projekte/${params.id}/timeline`}
-            className="text-xs text-wellbeing-green hover:underline"
-          >
-            Zur Projekt-Timeline →
-          </Link>
+          <div className="flex items-center gap-3">
+            <RaumEventButton projektId={params.id} raumId={params.raumId} />
+            <Link
+              href={`/dashboard/projekte/${params.id}/timeline?raum=${params.raumId}`}
+              className="text-xs text-wellbeing-green hover:underline"
+            >
+              Zur Projekt-Timeline →
+            </Link>
+          </div>
         </div>
         <Timeline events={timelineEvents} />
       </div>
