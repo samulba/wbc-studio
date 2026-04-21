@@ -187,8 +187,13 @@ function SortableProduktZeile({
   const gesamtNetto = r2(effektivVP * eintrag.menge)
   const provisionEur = r2(effektivVP * ((p.provision_prozent ?? 0) / 100))
 
+  // Freigabe-Status kommt noch aus produktstatus (wird in Step 5 umgezogen).
+  // Bestellstatus + Datumsfelder kommen seit Migration 076 aus raum_produkte.
   const status = p.produktstatus?.status ?? 'ausstehend'
-  const bestellstatus = (p.bestellstatus ?? 'ausstehend') as BestellStatus
+  const bestellstatus = (eintrag.bestellstatus ?? 'ausstehend') as BestellStatus
+  const bestelltAm         = eintrag.bestellt_am
+  const lieferterminDatum  = eintrag.liefertermin
+  const lieferungErhaltenAm = eintrag.lieferung_erhalten_am
 
   const zeileKlasse = !isLast || expanded ? 'border-b border-gray-100' : ''
 
@@ -312,16 +317,16 @@ function SortableProduktZeile({
             {(() => {
               // Zeige das passendste Datum direkt unter dem Badge
               if (bestellstatus === 'geliefert' || bestellstatus === 'rechnung_erhalten') {
-                if (p.lieferung_erhalten_am) {
-                  return <span className="text-[10px] text-gray-400 inline-flex items-center gap-1"><PackageCheck className="w-2.5 h-2.5" /> {fmtDate(p.lieferung_erhalten_am)}</span>
+                if (lieferungErhaltenAm) {
+                  return <span className="text-[10px] text-gray-400 inline-flex items-center gap-1"><PackageCheck className="w-2.5 h-2.5" /> {fmtDate(lieferungErhaltenAm)}</span>
                 }
               }
               if (bestellstatus === 'bestellt') {
-                if (p.liefertermin) {
-                  return <span className="text-[10px] text-gray-400 inline-flex items-center gap-1"><Truck className="w-2.5 h-2.5" /> erw. {fmtDate(p.liefertermin)}</span>
+                if (lieferterminDatum) {
+                  return <span className="text-[10px] text-gray-400 inline-flex items-center gap-1"><Truck className="w-2.5 h-2.5" /> erw. {fmtDate(lieferterminDatum)}</span>
                 }
-                if (p.bestellt_am) {
-                  return <span className="text-[10px] text-gray-400 inline-flex items-center gap-1"><CalendarDays className="w-2.5 h-2.5" /> {fmtDate(p.bestellt_am)}</span>
+                if (bestelltAm) {
+                  return <span className="text-[10px] text-gray-400 inline-flex items-center gap-1"><CalendarDays className="w-2.5 h-2.5" /> {fmtDate(bestelltAm)}</span>
                 }
               }
               return null
@@ -418,23 +423,23 @@ function SortableProduktZeile({
                       {
                         label: 'Bestellt',
                         Icon: CalendarDays,
-                        value: p.bestellt_am ?? '',
+                        value: bestelltAm ?? '',
                         onChange: (v) => onDatumChange(eintrag.id, 'bestellt_am', v || null),
-                        aktiv: !!p.bestellt_am,
+                        aktiv: !!bestelltAm,
                       },
                       {
                         label: 'Geplante Lieferung',
                         Icon: Truck,
-                        value: p.liefertermin ?? '',
+                        value: lieferterminDatum ?? '',
                         onChange: (v) => onDatumChange(eintrag.id, 'liefertermin', v || null),
-                        aktiv: !!p.liefertermin,
+                        aktiv: !!lieferterminDatum,
                       },
                       {
                         label: 'Geliefert',
                         Icon: PackageCheck,
-                        value: p.lieferung_erhalten_am ?? '',
+                        value: lieferungErhaltenAm ?? '',
                         onChange: (v) => onDatumChange(eintrag.id, 'lieferung_erhalten_am', v || null),
-                        aktiv: !!p.lieferung_erhalten_am,
+                        aktiv: !!lieferungErhaltenAm,
                       },
                     ]}
                   />
@@ -720,18 +725,18 @@ export default function SortableProduktTabelle({
   async function handleBestellstatusChange(raumProduktId: string, neuerStatus: BestellStatus) {
     const eintrag = eintraege.find((e) => e.id === raumProduktId)
     if (!eintrag) return
-    const alterStatus = (eintrag.produkte.bestellstatus ?? 'ausstehend') as BestellStatus
+    const alterStatus = (eintrag.bestellstatus ?? 'ausstehend') as BestellStatus
 
-    // Optimistisch
+    // Optimistisch — direkt auf raum_produkte-Ebene (Migration 076)
     setEintraege((prev) =>
-      prev.map((e) => (e.id === raumProduktId ? { ...e, produkte: { ...e.produkte, bestellstatus: neuerStatus } } : e))
+      prev.map((e) => (e.id === raumProduktId ? { ...e, bestellstatus: neuerStatus } : e))
     )
 
-    const res = await bestellstatusAendern(eintrag.produkt_id, raumId, projektId, neuerStatus)
+    const res = await bestellstatusAendern(eintrag.id, raumId, projektId, neuerStatus)
     if (res?.fehler) {
       // Rollback
       setEintraege((prev) =>
-        prev.map((e) => (e.id === raumProduktId ? { ...e, produkte: { ...e.produkte, bestellstatus: alterStatus } } : e))
+        prev.map((e) => (e.id === raumProduktId ? { ...e, bestellstatus: alterStatus } : e))
       )
       setFehlerToast('Bestellstatus konnte nicht gespeichert werden.')
       setTimeout(() => setFehlerToast(null), 4000)
@@ -749,11 +754,11 @@ export default function SortableProduktTabelle({
 
   async function handleDatumChange(raumProduktId: string, feld: ProduktDatumFeld, wert: string | null) {
     setEintraege((prev) =>
-      prev.map((e) => (e.id === raumProduktId ? { ...e, produkte: { ...e.produkte, [feld]: wert } } : e))
+      prev.map((e) => (e.id === raumProduktId ? { ...e, [feld]: wert } : e))
     )
     const eintrag = eintraege.find((e) => e.id === raumProduktId)
     if (!eintrag) return
-    const res = await produktDatumAktualisieren(eintrag.produkt_id, raumId, projektId, feld, wert)
+    const res = await produktDatumAktualisieren(eintrag.id, raumId, projektId, feld, wert)
     if (res?.fehler) {
       setFehlerToast(res.fehler)
       setTimeout(() => setFehlerToast(null), 6000)
@@ -763,7 +768,7 @@ export default function SortableProduktTabelle({
       const neu = res.bestellstatus
       setEintraege((prev) =>
         prev.map((e) =>
-          e.id === raumProduktId ? { ...e, produkte: { ...e.produkte, bestellstatus: neu } } : e,
+          e.id === raumProduktId ? { ...e, bestellstatus: neu } : e,
         ),
       )
     }
