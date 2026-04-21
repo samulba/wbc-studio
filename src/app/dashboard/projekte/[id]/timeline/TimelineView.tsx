@@ -96,15 +96,23 @@ function EventModal({
         kunde_sichtbar: form.kunde_sichtbar,
       }
       if (isNeu) {
-        const { id } = await eventErstellen(projektId, daten)
+        const res = await eventErstellen(projektId, daten)
+        if (res.fehler || !res.id) {
+          setFehler(res.fehler ?? 'Event konnte nicht erstellt werden.')
+          return
+        }
         onSave({
-          id, projekt_id: projektId, reihenfolge: 0,
+          id: res.id, projekt_id: projektId, reihenfolge: 0,
           quelle: 'manuell', quelle_id: null,
           created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
           ...daten,
         } as unknown as TimelineEvent)
       } else {
-        await eventAktualisieren(event!.id!, projektId, daten)
+        const res = await eventAktualisieren(event!.id!, projektId, daten)
+        if (res.fehler) {
+          setFehler(res.fehler)
+          return
+        }
         onSave({ ...event, ...daten } as unknown as TimelineEvent)
       }
       onClose()

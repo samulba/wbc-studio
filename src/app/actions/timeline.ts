@@ -34,24 +34,35 @@ export async function eventsAbrufen(projektId: string): Promise<TimelineEvent[]>
 }
 
 // ── Event erstellen ───────────────────────────────────────────
+// Gibt { id? | fehler? } zurück (kein throw), damit ein fehlgeschlagener
+// Insert nicht die ganze Seite zum Server-Side-Exception führt.
 export async function eventErstellen(
   projektId: string,
   daten: TimelineEventDaten
-): Promise<{ id: string }> {
-  const supabase = await createClient()
-  const orgId = await getOrganisationId()
-  const { data, error } = await supabase
-    .from('timeline_events')
-    .insert({ projekt_id: projektId, ...daten, organisation_id: orgId })
-    .select('id')
-    .single()
-  if (error || !data) throw new Error('Event konnte nicht erstellt werden.')
-  revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
-  revalidatePath(`/dashboard/projekte/${projektId}`)
-  if (daten.raum_id) {
-    revalidatePath(`/dashboard/projekte/${projektId}/raeume/${daten.raum_id}`)
+): Promise<{ id?: string; fehler?: string }> {
+  try {
+    const supabase = await createClient()
+    const orgId = await getOrganisationId()
+    const { data, error } = await supabase
+      .from('timeline_events')
+      .insert({ projekt_id: projektId, ...daten, organisation_id: orgId })
+      .select('id')
+      .single()
+    if (error || !data) {
+      console.error('[eventErstellen]', { projektId, code: error?.code, message: error?.message, hint: error?.hint, details: error?.details })
+      return { fehler: error?.message ?? 'Event konnte nicht erstellt werden.' }
+    }
+    revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
+    revalidatePath(`/dashboard/projekte/${projektId}`)
+    if (daten.raum_id) {
+      revalidatePath(`/dashboard/projekte/${projektId}/raeume/${daten.raum_id}`)
+    }
+    return { id: data.id }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[eventErstellen:catch]', message)
+    return { fehler: message }
   }
-  return { id: data.id }
 }
 
 // ── Event aktualisieren ───────────────────────────────────────
@@ -59,14 +70,29 @@ export async function eventAktualisieren(
   eventId: string,
   projektId: string,
   daten: Partial<TimelineEventDaten>
-): Promise<void> {
-  const supabase = await createClient()
-  const orgId = await getOrganisationId()
-  await supabase.from('timeline_events').update(daten).eq('id', eventId).eq('organisation_id', orgId)
-  revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
-  revalidatePath(`/dashboard/projekte/${projektId}`)
-  if (daten.raum_id) {
-    revalidatePath(`/dashboard/projekte/${projektId}/raeume/${daten.raum_id}`)
+): Promise<{ fehler?: string }> {
+  try {
+    const supabase = await createClient()
+    const orgId = await getOrganisationId()
+    const { error } = await supabase
+      .from('timeline_events')
+      .update(daten)
+      .eq('id', eventId)
+      .eq('organisation_id', orgId)
+    if (error) {
+      console.error('[eventAktualisieren]', { eventId, code: error.code, message: error.message, hint: error.hint })
+      return { fehler: error.message }
+    }
+    revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
+    revalidatePath(`/dashboard/projekte/${projektId}`)
+    if (daten.raum_id) {
+      revalidatePath(`/dashboard/projekte/${projektId}/raeume/${daten.raum_id}`)
+    }
+    return {}
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[eventAktualisieren:catch]', message)
+    return { fehler: message }
   }
 }
 
@@ -75,14 +101,29 @@ export async function eventLoeschen(
   eventId: string,
   projektId: string,
   raumId?: string | null
-): Promise<void> {
-  const supabase = await createClient()
-  const orgId = await getOrganisationId()
-  await supabase.from('timeline_events').delete().eq('id', eventId).eq('organisation_id', orgId)
-  revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
-  revalidatePath(`/dashboard/projekte/${projektId}`)
-  if (raumId) {
-    revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+): Promise<{ fehler?: string }> {
+  try {
+    const supabase = await createClient()
+    const orgId = await getOrganisationId()
+    const { error } = await supabase
+      .from('timeline_events')
+      .delete()
+      .eq('id', eventId)
+      .eq('organisation_id', orgId)
+    if (error) {
+      console.error('[eventLoeschen]', { eventId, code: error.code, message: error.message })
+      return { fehler: error.message }
+    }
+    revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
+    revalidatePath(`/dashboard/projekte/${projektId}`)
+    if (raumId) {
+      revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+    }
+    return {}
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('[eventLoeschen:catch]', message)
+    return { fehler: message }
   }
 }
 
