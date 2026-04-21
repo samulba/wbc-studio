@@ -85,12 +85,14 @@ export default async function RaumDetailPage({
   const supabaseDebug = await createClient()
   const { data: alleProjektEvents } = await supabaseDebug
     .from('timeline_events')
-    .select('id, raum_id, titel, quelle')
+    .select('id, raum_id, titel, quelle, created_at')
     .eq('projekt_id', params.id)
+    .order('created_at', { ascending: false })
   const alleCount   = alleProjektEvents?.length ?? 0
   const raumCount   = timelineEvents.length
   const orphanCount = (alleProjektEvents ?? []).filter((e) => !e.raum_id).length
   const anderenCount = alleCount - raumCount - orphanCount
+  const aktuellerRaumKurz = params.raumId.slice(0, 8)
 
   const eintraege = filtern(alleEintraege, searchParams)
   const projekt   = raum.projekte
@@ -288,18 +290,53 @@ export default async function RaumDetailPage({
           </div>
         </div>
         {/* Debug-Badge */}
-        <div className="mb-4 flex flex-wrap gap-2 text-[11px]">
-          <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-            In diesem Raum: <strong className="text-gray-900">{raumCount}</strong>
-          </span>
-          {(orphanCount > 0 || anderenCount > 0) && (
-            <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full" title="Events mit falschem oder fehlendem raum_id">
-              Verwaist: <strong>{orphanCount}</strong> · Andere Räume: <strong>{anderenCount}</strong>
+        <div className="mb-4 space-y-2 text-[11px]">
+          <div className="flex flex-wrap gap-2">
+            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+              Aktueller Raum: <code className="font-mono text-gray-900">{aktuellerRaumKurz}…</code>
             </span>
+            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+              In diesem Raum: <strong className="text-gray-900">{raumCount}</strong>
+            </span>
+            {(orphanCount > 0 || anderenCount > 0) && (
+              <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
+                Verwaist: <strong>{orphanCount}</strong> · Andere Räume: <strong>{anderenCount}</strong>
+              </span>
+            )}
+            <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+              Gesamt Projekt: <strong className="text-gray-900">{alleCount}</strong>
+            </span>
+          </div>
+          {alleCount > 0 && (
+            <details className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+              <summary className="cursor-pointer text-gray-500 hover:text-gray-700 select-none">
+                Event-Liste anzeigen (Debug)
+              </summary>
+              <table className="mt-2 w-full text-[10px] font-mono">
+                <thead>
+                  <tr className="text-left text-gray-400">
+                    <th className="pr-3">titel</th>
+                    <th className="pr-3">quelle</th>
+                    <th className="pr-3">raum_id</th>
+                    <th>match</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(alleProjektEvents ?? []).map((e) => {
+                    const matchesCurrent = e.raum_id === params.raumId
+                    return (
+                      <tr key={e.id} className={matchesCurrent ? 'bg-emerald-50' : ''}>
+                        <td className="pr-3 truncate max-w-[280px]">{e.titel}</td>
+                        <td className="pr-3 text-gray-500">{e.quelle ?? '—'}</td>
+                        <td className="pr-3 text-gray-500">{e.raum_id ? e.raum_id.slice(0, 8) + '…' : '(null)'}</td>
+                        <td>{matchesCurrent ? '✓' : e.raum_id ? '✗' : '∅'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </details>
           )}
-          <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-            Gesamt Projekt: <strong className="text-gray-900">{alleCount}</strong>
-          </span>
         </div>
         <Timeline events={timelineEvents} />
       </div>
