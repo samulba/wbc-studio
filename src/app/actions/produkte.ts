@@ -14,6 +14,35 @@ export type ProduktActionState = { fehler: string } | null
  * Fehler werden geschluckt (ein fehlgeschlagener Sync darf die
  * Haupt-Action nicht abbrechen).
  */
+/**
+ * Öffentliche Version: synct alle raum_produkte eines Raums auf einmal.
+ * Aufruf vom UI-Button "Timeline neu laden" auf der Raum-Detail-Seite.
+ */
+export async function syncAlleProdukteImRaum(
+  raumId: string,
+  projektId: string,
+): Promise<{ anzahl: number; error?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data: eintraege, error: readErr } = await supabase
+    .from('raum_produkte')
+    .select('id')
+    .eq('raum_id', raumId)
+    .eq('organisation_id', orgId)
+  if (readErr) return { anzahl: 0, error: readErr.message }
+  const list = eintraege ?? []
+  const errors: string[] = []
+  for (const e of list) {
+    const res = await syncProduktTimeline(e.id, projektId, raumId)
+    if (res.error) errors.push(res.error)
+  }
+  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  revalidatePath(`/dashboard/projekte/${projektId}/timeline`)
+  return errors.length > 0
+    ? { anzahl: list.length, error: errors.join(' | ') }
+    : { anzahl: list.length }
+}
+
 async function syncProduktTimeline(
   raumProduktId: string, projektId: string, raumId: string,
 ): Promise<{ error?: string }> {

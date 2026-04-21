@@ -13,6 +13,7 @@ import { LayoutDashboard } from 'lucide-react'
 import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
 import ProduktHinzufuegenModal from '@/components/ProduktHinzufuegenModal'
 import RaumEventButton from '@/components/RaumEventButton'
+import TimelineSyncButton from '@/components/TimelineSyncButton'
 
 async function getPartner(): Promise<Pick<Partner, 'id' | 'name'>[]> {
   const supabase = await createClient()
@@ -263,9 +264,10 @@ export default async function RaumDetailPage({
 
       {/* Raum-Timeline */}
       <div className="mt-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4 gap-3">
+        <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Raum-Timeline</p>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <TimelineSyncButton raumId={params.raumId} projektId={params.id} />
             <RaumEventButton projektId={params.id} raumId={params.raumId} />
             <Link
               href={`/dashboard/projekte/${params.id}/timeline?raum=${params.raumId}`}
