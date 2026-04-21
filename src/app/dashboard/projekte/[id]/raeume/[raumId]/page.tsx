@@ -9,7 +9,6 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 import { getMwstSatz, getKategorien } from '@/app/actions/einstellungen'
 import { getRaumProdukte } from '@/app/actions/raum-produkte'
-import { raumEventsAbrufen } from '@/app/actions/timeline'
 import FilterBar from '@/components/FilterBar'
 import SortableProduktTabelle from '@/components/SortableProduktTabelle'
 import { Timeline } from '@/components/Timeline'
