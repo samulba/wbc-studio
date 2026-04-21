@@ -388,15 +388,34 @@ function GanttChart({
     return Math.round((d.getTime() - startDate.getTime()) / 86400000) * tagBreite
   }
 
-  const monate: { label: string; x: number }[] = []
+  const monate: { label: string; x: number; breite: number }[] = []
   const cursor = new Date(startDate)
   cursor.setDate(1)
   while (cursor <= endDate) {
+    const monatStart = new Date(cursor)
+    const monatEnde  = new Date(cursor)
+    monatEnde.setMonth(monatEnde.getMonth() + 1)
+    const xStart = datumZuX(monatStart.toISOString().split('T')[0])
+    const xEnde  = datumZuX(monatEnde.toISOString().split('T')[0])
     monate.push({
-      label: cursor.toLocaleDateString('de-DE', { month: 'short', year: '2-digit' }),
-      x: datumZuX(cursor.toISOString().split('T')[0]),
+      label: monatStart.toLocaleDateString('de-DE', { month: 'long', year: '2-digit' }),
+      x: Math.max(0, xStart),
+      breite: xEnde - Math.max(0, xStart),
     })
     cursor.setMonth(cursor.getMonth() + 1)
+  }
+
+  // Wochen-Markierungen (alle Montage)
+  const wochen: { x: number; label: string }[] = []
+  const wCursor = new Date(startDate)
+  // zum nächsten Montag vorspringen
+  while (wCursor.getDay() !== 1) wCursor.setDate(wCursor.getDate() + 1)
+  while (wCursor <= endDate) {
+    wochen.push({
+      x: datumZuX(wCursor.toISOString().split('T')[0]),
+      label: wCursor.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+    })
+    wCursor.setDate(wCursor.getDate() + 7)
   }
 
   const heuteX      = datumZuX(heute)
@@ -454,26 +473,71 @@ function GanttChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag, events, onEventMove])
 
-  if (events.length === 0) return null
+  if (events.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-gray-200 bg-white">
+        <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+          <Calendar className="w-6 h-6 text-gray-400" />
+        </div>
+        <p className="text-sm font-medium text-gray-700 mb-1">Noch keine Ereignisse</p>
+        <p className="text-xs text-gray-400 max-w-xs text-center">
+          Lege den ersten Meilenstein, Liefertermin oder eine Phase an — die Gantt-Ansicht wird dann aktiv.
+        </p>
+      </div>
+    )
+  }
+
+  const chartHoehe = achsenHoehe + events.length * rowHoehe + 16
 
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm" ref={containerRef}>
-      <div style={{ minWidth: totalBreite + 200, position: 'relative' }}>
-        {/* Monats-Achse */}
-        <div className="sticky top-0 z-10 bg-gray-50 border-b border-gray-200 flex items-center" style={{ height: 36 }}>
-          {monate.map((m, i) => (
+      <div style={{ minWidth: totalBreite + 280, position: 'relative' }}>
+        {/* Zeitachse: Monats-Zeile + Wochen-Zeile */}
+        <div className="sticky top-0 z-20 bg-white border-b border-gray-200" style={{ height: achsenHoehe }}>
+          {/* Monats-Blöcke (obere Hälfte) */}
+          <div className="relative border-b border-gray-100" style={{ height: achsenHoehe / 2 }}>
+            {monate.map((m, i) => (
+              <div
+                key={i}
+                className="absolute flex items-center text-[11px] font-semibold text-gray-700 capitalize border-l border-gray-100 h-full px-2"
+                style={{ left: m.x, width: m.breite }}
+              >
+                {m.label}
+              </div>
+            ))}
+          </div>
+          {/* Wochen-Ticks (untere Hälfte) */}
+          <div className="relative" style={{ height: achsenHoehe / 2 }}>
+            {wochen.map((w, i) => (
+              <div
+                key={i}
+                className="absolute text-[9px] text-gray-400 tabular-nums border-l border-gray-100 h-full pl-1 flex items-center"
+                style={{ left: w.x }}
+              >
+                {w.label}
+              </div>
+            ))}
+          </div>
+          {/* Heute-Markierung in Achse */}
+          <div className="absolute top-0 bottom-0 flex flex-col items-center" style={{ left: heuteX - 1, width: 2 }}>
+            <div className="w-full h-full bg-red-400/70" />
+            <div className="absolute -top-0.5 -translate-x-1/2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ left: 1 }}>
+              HEUTE
+            </div>
+          </div>
+        </div>
+
+        {/* Hintergrund-Grid: Wochen als vertikale Linien */}
+        <div className="absolute pointer-events-none" style={{ left: 0, top: achsenHoehe, width: totalBreite, height: chartHoehe - achsenHoehe }}>
+          {wochen.map((w, i) => (
             <div
               key={i}
-              className="absolute text-[11px] font-medium text-gray-500 whitespace-nowrap"
-              style={{ left: m.x + 4, top: '50%', transform: 'translateY(-50%)' }}
-            >
-              {m.label}
-            </div>
+              className="absolute top-0 bottom-0 border-l border-gray-100"
+              style={{ left: w.x }}
+            />
           ))}
-          {/* Heute-Markierung in Achse */}
-          <div className="absolute top-0 bottom-0 border-l-2 border-red-400"
-            style={{ left: heuteX }}
-          />
+          {/* Heute-Linie */}
+          <div className="absolute top-0 bottom-0 w-px bg-red-300/60" style={{ left: heuteX }} />
         </div>
 
         {/* Abhängigkeits-Pfeile (SVG-Overlay, non-interactive) */}
@@ -516,18 +580,22 @@ function GanttChart({
         </svg>
 
         {/* Event-Zeilen */}
-        {events.map((event) => {
+        {events.map((event, idx) => {
           const cfg       = TYP_CONFIG[event.typ]
           const x         = datumZuX(event.start_datum)
           const endX      = datumZuX(event.end_datum ?? event.start_datum)
-          const breite    = Math.max(event.typ === 'meilenstein' ? 12 : 60, endX - x + tagBreite)
+          const istMeilenstein = event.typ === 'meilenstein'
+          // Balken-Mindestbreite deutlich erhöht, damit Name reinpasst
+          const rohBreite = endX - x + tagBreite
+          const breite    = istMeilenstein ? 14 : Math.max(80, rohBreite)
+          const breiteFuerLabel = istMeilenstein ? 0 : rohBreite
+          const labelInBalken = !istMeilenstein && breiteFuerLabel >= 120
           const ueberfaellig = istUeberfaellig(event)
           const farbe     = event.farbe ?? (cfg.farbe.includes('purple') ? '#8b5cf6' : cfg.farbe.includes('blue') ? '#3b82f6' : cfg.farbe.includes('emerald') ? '#10b981' : '#6b7280')
           const istAuto   = event.quelle && event.quelle !== 'manuell'
           const istDragging = drag?.id === event.id
           const dragX     = istDragging ? drag.dxPx : 0
 
-          // Drag-Handler (nur für manuelle Events + wenn onEventMove vorhanden)
           function handleMouseDown(ev: React.MouseEvent) {
             if (!onEventMove || istAuto) return
             ev.preventDefault()
@@ -537,61 +605,78 @@ function GanttChart({
           return (
             <div
               key={event.id}
-              className="relative border-b border-gray-100"
-              style={{ height: 44 }}
+              className={`relative transition-colors ${idx % 2 === 0 ? '' : 'bg-gray-50/40'} hover:bg-wellbeing-green/5`}
+              style={{ height: rowHoehe }}
             >
-              {/* Heute-Linie durch alle Zeilen */}
-              <div className="absolute top-0 bottom-0 border-l border-red-300/50" style={{ left: heuteX }} />
-
-              {event.typ === 'meilenstein' ? (
-                /* Diamant für Meilenstein */
-                <div
-                  className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 rotate-45 transition-transform ${
-                    istAuto ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'
-                  } ${istDragging ? '' : 'hover:scale-125'} ${istAuto ? 'ring-2 ring-amber-300 ring-offset-1' : ''}`}
-                  style={{ left: x + tagBreite / 2 + dragX, backgroundColor: farbe, zIndex: istDragging ? 20 : 10 }}
-                  onMouseDown={handleMouseDown}
-                  onClick={() => { if (!istDragging) onEventClick(event) }}
-                  title={istAuto ? `${event.titel} (Auto-Sync aus ${event.quelle})` : event.titel}
-                />
-              ) : (
-                /* Balken für Phase/Termin/Lieferung */
-                <div
-                  className={`absolute top-1/2 -translate-y-1/2 h-7 rounded-lg transition-all flex items-center px-2.5 overflow-hidden ${
-                    istAuto ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'
-                  } ${istDragging ? 'opacity-60' : 'hover:opacity-80'}`}
-                  style={{
-                    left: x + dragX,
-                    width: breite,
-                    backgroundColor: farbe + 'cc',
-                    border: istAuto ? `1.5px dashed ${farbe}` : `1.5px solid ${farbe}`,
-                    zIndex: istDragging ? 20 : 10,
-                  }}
-                  onMouseDown={handleMouseDown}
-                  onClick={() => { if (!istDragging) onEventClick(event) }}
-                >
-                  {istAuto && <span className="text-[10px] text-white/90 mr-1" title="Auto-synchronisiert">⚡</span>}
-                  <span className="text-[11px] font-medium text-white truncate whitespace-nowrap">
+              {istMeilenstein ? (
+                <>
+                  {/* Diamant für Meilenstein */}
+                  <div
+                    className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 rotate-45 transition-transform shadow-sm ${
+                      istAuto ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'
+                    } ${istDragging ? '' : 'hover:scale-125'} ${istAuto ? 'ring-2 ring-amber-300 ring-offset-1' : ''}`}
+                    style={{ left: x + tagBreite / 2 + dragX, backgroundColor: farbe, zIndex: istDragging ? 20 : 10 }}
+                    onMouseDown={handleMouseDown}
+                    onClick={() => { if (!istDragging) onEventClick(event) }}
+                    title={istAuto ? `${event.titel} (Auto-Sync aus ${event.quelle})` : event.titel}
+                  />
+                  {/* Label rechts vom Diamant */}
+                  <button
+                    type="button"
+                    onClick={() => onEventClick(event)}
+                    className="absolute top-1/2 -translate-y-1/2 text-[11px] font-medium truncate max-w-[200px] hover:underline text-left"
+                    style={{ left: x + tagBreite / 2 + 14 + dragX, color: ueberfaellig ? '#ef4444' : farbe }}
+                  >
                     {ueberfaellig && '⚠ '}{event.titel}
-                  </span>
-                </div>
-              )}
-
-              {/* Label bei Meilenstein */}
-              {event.typ === 'meilenstein' && (
-                <div
-                  className="absolute top-1/2 -translate-y-1/2 ml-4 text-[11px] font-medium truncate max-w-32 cursor-pointer"
-                  style={{ left: x + tagBreite / 2 + 14, color: ueberfaellig ? '#ef4444' : farbe }}
-                  onClick={() => onEventClick(event)}
-                >
-                  {event.titel}
-                </div>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Balken */}
+                  <div
+                    className={`absolute top-1/2 -translate-y-1/2 h-7 rounded-lg transition-all flex items-center overflow-hidden shadow-sm ${
+                      labelInBalken ? 'px-2.5' : ''
+                    } ${istAuto ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'} ${istDragging ? 'opacity-60 ring-2 ring-wellbeing-green' : 'hover:shadow'}`}
+                    style={{
+                      left: x + dragX,
+                      width: breite,
+                      backgroundColor: farbe + 'dd',
+                      border: istAuto ? `1.5px dashed ${farbe}` : `1.5px solid ${farbe}`,
+                      zIndex: istDragging ? 20 : 10,
+                    }}
+                    onMouseDown={handleMouseDown}
+                    onClick={() => { if (!istDragging) onEventClick(event) }}
+                    title={`${event.titel}${istAuto ? ` (Auto-Sync aus ${event.quelle})` : ''}`}
+                  >
+                    {labelInBalken && (
+                      <>
+                        {istAuto && <span className="text-[10px] text-white/90 mr-1">⚡</span>}
+                        <span className="text-[11px] font-medium text-white truncate whitespace-nowrap">
+                          {ueberfaellig && '⚠ '}{event.titel}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {/* Label rechts wenn Balken zu kurz */}
+                  {!labelInBalken && (
+                    <button
+                      type="button"
+                      onClick={() => onEventClick(event)}
+                      className="absolute top-1/2 -translate-y-1/2 text-[11px] font-medium truncate max-w-[200px] hover:underline text-left flex items-center gap-1"
+                      style={{ left: x + breite + 8 + dragX, color: ueberfaellig ? '#ef4444' : farbe }}
+                    >
+                      {istAuto && <span>⚡</span>}
+                      {ueberfaellig && <span>⚠</span>}
+                      {event.titel}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )
         })}
 
-        {/* Letzte Zeile – Puffer */}
+        {/* Puffer */}
         <div style={{ height: 16 }} />
       </div>
     </div>
@@ -599,7 +684,31 @@ function GanttChart({
 }
 
 // ── Listenansicht ─────────────────────────────────────────────
+function kurzesDatum(iso: string): string {
+  const d = new Date(iso + 'T00:00:00')
+  const h = new Date(heute + 'T00:00:00')
+  const diffTage = Math.round((d.getTime() - h.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffTage === 0) return 'Heute'
+  if (diffTage === 1) return 'Morgen'
+  if (diffTage === -1) return 'Gestern'
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })
+}
+
 function ListenAnsicht({ events, onEventClick }: { events: TimelineEvent[]; onEventClick: (e: TimelineEvent) => void }) {
+  if (events.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+          <Calendar className="w-6 h-6 text-gray-400" />
+        </div>
+        <p className="text-sm font-medium text-gray-700 mb-1">Noch keine Ereignisse in diesem Zeitraum</p>
+        <p className="text-xs text-gray-400 max-w-xs">
+          Füge Meilensteine, Lieferungen oder Phasen hinzu, um den Projektverlauf zu planen.
+        </p>
+      </div>
+    )
+  }
+
   // Gruppiert nach Monat
   const gruppen: Record<string, TimelineEvent[]> = {}
   for (const ev of events) {
@@ -609,47 +718,115 @@ function ListenAnsicht({ events, onEventClick }: { events: TimelineEvent[]; onEv
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {Object.entries(gruppen).sort(([a], [b]) => a.localeCompare(b)).map(([monat, evs]) => {
         const [jahr, mon] = monat.split('-')
         const monatLabel  = new Date(parseInt(jahr), parseInt(mon) - 1).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })
+        const monatOffen     = evs.filter((e) => e.status !== 'abgeschlossen').length
+        const monatErledigt  = evs.filter((e) => e.status === 'abgeschlossen').length
         return (
           <div key={monat}>
-            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">{monatLabel}</h3>
-            <div className="space-y-2">
-              {evs.map((ev) => {
-                const cfg         = TYP_CONFIG[ev.typ]
-                const statusCfg   = STATUS_CONFIG[ev.status]
-                const ueberfaellig= istUeberfaellig(ev)
-                const Icon        = cfg.icon
-                return (
-                  <button
-                    key={ev.id}
-                    onClick={() => onEventClick(ev)}
-                    className="w-full flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 hover:border-gray-300 hover:shadow-sm transition-all text-left group"
-                  >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${cfg.bgFarbe}`}
-                      style={ev.farbe ? { backgroundColor: ev.farbe + '22', borderColor: ev.farbe + '66', color: ev.farbe } : undefined}>
-                      <Icon className={`w-4 h-4 ${!ev.farbe ? cfg.farbe : ''}`} style={ev.farbe ? { color: ev.farbe } : undefined} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className={`text-sm font-medium truncate ${ueberfaellig ? 'text-red-600' : 'text-gray-900'} group-hover:text-wellbeing-green transition-colors`}>
-                          {ueberfaellig && '⚠ '}{ev.titel}
-                        </p>
+            {/* Monats-Header mit Stats */}
+            <div className="flex items-baseline justify-between mb-3 pb-2 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-700 tracking-tight">{monatLabel}</h3>
+              <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                <span>{evs.length} {evs.length === 1 ? 'Ereignis' : 'Ereignisse'}</span>
+                {monatErledigt > 0 && <span className="text-emerald-600">{monatErledigt} erledigt</span>}
+                {monatOffen > 0 && <span className="text-amber-600">{monatOffen} offen</span>}
+              </div>
+            </div>
+
+            {/* Event-Liste mit Zeitstrahl */}
+            <div className="relative pl-6">
+              {/* Vertikale Linie links */}
+              <div className="absolute left-[9px] top-2 bottom-2 w-px bg-gray-200" />
+
+              <div className="space-y-2">
+                {evs.map((ev) => {
+                  const cfg         = TYP_CONFIG[ev.typ]
+                  const statusCfg   = STATUS_CONFIG[ev.status]
+                  const ueberfaellig= istUeberfaellig(ev)
+                  const Icon        = cfg.icon
+                  const mehrtaegig  = ev.end_datum && ev.end_datum !== ev.start_datum
+                  return (
+                    <div key={ev.id} className="relative">
+                      {/* Datum-Punkt auf der Zeitleiste */}
+                      <div
+                        className={`absolute -left-6 top-3 w-[18px] h-[18px] rounded-full border-2 bg-white flex items-center justify-center ${
+                          ueberfaellig
+                            ? 'border-red-400'
+                            : ev.status === 'abgeschlossen'
+                              ? 'border-emerald-400'
+                              : 'border-gray-300'
+                        }`}
+                      >
+                        <div className={`w-1.5 h-1.5 rounded-full ${
+                          ueberfaellig
+                            ? 'bg-red-400'
+                            : ev.status === 'abgeschlossen'
+                              ? 'bg-emerald-400'
+                              : 'bg-gray-300'
+                        }`} />
                       </div>
-                      <p className="text-xs text-gray-400">
-                        {formatDatum(ev.start_datum)}
-                        {ev.end_datum && ev.end_datum !== ev.start_datum && ` – ${formatDatum(ev.end_datum)}`}
-                        {ev.verantwortlich && ` · ${ev.verantwortlich}`}
-                      </p>
+                      <button
+                        onClick={() => onEventClick(ev)}
+                        className={`w-full flex items-center gap-3 bg-white border rounded-xl px-4 py-3 text-left group transition-all ${
+                          ueberfaellig
+                            ? 'border-red-200 hover:border-red-300'
+                            : 'border-gray-200 hover:border-wellbeing-green/40 hover:shadow-sm'
+                        }`}
+                      >
+                        <div
+                          className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${cfg.bgFarbe}`}
+                          style={ev.farbe ? { backgroundColor: ev.farbe + '22', borderColor: ev.farbe + '66', color: ev.farbe } : undefined}
+                        >
+                          <Icon className={`w-4 h-4 ${!ev.farbe ? cfg.farbe : ''}`} style={ev.farbe ? { color: ev.farbe } : undefined} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className={`text-sm font-medium truncate ${
+                              ueberfaellig ? 'text-red-700' : 'text-gray-900'
+                            } group-hover:text-wellbeing-green transition-colors`}>
+                              {ev.titel}
+                            </p>
+                            {ueberfaellig && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">
+                                Überfällig
+                              </span>
+                            )}
+                            {ev.quelle && ev.quelle !== 'manuell' && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-full">
+                                Auto
+                              </span>
+                            )}
+                          </div>
+                          {ev.beschreibung && (
+                            <p className="text-[11px] text-gray-500 truncate mt-0.5">{ev.beschreibung}</p>
+                          )}
+                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-400">
+                            <span className="tabular-nums">{kurzesDatum(ev.start_datum)}</span>
+                            {mehrtaegig && (
+                              <>
+                                <span>→</span>
+                                <span className="tabular-nums">{kurzesDatum(ev.end_datum!)}</span>
+                              </>
+                            )}
+                            {ev.verantwortlich && (
+                              <>
+                                <span>·</span>
+                                <span className="truncate">{ev.verantwortlich}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <span className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full ${statusCfg.klasse}`}>
+                          {statusCfg.label}
+                        </span>
+                      </button>
                     </div>
-                    <span className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full ${statusCfg.klasse}`}>
-                      {statusCfg.label}
-                    </span>
-                  </button>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           </div>
         )
