@@ -15,8 +15,7 @@ type Feature = {
   icon: LucideIcon
   title: string
   desc: string
-  blob:  string   // Tailwind background für Blob
-  ring:  string   // Ring-Glow
+  glow:  string   // Radial-Gradient (RGB-Werte als String)
   chip:  string   // Chip-Text-Farbe
   stage: string   // Stage-Background Gradient
   tag:   string   // Category-Tag
@@ -28,8 +27,7 @@ const features: Feature[] = [
     tag:  'Struktur',
     title: 'Projektstruktur',
     desc: 'Kunde, Räume und Budget – alles sauber strukturiert an einem Ort. Kein Copy-Paste zwischen Dokumenten, keine Version 17 im Postfach.',
-    blob:  'bg-wellbeing-cream',
-    ring:  'shadow-[0_0_60px_24px_rgba(203,161,120,0.25)]',
+    glow:  '203, 161, 120',
     chip:  'text-wellbeing-terracotta',
     stage: 'bg-gradient-to-br from-wellbeing-cream/60 via-white to-white',
   },
@@ -38,8 +36,7 @@ const features: Feature[] = [
     tag:  'Katalog',
     title: 'Produktlisten',
     desc: 'Produkte mit Links, Bildern und Kategorien übersichtlich erfassen und nach Räumen sortieren. Import aus URL mit einem Klick.',
-    blob:  'bg-violet-100',
-    ring:  'shadow-[0_0_60px_24px_rgba(139,92,246,0.20)]',
+    glow:  '139, 92, 246',
     chip:  'text-violet-600',
     stage: 'bg-gradient-to-br from-violet-50/60 via-white to-white',
   },
@@ -48,8 +45,7 @@ const features: Feature[] = [
     tag:  'Automatik',
     title: 'Auto-Kalkulation',
     desc: 'Einkaufspreis rein, Marge setzen – Verkaufspreis netto und brutto werden automatisch berechnet. Nie wieder Excel-Formeln pflegen.',
-    blob:  'bg-emerald-100',
-    ring:  'shadow-[0_0_60px_24px_rgba(16,185,129,0.20)]',
+    glow:  '16, 185, 129',
     chip:  'text-emerald-600',
     stage: 'bg-gradient-to-br from-emerald-50/60 via-white to-white',
   },
@@ -58,8 +54,7 @@ const features: Feature[] = [
     tag:  'Freigabe',
     title: 'Freigabe per Link',
     desc: 'Kunde klickt den Link, gibt frei oder lehnt ab – kein Account, keine App, keine Erklärung nötig. Feedback sofort im Dashboard.',
-    blob:  'bg-sky-100',
-    ring:  'shadow-[0_0_60px_24px_rgba(14,165,233,0.20)]',
+    glow:  '14, 165, 233',
     chip:  'text-sky-600',
     stage: 'bg-gradient-to-br from-sky-50/60 via-white to-white',
   },
@@ -68,8 +63,7 @@ const features: Feature[] = [
     tag:  'Netzwerk',
     title: 'Partnerverwaltung',
     desc: 'Konditionen, Provisionen und Lieferanten­infos immer griffbereit. Keine verlorenen E-Mails, keine vergessenen Rabattsätze.',
-    blob:  'bg-amber-100',
-    ring:  'shadow-[0_0_60px_24px_rgba(245,158,11,0.20)]',
+    glow:  '245, 158, 11',
     chip:  'text-amber-600',
     stage: 'bg-gradient-to-br from-amber-50/60 via-white to-white',
   },
@@ -78,8 +72,7 @@ const features: Feature[] = [
     tag:  'Team',
     title: 'Team & Rollen',
     desc: 'Mehrere Designer, ein Tool. Zusammen an Projekten arbeiten ohne Datei-Wirrwarr, mit klaren Rollen und Berechtigungen.',
-    blob:  'bg-rose-100',
-    ring:  'shadow-[0_0_60px_24px_rgba(244,63,94,0.20)]',
+    glow:  '244, 63, 94',
     chip:  'text-rose-600',
     stage: 'bg-gradient-to-br from-rose-50/60 via-white to-white',
   },
@@ -111,8 +104,11 @@ function FeatureGrid() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {features.map((f, i) => (
             <Reveal key={f.title} delay={i * 0.08} variant="fade-up">
-              <div className={`bg-white rounded-2xl border border-gray-200 p-7 hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300`}>
-                <div className={`w-12 h-12 rounded-xl ${f.blob} flex items-center justify-center mb-5`}>
+              <div className="bg-white rounded-2xl border border-gray-200 p-7 hover:-translate-y-1.5 hover:shadow-xl transition-all duration-300">
+                <div
+                  className="relative w-12 h-12 rounded-xl flex items-center justify-center mb-5"
+                  style={{ background: `radial-gradient(circle at center, rgba(${f.glow}, 0.18) 0%, rgba(${f.glow}, 0.08) 60%, transparent 100%)` }}
+                >
                   <f.icon className={`w-5 h-5 ${f.chip}`} />
                 </div>
                 <h3 className="font-syne font-bold text-[17px] text-[#445c49] mb-2">{f.title}</h3>
@@ -218,15 +214,19 @@ export default function Features() {
                   </m.span>
                 </AnimatePresence>
 
-                {/* Animated Blob — absolute zentriert */}
+                {/* Weicher Glow — perfekt radial zentriert (kein asymmetrischer Blob mehr) */}
                 <AnimatePresence mode="wait">
                   <m.div
-                    key={`blob-${active}`}
-                    initial={{ opacity: 0, scale: 0.6, rotate: -20 }}
-                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                    exit={{ opacity: 0, scale: 1.3, rotate: 15 }}
+                    key={`glow-${active}`}
+                    initial={{ opacity: 0, scale: 0.6 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 1.15 }}
                     transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-                    className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] h-[280px] md:w-[340px] md:h-[340px] rounded-[46%_54%_60%_40%_/_48%_42%_58%_52%] ${f.blob} ${f.ring}`}
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[320px] md:w-[400px] md:h-[400px] rounded-full"
+                    style={{
+                      background: `radial-gradient(circle at center, rgba(${f.glow}, 0.32) 0%, rgba(${f.glow}, 0.18) 35%, rgba(${f.glow}, 0.05) 65%, transparent 100%)`,
+                      filter: 'blur(8px)',
+                    }}
                   />
                 </AnimatePresence>
 

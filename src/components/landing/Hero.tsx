@@ -1,26 +1,19 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Check, Clock, AlertCircle, Zap } from 'lucide-react'
+import { Check, Clock, AlertCircle, Zap, ArrowDown } from 'lucide-react'
 import { m, useScroll, useTransform, useReducedMotion, type MotionValue } from 'framer-motion'
 import DemoModal from './DemoModal'
 
-// ── Animated Background ──────────────────────────────────────────
+// ── Animated Mesh-Gradient Background ────────────────────────────
 function AnimatedBG({ y, opacity, scale }: { y: MotionValue<number>; opacity: MotionValue<number>; scale: MotionValue<number> }) {
+  // Größere, wärmere Orbs in konsistenter Palette → weicher Mesh-Look
   const orbs = [
-    { w: 520, h: 520, top: '-10%', right: '-6%',  color: 'bg-wellbeing-green-light', blur: 'blur-[90px]',  delay: '0s',  dur: '12s', op: 0.38 },
-    { w: 360, h: 360, top: '45%',  right: '8%',   color: 'bg-wellbeing-cream',       blur: 'blur-[70px]',  delay: '-4s', dur: '16s', op: 0.28 },
-    { w: 260, h: 260, top: '15%',  left:  '15%',  color: 'bg-[#c8dbc9]',             blur: 'blur-[60px]',  delay: '-8s', dur: '10s', op: 0.18 },
-    { w: 200, h: 200, top: '65%',  left:  '5%',   color: 'bg-wellbeing-cream',       blur: 'blur-[50px]',  delay: '-6s', dur: '14s', op: 0.14 },
-  ]
-
-  const squares = [
-    { size: 120, top: '8%',  right: '4%',  rotate:  15, delay: '0s',  dur: '9s',  anim: 'floatA', op: 0.08 },
-    { size:  70, top: '25%', right: '20%', rotate:  -8, delay: '-3s', dur: '11s', anim: 'floatB', op: 0.06 },
-    { size: 190, top: '62%', right: '1%',  rotate:   5, delay: '-6s', dur: '13s', anim: 'floatC', op: 0.04 },
-    { size:  50, top: '75%', right: '23%', rotate:  28, delay: '-2s', dur: '7s',  anim: 'floatA', op: 0.09 },
-    { size:  90, top: '42%', left:  '3%',  rotate: -14, delay: '-8s', dur: '15s', anim: 'floatB', op: 0.05 },
-    { size:  55, top: '20%', left:  '8%',  rotate:  20, delay: '-5s', dur: '8s',  anim: 'floatC', op: 0.07 },
+    { w: 720, h: 720, top: '-18%', right: '-14%', color: 'bg-wellbeing-green-light', blur: 'blur-[120px]', delay: '0s',   dur: '14s', op: 0.45 },
+    { w: 520, h: 520, top: '38%',  right: '-4%',  color: 'bg-wellbeing-cream',       blur: 'blur-[100px]', delay: '-4s',  dur: '18s', op: 0.40 },
+    { w: 420, h: 420, top: '8%',   left:  '-6%',  color: 'bg-[#c8dbc9]',             blur: 'blur-[90px]',  delay: '-8s',  dur: '12s', op: 0.30 },
+    { w: 320, h: 320, top: '62%',  left:  '-4%',  color: 'bg-wellbeing-cream',       blur: 'blur-[80px]',  delay: '-6s',  dur: '16s', op: 0.25 },
+    { w: 260, h: 260, top: '30%',  left:  '42%',  color: 'bg-[#e8f0e2]',             blur: 'blur-[70px]',  delay: '-10s', dur: '20s', op: 0.22 },
   ]
 
   return (
@@ -43,26 +36,19 @@ function AnimatedBG({ y, opacity, scale }: { y: MotionValue<number>; opacity: Mo
           }}
         />
       ))}
-      {squares.map((sq, i) => (
-        <div
-          key={i}
-          className="absolute border-2 border-wellbeing-green-light rounded-2xl"
-          style={{
-            width: sq.size, height: sq.size,
-            top: sq.top,
-            ...('right' in sq && sq.right !== undefined ? { right: sq.right } : { left: (sq as { left: string }).left }),
-            opacity: sq.op,
-            transform: `rotate(${sq.rotate}deg)`,
-            animation: `${sq.anim} ${sq.dur} ease-in-out infinite`,
-            animationDelay: sq.delay,
-          }}
-        />
-      ))}
+      {/* Feines Noise-Grid für Tiefenwirkung */}
       <div
         className="absolute inset-0 opacity-[0.022]"
         style={{
           backgroundImage: 'radial-gradient(circle, #445c49 1px, transparent 1px)',
           backgroundSize: '36px 36px',
+        }}
+      />
+      {/* Sanfter Vignette-Fade zum Rand */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'radial-gradient(ellipse at center, transparent 0%, transparent 55%, rgba(255,255,255,0.4) 100%)',
         }}
       />
     </m.div>
@@ -287,18 +273,37 @@ export default function Hero() {
 
             <m.h1
               variants={item}
-              className="font-syne font-bold text-[#445c49] leading-[1.06] tracking-tight mb-6"
-              style={{ fontSize: 'clamp(38px, 5.5vw, 72px)' }}
+              className="font-syne font-bold text-[#2d3e31] leading-[1.02] tracking-tight mb-6"
+              style={{ fontSize: 'clamp(42px, 6vw, 82px)' }}
             >
               Deine Projekte.<br />
               Deine Preise.<br />
-              <span className="gradient-text">Deine Kunden</span>{' '}
+              <span className="relative inline-block">
+                <span
+                  className="relative z-10"
+                  style={{
+                    background: 'linear-gradient(135deg, #445c49 0%, #94c1a4 50%, #445c49 100%)',
+                    backgroundSize: '200% auto',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    animation: 'shimmer 6s ease-in-out infinite',
+                  }}
+                >
+                  Deine Kunden
+                </span>
+                <span
+                  aria-hidden
+                  className="absolute left-0 right-0 bottom-[6%] h-[14%] -z-0 rounded-full"
+                  style={{ background: 'rgba(148,193,164,0.28)' }}
+                />
+              </span>{' '}
               begeistert.
             </m.h1>
 
             <m.p
               variants={item}
-              className="text-[16px] md:text-[18px] text-gray-500 max-w-xl mb-10 leading-relaxed lg:mx-0 mx-auto"
+              className="text-[17px] md:text-[19px] text-gray-600 max-w-xl mb-10 leading-relaxed lg:mx-0 mx-auto"
             >
               Produktlisten erstellen, Preise automatisch kalkulieren und
               Kunden mit einem Link zur Freigabe einladen.
@@ -307,13 +312,19 @@ export default function Hero() {
 
             <m.div
               variants={item}
-              className="flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3 mb-8"
+              className="flex flex-col sm:flex-row items-center lg:justify-start justify-center gap-3 mb-10"
             >
               <button
                 onClick={() => setDemoOpen(true)}
-                className="inline-flex items-center gap-2 px-7 py-3.5 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-xl hover:shadow-wellbeing-green-light/60 hover:-translate-y-1 w-full sm:w-auto justify-center"
+                className="group relative inline-flex items-center gap-2 px-7 py-3.5 bg-[#445c49] hover:bg-[#2d3e31] text-white text-[15px] font-semibold rounded-xl transition-all duration-200 hover:shadow-2xl hover:shadow-wellbeing-green-light/70 hover:-translate-y-1 w-full sm:w-auto justify-center overflow-hidden"
               >
-                Demo anfragen →
+                <span className="relative z-10">Demo anfragen</span>
+                <span className="relative z-10 transition-transform duration-200 group-hover:translate-x-1">→</span>
+                <span
+                  aria-hidden
+                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  style={{ background: 'linear-gradient(120deg, transparent 20%, rgba(148,193,164,0.25) 50%, transparent 80%)' }}
+                />
               </button>
               <a
                 href="#features"
@@ -325,6 +336,25 @@ export default function Hero() {
               >
                 Wie es funktioniert
               </a>
+            </m.div>
+
+            {/* Stats-Leiste als Social Proof */}
+            <m.div
+              variants={item}
+              className="flex flex-wrap items-stretch lg:justify-start justify-center gap-6 md:gap-8 mb-6"
+            >
+              {[
+                { value: '3×',    label: 'schneller planen' },
+                { value: '100%',  label: 'Freigaben online' },
+                { value: '0',     label: 'Excel-Tabellen' },
+              ].map((s) => (
+                <div key={s.label} className="flex flex-col">
+                  <span className="font-syne font-bold text-[28px] md:text-[32px] text-[#445c49] leading-none tracking-tight">
+                    {s.value}
+                  </span>
+                  <span className="text-[12px] text-gray-500 mt-1 font-medium">{s.label}</span>
+                </div>
+              ))}
             </m.div>
 
             <m.div
@@ -350,6 +380,22 @@ export default function Hero() {
           </m.div>
         </m.div>
       </div>
+
+      {/* Scroll-Cue — dezent unten mittig */}
+      <m.div
+        aria-hidden
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.8, duration: 0.8 }}
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 hidden md:flex flex-col items-center gap-1.5 pointer-events-none"
+        style={prefersReduced ? undefined : { opacity: textOpac }}
+      >
+        <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#445c49]/60">
+          Scroll
+        </span>
+        <div className="w-[1px] h-7 bg-gradient-to-b from-[#445c49]/40 to-transparent" />
+        <ArrowDown className="w-3 h-3 text-[#445c49]/50 animate-bounce" strokeWidth={2.5} />
+      </m.div>
 
       <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
     </section>

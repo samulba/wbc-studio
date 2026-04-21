@@ -79,6 +79,12 @@ body {
   50%      { opacity: calc(var(--orb-op, 0.25) * 1.5); transform: scale(1.08); }
 }
 
+@keyframes shimmer {
+  0%   { background-position: 0% center;   }
+  50%  { background-position: 200% center; }
+  100% { background-position: 0% center;   }
+}
+
 /* ── Scroll-triggered animations (IntersectionObserver → .visible) */
 .fade-up {
   opacity: 0;
