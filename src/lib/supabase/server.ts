@@ -4,9 +4,15 @@ import { cookies } from 'next/headers'
 export async function createClient() {
   const cookieStore = await cookies()
 
+  // Fallbacks für SSR-Builds, bei denen ENV-Vars fehlen. Alle DB-Operationen
+  // schlagen dann als error-Objekt fehl (nicht als Exception) – Seiten handhaben
+  // das graceful, Build crasht nicht.
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'supabase-anon-key-not-configured'
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    anonKey,
     {
       cookies: {
         getAll() {
