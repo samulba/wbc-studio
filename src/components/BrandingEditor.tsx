@@ -392,8 +392,9 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
   const [vorschau,     setVorschau]     = useState(true)
   const [gespeichert,  setGespeichert]  = useState(false)
   const [fehler,       setFehler]       = useState<string | null>(null)
-  const [confirmReset, setConfirmReset] = useState(false)
-  const [isPending,    startTransition] = useTransition()
+  const [confirmReset,      setConfirmReset]      = useState(false)
+  const [confirmResetAlles, setConfirmResetAlles] = useState(false)
+  const [isPending,         startTransition]      = useTransition()
 
   function set<K extends keyof Partial<Branding>>(key: K, value: Partial<Branding>[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -453,6 +454,40 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
     }))
   }
 
+  /** Alles komplett auf Wellbeing-Spaces-Default zurücksetzen. */
+  function handleResetAlles() {
+    setForm({
+      firmenname:        def.firmenname,
+      button_text_color: def.button_text_color,
+      welcome_text:      def.welcome_text,
+      slogan:            def.slogan,
+      primary_color:     def.primary_color,
+      secondary_color:   def.secondary_color,
+      accent_color:      def.accent_color,
+      background_color:  def.background_color,
+      text_color:        def.text_color,
+      font_family:       def.font_family,
+      email:             null,
+      telefon:           null,
+      website:           null,
+      adresse:           null,
+      impressum_text:    null,
+      datenschutz_url:   null,
+      show_powered_by:   def.show_powered_by,
+      custom_css:        null,
+      support_email:        null,
+      footer_text:          null,
+      hero_image_url:       null,
+      accent_gradient_from: null,
+      accent_gradient_to:   null,
+      corner_style:         def.corner_style,
+      social_instagram:     null,
+      social_website:       null,
+    })
+    setLogoUrl(null)
+    setGespeichert(false)
+  }
+
   return (
     <>
     <ConfirmModal
@@ -462,6 +497,15 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
       title="Farben zurücksetzen"
       message="Alle Farbeinstellungen werden auf die Standard-Werte zurückgesetzt. Deine aktuellen Farben gehen verloren."
       confirmText="Zurücksetzen"
+      variant="warning"
+    />
+    <ConfirmModal
+      isOpen={confirmResetAlles}
+      onClose={() => setConfirmResetAlles(false)}
+      onConfirm={() => { handleResetAlles(); setConfirmResetAlles(false) }}
+      title="Alles auf Wellbeing Spaces Standard zurücksetzen"
+      message="Firmenname, Slogan, Farben, Schriftart, Hero-Bild, Logo, Kontaktdaten und alle anderen Felder werden auf die Wellbeing-Spaces-Standardwerte zurückgesetzt. Die Änderung wird erst aktiv wenn du danach auf „Speichern“ klickst — du kannst sie also noch zurückrollen."
+      confirmText="Ja, alles zurücksetzen"
       variant="warning"
     />
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-6">
@@ -774,8 +818,8 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
           </div>
         </section>
 
-        {/* Speichern */}
-        <div className="flex items-center gap-3 pb-2">
+        {/* Speichern + Zurücksetzen */}
+        <div className="flex items-center gap-3 pb-2 flex-wrap">
           <button
             onClick={handleSpeichern}
             disabled={isPending}
@@ -783,6 +827,16 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
           >
             <Save className="w-4 h-4" />
             {isPending ? 'Wird gespeichert…' : gespeichert ? 'Gespeichert ✓' : 'Speichern'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setConfirmResetAlles(true)}
+            disabled={isPending}
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-800 border border-gray-200 hover:border-gray-300 rounded-xl transition-colors disabled:opacity-50"
+            title="Alle Branding-Einstellungen auf Wellbeing Spaces Standard zurücksetzen"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Auf Standard zurücksetzen
           </button>
           {fehler && <p className="text-sm text-red-500">{fehler}</p>}
         </div>
