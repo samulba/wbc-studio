@@ -157,6 +157,39 @@ export async function projektEventsAbrufen(
   return (data ?? []) as any
 }
 
+// ── Events eines Kunden (über alle seine Projekte, mit Raum- + Projekt-Join) ──
+export async function kundeEventsAbrufen(
+  kundeId: string,
+): Promise<(TimelineEvent & {
+  raum:    { id: string; name: string } | null
+  projekt: { id: string; name: string }
+})[]> {
+  const supabase = await createClient()
+  // Erst alle Projekte des Kunden, dann Events mit .in(projekt_id, ...)
+  const { data: projekte } = await supabase
+    .from('projekte')
+    .select('id, name')
+    .eq('kunde_id', kundeId)
+  const projektMap = new Map((projekte ?? []).map((p) => [p.id as string, p.name as string]))
+  if (projektMap.size === 0) return []
+
+  const { data, error } = await supabase
+    .from('timeline_events')
+    .select('*, raum:raeume(id, name)')
+    .in('projekt_id', Array.from(projektMap.keys()))
+    .order('start_datum')
+    .order('created_at')
+  if (error) {
+    console.error('[kundeEventsAbrufen]', { kundeId, message: error.message, code: error.code })
+    return []
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((data ?? []) as any[]).map((e) => ({
+    ...e,
+    projekt: { id: e.projekt_id, name: projektMap.get(e.projekt_id) ?? '—' },
+  }))
+}
+
 // ── Events eines Raums ────────────────────────────────────────
 export async function raumEventsAbrufen(
   raumId: string

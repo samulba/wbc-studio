@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { meineRolleAbrufen } from '@/app/actions/team'
 import { istAdmin } from '@/lib/permissions'
+import type { KommunikationTyp, ProjektStatus } from '@/lib/supabase/types'
 
 export type KundeActionState = { fehler: string } | null
 
@@ -210,4 +211,203 @@ export async function kundeWiederherstellen(id: string): Promise<{ fehler?: stri
   if (error) return { fehler: 'Fehler beim Wiederherstellen.' }
   revalidatePath('/dashboard/kunden')
   return {}
+}
+
+// ── Kunden-Detailseite: aggregierte Stats & Projekt-Übersicht ─────
+//    Nutzt getOrganisationIdOrNull damit Archivseiten nicht crashen.
+//    Alle Queries laufen parallel wo möglich.
+
+export interface KundeStatsResult {
+  projekte:      { aktiv: number; abgeschlossen: number; total: number }
+  angebote:      { offen: number; offen_summe: number; angenommen: number; total: number }
+  vertraege:     { aktiv: number; abgelaufen: number; total: number }
+  letzterKontakt: { datum: string; typ: KommunikationTyp; betreff: string | null } | null
+}
+
+/**
+ * Aggregiert KPIs für den Kunde-Detail-Header in einem Rutsch.
+ * Schonend implementiert: einzelne Query-Fehler werfen nicht, sondern geben
+ * Defaults zurück — Seite soll auch mit Teil-Daten rendern.
+ */
+export async function kundeStats(kundeId: string): Promise<KundeStatsResult> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const heute = new Date().toISOString().split('T')[0]
+
+  const [projekteRes, angeboteRes, vertraegeRes, kommRes] = await Promise.all([
+    supabase
+      .from('projekte')
+      .select('status', { count: 'exact' })
+      .eq('kunde_id', kundeId)
+      .eq('organisation_id', orgId)
+      .is('deleted_at', null),
+    supabase
+      .from('angebote')
+      .select('status, netto_summe')
+      .eq('kunde_id', kundeId)
+      .eq('organisation_id', orgId),
+    supabase
+      .from('vertraege')
+      .select('status, end_datum')
+      .eq('kunde_id', kundeId)
+      .eq('organisation_id', orgId),
+    supabase
+      .from('kommunikation')
+      .select('typ, datum, betreff')
+      .eq('kunde_id', kundeId)
+      .eq('organisation_id', orgId)
+      .order('datum', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
+
+  const projekteListe = (projekteRes.data ?? []) as { status: ProjektStatus }[]
+  const projekteAktiv        = projekteListe.filter((p) => p.status !== 'abgeschlossen').length
+  const projekteAbgeschlossen = projekteListe.filter((p) => p.status === 'abgeschlossen').length
+
+  const angeboteListe = (angeboteRes.data ?? []) as { status: string; netto_summe: number | null }[]
+  const angeboteOffen = angeboteListe.filter((a) =>
+    ['entwurf', 'gesendet', 'angesehen', 'ueberarbeitung'].includes(a.status),
+  )
+  const angeboteOffenSumme = angeboteOffen.reduce((acc, a) => acc + (a.netto_summe ?? 0), 0)
+  const angeboteAngenommen = angeboteListe.filter((a) => a.status === 'angenommen').length
+
+  const vertraegeListe = (vertraegeRes.data ?? []) as { status: string; end_datum: string | null }[]
+  const VERTRAG_AKTIV_STATUS = new Set(['aktiv', 'unterschrieben_beide'])
+  const vertraegeAktiv = vertraegeListe.filter(
+    (v) => VERTRAG_AKTIV_STATUS.has(v.status) && (!v.end_datum || v.end_datum >= heute),
+  ).length
+  const vertraegeAbgelaufen = vertraegeListe.filter(
+    (v) => v.status === 'abgelaufen' || (v.end_datum != null && v.end_datum < heute),
+  ).length
+
+  const letzterKontakt = kommRes.data
+    ? {
+        datum:  (kommRes.data as { datum: string }).datum,
+        typ:    (kommRes.data as { typ: KommunikationTyp }).typ,
+        betreff:(kommRes.data as { betreff: string | null }).betreff,
+      }
+    : null
+
+  return {
+    projekte: {
+      aktiv:          projekteAktiv,
+      abgeschlossen:  projekteAbgeschlossen,
+      total:          projekteListe.length,
+    },
+    angebote: {
+      offen:        angeboteOffen.length,
+      offen_summe:  Math.round(angeboteOffenSumme * 100) / 100,
+      angenommen:   angeboteAngenommen,
+      total:        angeboteListe.length,
+    },
+    vertraege: {
+      aktiv:      vertraegeAktiv,
+      abgelaufen: vertraegeAbgelaufen,
+      total:      vertraegeListe.length,
+    },
+    letzterKontakt,
+  }
+}
+
+// ── Projekte des Kunden mit aggregierten Mini-Stats ──────────────
+
+export interface KundeProjektStats {
+  anzahlRaeume: number
+  freigabeStats: { gesamt: number; freigegeben: number; ausstehend: number; abgelehnt: number }
+  budget:        { gesamt: number; vpNetto: number }
+}
+
+export interface KundeProjektMitStats {
+  id:         string
+  name:       string
+  status:     ProjektStatus
+  deadline:   string | null
+  archiviert: boolean
+  created_at: string
+  stats:      KundeProjektStats
+}
+
+/**
+ * Lädt alle Projekte des Kunden (inkl. archivierte, damit Breadcrumb nie 404)
+ * und aggregiert pro Projekt: Räume, Freigabe-Stats, Budget.
+ */
+export async function kundeProjekteMitStats(
+  kundeId: string,
+  inklArchiviert = false,
+): Promise<KundeProjektMitStats[]> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  let projekteQuery = supabase
+    .from('projekte')
+    .select('id, name, status, deadline, archiviert, created_at')
+    .eq('kunde_id', kundeId)
+    .eq('organisation_id', orgId)
+  if (!inklArchiviert) projekteQuery = projekteQuery.is('deleted_at', null)
+  const { data: projekte } = await projekteQuery.order('created_at', { ascending: false })
+
+  const projektListe = (projekte ?? []) as {
+    id: string; name: string; status: ProjektStatus
+    deadline: string | null; archiviert: boolean; created_at: string
+  }[]
+  if (projektListe.length === 0) return []
+
+  // Erst Räume laden, dann raum_produkte mit allen raum_ids
+  const projektIds = projektListe.map((p) => p.id)
+  const { data: raeumeDaten } = await supabase
+    .from('raeume')
+    .select('id, projekt_id')
+    .in('projekt_id', projektIds)
+    .eq('organisation_id', orgId)
+    .is('deleted_at', null)
+
+  const raeumeListe = (raeumeDaten ?? []) as { id: string; projekt_id: string }[]
+  const raumIds = raeumeListe.map((r) => r.id)
+  const raumZuProjekt = new Map(raeumeListe.map((r) => [r.id, r.projekt_id]))
+
+  const rpRes = raumIds.length > 0
+    ? await supabase
+        .from('raum_produkte')
+        .select('raum_id, menge, verkaufspreis_override, freigabe_status, produkte(verkaufspreis)')
+        .in('raum_id', raumIds)
+        .eq('organisation_id', orgId)
+    : { data: [] as const }
+
+  type RpRow = {
+    raum_id: string; menge: number; verkaufspreis_override: number | null
+    freigabe_status: string | null
+    produkte: { verkaufspreis: number | null } | { verkaufspreis: number | null }[] | null
+  }
+  const rpListe = (rpRes.data ?? []) as unknown as RpRow[]
+
+  return projektListe.map((p) => {
+    const raumIdsDiesesProjekts = new Set(raeumeListe.filter((r) => r.projekt_id === p.id).map((r) => r.id))
+    const eintraegeDiesesProjekts = rpListe.filter((rp) => raumZuProjekt.get(rp.raum_id) === p.id)
+
+    let gesamt = 0, freigegeben = 0, ausstehend = 0, abgelehnt = 0, vpNetto = 0
+    for (const rp of eintraegeDiesesProjekts) {
+      gesamt += 1
+      const s = rp.freigabe_status ?? 'ausstehend'
+      if (s === 'freigegeben')    freigegeben += 1
+      else if (s === 'abgelehnt') abgelehnt += 1
+      else                        ausstehend += 1
+      const prod = Array.isArray(rp.produkte) ? rp.produkte[0] : rp.produkte
+      const vp = rp.verkaufspreis_override ?? prod?.verkaufspreis ?? 0
+      vpNetto += vp * (rp.menge ?? 0)
+    }
+    return {
+      id:         p.id,
+      name:       p.name,
+      status:     p.status,
+      deadline:   p.deadline,
+      archiviert: p.archiviert,
+      created_at: p.created_at,
+      stats: {
+        anzahlRaeume:  raumIdsDiesesProjekts.size,
+        freigabeStats: { gesamt, freigegeben, ausstehend, abgelehnt },
+        budget:        { gesamt, vpNetto: Math.round(vpNetto * 100) / 100 },
+      },
+    }
+  })
 }
