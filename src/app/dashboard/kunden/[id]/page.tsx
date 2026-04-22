@@ -15,15 +15,18 @@ import type { Projekt } from '@/lib/supabase/types'
 
 async function getKunde(id: string) {
   const supabase = await createClient()
-  const { data } = await supabase.from('kunden').select('*').eq('id', id).is('deleted_at', null).single()
+  // Auch archivierte Kunden laden, damit der Breadcrumb-Link von einem
+  // archivierten Projekt nicht in 404 läuft. Banner oben zeigt den Status.
+  const { data } = await supabase.from('kunden').select('*').eq('id', id).single()
   return data
 }
 
-async function getProjekte(kundeId: string): Promise<Projekt[]> {
+async function getProjekte(kundeId: string, inklArchiviert = false): Promise<Projekt[]> {
   const supabase = await createClient()
-  const { data } = await supabase
-    .from('projekte').select('*').eq('kunde_id', kundeId).is('deleted_at', null)
-    .order('created_at', { ascending: false })
+  let query = supabase
+    .from('projekte').select('*').eq('kunde_id', kundeId)
+  if (!inklArchiviert) query = query.is('deleted_at', null)
+  const { data } = await query.order('created_at', { ascending: false })
   return data ?? []
 }
 
@@ -40,20 +43,40 @@ async function getNotizen(kundeId: string): Promise<Notiz[]> {
 }
 
 export default async function KundeDetailPage({ params }: { params: { id: string } }) {
-  const [kunde, projekte, notizen, portalUser, kommunikation, rolle] = await Promise.all([
-    getKunde(params.id),
-    getProjekte(params.id),
+  const kunde = await getKunde(params.id)
+  if (!kunde) notFound()
+
+  const istArchiviert = kunde.deleted_at != null
+  const [projekte, notizen, portalUser, kommunikation, rolle] = await Promise.all([
+    getProjekte(params.id, istArchiviert),
     getNotizen(params.id),
     portalBenutzerAbrufen(params.id),
     getKommunikation(params.id),
     meineRolleAbrufen(),
   ])
-  if (!kunde) notFound()
 
   const darfLoeschen = istAdmin(rolle)
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
+      {/* Archiviert-Banner */}
+      {istArchiviert && (
+        <div className="mb-6 flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+            <svg className="w-4 h-4 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-900">Dieser Kunde ist archiviert</p>
+            <p className="text-xs text-amber-700">
+              Archiviert am {new Date(kunde.deleted_at!).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+              {' · '}Projekte werden inklusive archivierter angezeigt
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">
