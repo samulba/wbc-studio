@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, useTransition, useRef, useEffect } from 'react'
-import { useFormState, useFormStatus } from 'react-dom'
 import {
   CheckCircle2, MessageSquare, FileText, CalendarDays,
-  LayoutGrid, Check, X, ChevronDown, ChevronUp, Send, Download,
+  LayoutGrid, Check, X, ChevronDown, ChevronUp, Download,
   Clock, Flag, Truck, Info, ZoomIn,
 } from 'lucide-react'
 import Image from 'next/image'
@@ -12,16 +11,25 @@ import {
   portalProduktFreigeben,
   portalAlleFreigeben,
   portalNachrichtSenden,
+  portalAnhangSignedUrl,
 } from '@/app/actions/portal'
 import type { PortalRaum, PortalProdukt } from '@/app/actions/portal'
+import type { ClientNachricht, ChatNachrichtTyp } from '@/lib/supabase/types'
+import { NachrichtBubble, ChatInputBar } from '@/components/ChatBlock'
 
 // ── Typen ─────────────────────────────────────────────────────
 
 interface Nachricht {
   id: string
-  nachricht: string
+  nachricht: string | null
   von_kunde: boolean
   created_at: string
+  typ?: ChatNachrichtTyp
+  anhang_pfad?: string | null
+  anhang_typ?: string | null
+  anhang_name?: string | null
+  anhang_groesse?: number | null
+  anhang_dauer?: number | null
 }
 
 interface Dokument {
@@ -230,24 +238,9 @@ function RaumBlock({
 
 // ── Nachrichten-Tab ───────────────────────────────────────────
 
-function SendBtn({ prim }: { prim: string }) {
-  const { pending } = useFormStatus()
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="p-2.5 rounded-xl disabled:opacity-50 transition-all hover:brightness-95 shadow-sm"
-      style={{ background: prim, color: 'var(--brand-button-text, #fff)' }}
-    >
-      <Send className="w-4 h-4" />
-    </button>
-  )
-}
-
 function NachrichtenTab({
   projektId,
   initialNachrichten,
-  vorname,
   prim,
 }: {
   projektId: string
@@ -255,37 +248,53 @@ function NachrichtenTab({
   vorname: string
   prim: string
 }) {
-  const [nachrichten, setNachrichten] = useState(initialNachrichten)
-  const textRef = useRef<HTMLTextAreaElement>(null)
-  const [state, action] = useFormState(
-    async (prev: { fehler?: string; erfolg?: string } | null, formData: FormData) => {
-      const text = (formData.get('nachricht') as string ?? '').trim()
-      const result = await portalNachrichtSenden(prev, formData)
-      if (result?.erfolg) {
-        setNachrichten((prev) => [...prev, {
-          id:        crypto.randomUUID(),
-          nachricht: text,
-          von_kunde: true,
-          created_at: new Date().toISOString(),
-        }])
-        // Textfeld NACH erfolgreichem Senden leeren
-        if (textRef.current) textRef.current.value = ''
-      }
-      return result
-    },
-    null
-  )
-
-  // Auto-Scroll zum Ende bei neuer Nachricht
+  const [nachrichten, setNachrichten] = useState<Nachricht[]>(initialNachrichten)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+
   useEffect(() => {
     const el = scrollRef.current
     if (el) el.scrollTop = el.scrollHeight
   }, [nachrichten.length])
 
+  async function handleSend(formData: FormData): Promise<{ fehler?: string; erfolg?: string }> {
+    formData.set('projekt_id', projektId)
+    const res = await portalNachrichtSenden(null, formData)
+    if (res?.erfolg) {
+      // Optimistisch — Anhang wird beim nächsten Reload (Navigation) voll geladen
+      setNachrichten((prev) => [...prev, {
+        id:         crypto.randomUUID(),
+        nachricht:  (formData.get('nachricht') as string) ?? '',
+        von_kunde:  true,
+        created_at: new Date().toISOString(),
+        typ:        'text',
+      }])
+    }
+    return res ?? {}
+  }
+
+  // Adapter: Nachricht → ClientNachricht-shape für NachrichtBubble
+  const asClient = (n: Nachricht): ClientNachricht => ({
+    id:              n.id,
+    organisation_id: null,
+    projekt_id:      projektId,
+    client_user_id:  null,
+    team_user_id:    null,
+    von_kunde:       n.von_kunde,
+    nachricht:       n.nachricht,
+    gelesen:         false,
+    gelesen_am:      null,
+    created_at:      n.created_at,
+    typ:             n.typ ?? 'text',
+    anhang_pfad:     n.anhang_pfad ?? null,
+    anhang_typ:      n.anhang_typ ?? null,
+    anhang_name:     n.anhang_name ?? null,
+    anhang_groesse:  n.anhang_groesse ?? null,
+    anhang_dauer:    n.anhang_dauer ?? null,
+  })
+
   return (
     <div className="flex flex-col bg-white border border-black/[0.06] brand-radius overflow-hidden">
-      <div ref={scrollRef} className="flex-1 h-[480px] overflow-y-auto px-4 py-5 space-y-3 bg-gray-50/40">
+      <div ref={scrollRef} className="flex-1 h-[480px] overflow-y-auto px-4 py-5 space-y-2 bg-gray-50/40">
         {nachrichten.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center gap-2 text-center">
             <div
@@ -301,36 +310,18 @@ function NachrichtenTab({
           </div>
         ) : (
           nachrichten.map((n) => (
-            <div key={n.id} className={`flex ${n.von_kunde ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-                n.von_kunde
-                  ? 'text-white rounded-br-md'
-                  : 'bg-white border border-gray-100 text-gray-700 rounded-bl-md'
-              }`} style={n.von_kunde ? { background: prim } : {}}>
-                <p className="leading-relaxed">{n.nachricht}</p>
-                <p className={`text-[10px] mt-1 ${n.von_kunde ? 'text-white/60' : 'text-gray-400'}`}>
-                  {n.von_kunde ? vorname : 'Team'} ·{' '}
-                  {new Date(n.created_at).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
-            </div>
+            <NachrichtBubble
+              key={n.id}
+              n={asClient(n)}
+              istEigene={n.von_kunde}
+              getUrl={portalAnhangSignedUrl}
+              brandColor={prim}
+            />
           ))
         )}
       </div>
 
-      <form action={action} className="border-t border-black/[0.06] p-3 bg-white flex gap-2 items-end shrink-0">
-        <input type="hidden" name="projekt_id" value={projektId} />
-        <textarea
-          ref={textRef}
-          name="nachricht"
-          rows={1}
-          placeholder="Nachricht an das Team…"
-          className="flex-1 px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl resize-none max-h-32 focus:outline-none focus:ring-2 focus:border-transparent"
-          style={{ '--tw-ring-color': prim + '40' } as React.CSSProperties}
-        />
-        <SendBtn prim={prim} />
-      </form>
-      {state?.fehler && <p className="text-xs text-red-500 px-3 pb-2">{state.fehler}</p>}
+      <ChatInputBar onSend={handleSend} kontextLabel="an das Team" brandColor={prim} />
     </div>
   )
 }

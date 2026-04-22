@@ -954,6 +954,8 @@ export interface OnboardingAnfrage {
 }
 
 // ── Kunden-Portal-Chat (Mig. 030) ─────────────────────────────
+export type ChatNachrichtTyp = 'text' | 'bild' | 'datei' | 'audio'
+
 export interface ClientNachricht {
   id: string
   organisation_id: string | null
@@ -961,8 +963,15 @@ export interface ClientNachricht {
   client_user_id: string | null
   team_user_id: string | null
   von_kunde: boolean
-  nachricht: string
+  nachricht: string | null
   gelesen: boolean
   gelesen_am: string | null
   created_at: string
+  // Anhang (Migration 080) — optional
+  typ: ChatNachrichtTyp
+  anhang_pfad: string | null
+  anhang_typ: string | null
+  anhang_name: string | null
+  anhang_groesse: number | null
+  anhang_dauer: number | null
 }

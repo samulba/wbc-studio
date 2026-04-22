@@ -5,6 +5,15 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-22
 
+### Chat wie WhatsApp — Fotos, Dateien, Sprachmemos
+- Im Chat (Admin-Seite und Kunden-Portal) gibt es jetzt ein Büroklammer-Icon für Foto- oder Datei-Anhang und ein Mikrofon-Icon für Sprachmemos
+- Sprachmemos werden direkt im Browser aufgenommen (rote Aufnahme-Leiste mit Timer, Abbrechen oder Senden) und im Chat als kleiner Player abgespielt
+- Bilder erscheinen als Thumbnail in der Nachricht, per Klick geht ein Fullscreen-Viewer auf
+- Dateien (PDFs etc.) werden als Karte mit Dateiname, Größe und Download-Pfeil angezeigt
+- Text und Anhang können kombiniert werden (Foto mit Bildunterschrift)
+- Eigene Nachrichten rechts mit Brand-Farbe, Team/Gegenüber links grau — wie bei WhatsApp
+- Migration 080 muss manuell in Supabase SQL-Editor ausgeführt werden (fügt Anhang-Spalten hinzu und erstellt den privaten Storage-Bucket `chat-attachments`, 50 MB pro Datei)
+
 ### Kunden-Detailseite ist jetzt ein 360°-Cockpit
 - KPI-Band unter dem Kunde-Header mit vier Kennzahlen: Projekte total (mit aktiv/fertig-Split), Angebote offen (mit offener Summe), Verträge aktiv (mit abgelaufenen), letzter Kontakt (mit Zeitabstand + Typ + Betreff)
 - Projekte-Liste zeigt jetzt pro Zeile den Status-Punkt, Räume-/Produktanzahl, Freigabe-Fortschrittsbalken (x/y freigegeben), Budget-Summe und Deadline-Countdown (z.B. „in 3 Tg." oder „5 Tg. überfällig")

@@ -469,10 +469,10 @@ export async function portalProjektAbrufen(projektId: string) {
     .eq('sichtbar_fuer_kunde', true)
     .order('created_at', { ascending: false })
 
-  // Nachrichten
+  // Nachrichten (inkl. Anhang-Metadaten seit Mig. 080)
   const { data: nachrichten } = await supabase
     .from('client_nachrichten')
-    .select('id, nachricht, von_kunde, created_at, client_user_id')
+    .select('id, nachricht, von_kunde, created_at, client_user_id, typ, anhang_pfad, anhang_typ, anhang_name, anhang_groesse, anhang_dauer')
     .eq('projekt_id', projektId)
     .order('created_at')
 
@@ -572,6 +572,61 @@ export async function portalAlleFreigeben(projektId: string): Promise<void> {
 
 // ── PORTAL: NACHRICHTEN ───────────────────────────────────────
 
+const CHAT_BUCKET = 'chat-attachments'
+const CHAT_MAX_SIZE = 50 * 1024 * 1024 // 50 MB
+
+/**
+ * Bestimmt den Typ einer Chat-Nachricht anhand des Datei-Mime-Types.
+ * image/* → 'bild', audio/* → 'audio', sonst → 'datei'.
+ */
+function chatNachrichtTypFuer(mime: string | undefined): 'bild' | 'audio' | 'datei' {
+  if (!mime) return 'datei'
+  if (mime.startsWith('image/')) return 'bild'
+  if (mime.startsWith('audio/')) return 'audio'
+  return 'datei'
+}
+
+/**
+ * Upload-Helper: lädt eine Datei in den Chat-Bucket hoch und gibt die
+ * Metadaten für den Nachricht-Insert zurück. Ownership wird durch den
+ * aufrufenden Context geprüft (Portal oder Admin).
+ */
+async function chatAnhangHochladen(
+  supabase: ReturnType<typeof createAdminClient>,
+  file: File,
+  orgId: string,
+  projektId: string,
+): Promise<{
+  fehler?: string
+  pfad?: string
+  name?: string
+  mime?: string
+  groesse?: number
+}> {
+  if (file.size === 0)            return { fehler: 'Datei ist leer.' }
+  if (file.size > CHAT_MAX_SIZE)  return { fehler: 'Datei ist zu groß (max. 50 MB).' }
+
+  const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')
+  const pfad = `${orgId}/${projektId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safeName}`
+
+  const { error } = await supabase.storage
+    .from(CHAT_BUCKET)
+    .upload(pfad, file, {
+      contentType: file.type || 'application/octet-stream',
+      upsert: false,
+    })
+  if (error) {
+    console.error('[chatAnhangHochladen]', error)
+    return { fehler: `Upload fehlgeschlagen: ${error.message}` }
+  }
+  return {
+    pfad,
+    name:    file.name,
+    mime:    file.type || 'application/octet-stream',
+    groesse: file.size,
+  }
+}
+
 export async function portalNachrichtSenden(
   prevState: PortalActionState,
   formData: FormData
@@ -579,13 +634,15 @@ export async function portalNachrichtSenden(
   const session    = await requireSession()
   const projektId  = formData.get('projekt_id') as string
   const nachricht  = (formData.get('nachricht') as string ?? '').trim()
+  const datei      = formData.get('datei') as File | null
+  const audioDauer = parseFloat((formData.get('audio_dauer') as string) ?? '') || null
 
-  if (!nachricht) return { fehler: 'Nachricht darf nicht leer sein.' }
+  if (!nachricht && (!datei || datei.size === 0)) {
+    return { fehler: 'Nachricht darf nicht leer sein.' }
+  }
 
   const supabase = createAdminClient()
 
-  // Projekt gehört dem Kunden? + organisation_id mitnehmen (für Admin-Queries
-  // mit org-scope in src/app/actions/nachrichten.ts)
   const { data: projekt } = await supabase
     .from('projekte')
     .select('id, organisation_id')
@@ -594,13 +651,33 @@ export async function portalNachrichtSenden(
     .maybeSingle()
   if (!projekt) return { fehler: 'Kein Zugriff.' }
 
-  await supabase.from('client_nachrichten').insert({
+  // Anhang hochladen wenn vorhanden
+  let anhang: Awaited<ReturnType<typeof chatAnhangHochladen>> | null = null
+  let typ: 'text' | 'bild' | 'datei' | 'audio' = 'text'
+  if (datei && datei.size > 0) {
+    anhang = await chatAnhangHochladen(supabase, datei, projekt.organisation_id as string, projektId)
+    if (anhang.fehler) return { fehler: anhang.fehler }
+    typ = chatNachrichtTypFuer(anhang.mime)
+  }
+
+  const { error } = await supabase.from('client_nachrichten').insert({
     organisation_id: projekt.organisation_id,
     projekt_id:      projektId,
     client_user_id:  session.id,
     von_kunde:       true,
-    nachricht,
+    nachricht:       nachricht || null,
+    typ,
+    anhang_pfad:     anhang?.pfad    ?? null,
+    anhang_typ:      anhang?.mime    ?? null,
+    anhang_name:     anhang?.name    ?? null,
+    anhang_groesse:  anhang?.groesse ?? null,
+    anhang_dauer:    typ === 'audio' ? audioDauer : null,
   })
+  if (error) {
+    // Cleanup bei DB-Fehler
+    if (anhang?.pfad) await supabase.storage.from(CHAT_BUCKET).remove([anhang.pfad])
+    return { fehler: error.message }
+  }
 
   return { erfolg: 'Nachricht gesendet.' }
 }
@@ -614,10 +691,15 @@ export async function portalNachrichtSenden(
  */
 export async function teamNachrichtSenden(
   projektId: string,
-  nachricht: string,
+  formData: FormData,
 ): Promise<{ fehler?: string }> {
-  const text = nachricht.trim()
-  if (!text) return { fehler: 'Nachricht darf nicht leer sein.' }
+  const text       = ((formData.get('nachricht') as string) ?? '').trim()
+  const datei      = formData.get('datei') as File | null
+  const audioDauer = parseFloat((formData.get('audio_dauer') as string) ?? '') || null
+
+  if (!text && (!datei || datei.size === 0)) {
+    return { fehler: 'Nachricht darf nicht leer sein.' }
+  }
 
   const { getOrganisationId } = await import('@/lib/supabase/server')
   let orgId: string
@@ -625,22 +707,98 @@ export async function teamNachrichtSenden(
 
   const supabase = createAdminClient()
 
-  // Projekt gehört zur eigenen Org?
   const { data: projekt } = await supabase
     .from('projekte').select('id').eq('id', projektId).eq('organisation_id', orgId).maybeSingle()
   if (!projekt) return { fehler: 'Projekt nicht gefunden.' }
+
+  // Anhang hochladen
+  let anhang: Awaited<ReturnType<typeof chatAnhangHochladen>> | null = null
+  let typ: 'text' | 'bild' | 'datei' | 'audio' = 'text'
+  if (datei && datei.size > 0) {
+    anhang = await chatAnhangHochladen(supabase, datei, orgId, projektId)
+    if (anhang.fehler) return { fehler: anhang.fehler }
+    typ = chatNachrichtTypFuer(anhang.mime)
+  }
 
   const { error } = await supabase.from('client_nachrichten').insert({
     organisation_id: orgId,
     projekt_id:      projektId,
     von_kunde:       false,
-    nachricht:       text,
+    nachricht:       text || null,
+    typ,
+    anhang_pfad:     anhang?.pfad    ?? null,
+    anhang_typ:      anhang?.mime    ?? null,
+    anhang_name:     anhang?.name    ?? null,
+    anhang_groesse:  anhang?.groesse ?? null,
+    anhang_dauer:    typ === 'audio' ? audioDauer : null,
   })
-  if (error) return { fehler: 'Fehler beim Senden.' }
+  if (error) {
+    if (anhang?.pfad) await supabase.storage.from(CHAT_BUCKET).remove([anhang.pfad])
+    return { fehler: 'Fehler beim Senden.' }
+  }
 
   revalidatePath(`/dashboard/projekte/${projektId}`)
   revalidatePath('/dashboard/chats')
   return {}
+}
+
+/**
+ * Signed URL für einen Chat-Anhang erzeugen (5 Minuten gültig).
+ * Wird vom Client gebraucht um Bilder/Audio anzuzeigen und Dateien
+ * herunterzuladen. Org-Check + projekt-Zugehörigkeit als Defense-in-Depth.
+ */
+export async function chatAnhangSignedUrl(
+  nachrichtId: string,
+): Promise<{ url?: string; fehler?: string }> {
+  const { getOrganisationId } = await import('@/lib/supabase/server')
+  let orgId: string
+  try { orgId = await getOrganisationId() } catch { return { fehler: 'Nicht angemeldet.' } }
+
+  const supabase = createAdminClient()
+  const { data: n } = await supabase
+    .from('client_nachrichten')
+    .select('anhang_pfad, anhang_name, organisation_id')
+    .eq('id', nachrichtId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!n?.anhang_pfad) return { fehler: 'Anhang nicht gefunden.' }
+
+  const { data, error } = await supabase.storage
+    .from(CHAT_BUCKET)
+    .createSignedUrl(n.anhang_pfad as string, 300, {
+      download: n.anhang_name as string | undefined,
+    })
+  if (error || !data) return { fehler: error?.message ?? 'Fehler beim Erstellen der URL.' }
+  return { url: data.signedUrl }
+}
+
+/**
+ * Signed URL für Portal-Seite (Kunde). Prüft kunde_id gegen Session.
+ */
+export async function portalAnhangSignedUrl(
+  nachrichtId: string,
+): Promise<{ url?: string; fehler?: string }> {
+  const session = await requireSession()
+  const supabase = createAdminClient()
+
+  // Nachricht + zugehöriges Projekt laden und prüfen ob Kunde Zugriff hat
+  const { data: n } = await supabase
+    .from('client_nachrichten')
+    .select('anhang_pfad, anhang_name, projekt_id, projekte!inner(kunde_id)')
+    .eq('id', nachrichtId)
+    .maybeSingle()
+  if (!n?.anhang_pfad) return { fehler: 'Anhang nicht gefunden.' }
+
+  const kundeIdVomProjekt = (n.projekte as unknown as { kunde_id: string } | null)?.kunde_id
+  if (kundeIdVomProjekt !== session.kundeId) return { fehler: 'Kein Zugriff.' }
+
+  const { data, error } = await supabase.storage
+    .from(CHAT_BUCKET)
+    .createSignedUrl(n.anhang_pfad as string, 300, {
+      download: n.anhang_name as string | undefined,
+    })
+  if (error || !data) return { fehler: error?.message ?? 'Fehler beim Erstellen der URL.' }
+  return { url: data.signedUrl }
 }
 
 // ── PORTAL: PROFIL ────────────────────────────────────────────
