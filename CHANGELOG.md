@@ -44,6 +44,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - Timeline Auto-Sync Status-Events werden korrekt erzeugt
 - Bei fehlender SUPABASE-ENV-Var crasht der Build nicht mehr (Fallback auf Platzhalter)
 
+### Einstellungen > Änderungen: jetzt kompakt + filterbar
+- Hero-Band schlank und in einer Zeile (statt groß mit separaten Stat-Karten)
+- **Kategorie-Filter als Chip-Row** (Alle · Features · Fixes · Design · Timeline · Partner · Kunde · Editor · Security) mit Anzahl der Änderungen je Kategorie — nur Chips mit Content sichtbar
+- Filter- und Suchleiste bleibt beim Scrollen sticky oben
+- Jeder Datum-Eintrag ist jetzt eine kompakte klickbare Zeile (Datum · relatives Label · Icon-Vorschau der Kategorien · Anzahl Änderungen)
+- Die zwei neuesten Einträge sind per Default offen, ältere geschlossen — Klick öffnet/schließt sie
+- Bei aktivem Filter oder Suche werden passende Treffer automatisch aufgeklappt
+
 ### Einstellungen > Änderungen: neues Design
 - Hero-Band oben mit Brand-Gradient + drei Stats (Gesamt-Updates, Letzte 30 Tage, Änderungen total, relatives Datum der letzten Aktualisierung)
 - **Zeitstrahl-Layout** mit vertikaler Linie + Datum-Bubbles statt einklappbarer Akkordeon-Karten — alle Änderungen auf einen Blick sichtbar
