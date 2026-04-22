@@ -5,6 +5,7 @@ import { portalBenutzerAbrufen } from '@/app/actions/portal'
 import { getKommunikation } from '@/app/actions/kommunikation'
 import { meineRolleAbrufen } from '@/app/actions/team'
 import { kundeStats, kundeProjekteMitStats } from '@/app/actions/kunden'
+import { kundeEventsAbrufen } from '@/app/actions/timeline'
 import { istAdmin } from '@/lib/permissions'
 import KundeLoeschenModal from '@/components/KundeLoeschenModal'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
@@ -13,6 +14,7 @@ import KundenPortalSection from '@/components/KundenPortalSection'
 import KommunikationBlock from '@/components/KommunikationBlock'
 import KundeStatsBand from '@/components/KundeStatsBand'
 import KundeProjektliste from '@/components/KundeProjektliste'
+import KundeTimelineBlock from '@/components/KundeTimelineBlock'
 
 async function getKunde(id: string) {
   const supabase = await createClient()
@@ -39,13 +41,14 @@ export default async function KundeDetailPage({ params }: { params: { id: string
   if (!kunde) notFound()
 
   const istArchiviert = kunde.deleted_at != null
-  const [projekteMitStats, notizen, portalUser, kommunikation, rolle, stats] = await Promise.all([
+  const [projekteMitStats, notizen, portalUser, kommunikation, rolle, stats, kundeEvents] = await Promise.all([
     kundeProjekteMitStats(params.id, istArchiviert),
     getNotizen(params.id),
     portalBenutzerAbrufen(params.id),
     getKommunikation(params.id),
     meineRolleAbrufen(),
     kundeStats(params.id),
+    kundeEventsAbrufen(params.id),
   ])
 
   const darfLoeschen = istAdmin(rolle)
@@ -131,6 +134,12 @@ export default async function KundeDetailPage({ params }: { params: { id: string
           <KundeProjektliste
             projekte={projekteMitStats}
             neuesProjektHref={`/dashboard/projekte/neu?kunde=${kunde.id}`}
+          />
+
+          {/* Multi-Projekt-Timeline */}
+          <KundeTimelineBlock
+            events={kundeEvents}
+            projekte={projekteMitStats.map((p) => ({ id: p.id, name: p.name }))}
           />
 
           {/* Kommunikationslog */}
