@@ -60,8 +60,13 @@ function produktAusTitel(titel: string): string {
 type AnsichtModus = 'liste' | 'gruppiert' | 'kalender'
 
 interface TimelineProps {
-  events: (TimelineEvent & { raum?: { id: string; name: string } | null })[]
+  events: (TimelineEvent & {
+    raum?: { id: string; name: string } | null
+    projekt?: { id: string; name: string }
+  })[]
   showRaumBadge?: boolean
+  /** Zusätzlich zum Raum-Badge einen Projekt-Badge zeigen (Multi-Projekt-Timeline) */
+  showProjektBadge?: boolean
   alleLink?: string
   limit?: number
   maxHoehe?: string
@@ -71,6 +76,7 @@ interface TimelineProps {
 export function Timeline({
   events,
   showRaumBadge = false,
+  showProjektBadge = false,
   alleLink,
   limit,
   maxHoehe = '380px',
@@ -122,8 +128,8 @@ export function Timeline({
       </div>
 
       {/* View-Inhalt */}
-      {modus === 'liste'     && <ListenView     events={angezeigt} showRaumBadge={showRaumBadge} maxHoehe={maxHoehe} onSelect={setDetailEvent} />}
-      {modus === 'gruppiert' && <GruppiertView  events={sichtbar}  showRaumBadge={showRaumBadge} maxHoehe={maxHoehe} onSelect={setDetailEvent} />}
+      {modus === 'liste'     && <ListenView     events={angezeigt} showRaumBadge={showRaumBadge} showProjektBadge={showProjektBadge} maxHoehe={maxHoehe} onSelect={setDetailEvent} />}
+      {modus === 'gruppiert' && <GruppiertView  events={sichtbar}  showRaumBadge={showRaumBadge} showProjektBadge={showProjektBadge} maxHoehe={maxHoehe} onSelect={setDetailEvent} />}
       {modus === 'kalender'  && <KalenderView   events={events} onSelect={setDetailEvent} />}
 
       {alleLink && (
@@ -168,13 +174,17 @@ function ViewTab({
 }
 
 // ── Liste (Einzeiler, scrollbar) ──────────────────────────────
-type EvTyp = TimelineEvent & { raum?: { id: string; name: string } | null }
+type EvTyp = TimelineEvent & {
+  raum?: { id: string; name: string } | null
+  projekt?: { id: string; name: string }
+}
 
 function ListenView({
-  events, showRaumBadge, maxHoehe, onSelect,
+  events, showRaumBadge, showProjektBadge, maxHoehe, onSelect,
 }: {
   events: EvTyp[]
   showRaumBadge: boolean
+  showProjektBadge: boolean
   maxHoehe: string
   onSelect: (ev: EvTyp) => void
 }) {
@@ -184,17 +194,18 @@ function ListenView({
   return (
     <div className="overflow-y-auto pr-1" style={{ maxHeight: maxHoehe }}>
       <div className="space-y-0.5">
-        {events.map((ev) => <EventZeile key={ev.id} ev={ev} showRaumBadge={showRaumBadge} onSelect={onSelect} />)}
+        {events.map((ev) => <EventZeile key={ev.id} ev={ev} showRaumBadge={showRaumBadge} showProjektBadge={showProjektBadge} onSelect={onSelect} />)}
       </div>
     </div>
   )
 }
 
 function EventZeile({
-  ev, showRaumBadge, onSelect,
+  ev, showRaumBadge, showProjektBadge, onSelect,
 }: {
   ev: EvTyp
   showRaumBadge: boolean
+  showProjektBadge: boolean
   onSelect: (ev: EvTyp) => void
 }) {
   const cfg   = TYP_CONFIG[ev.typ] ?? TYP_CONFIG.termin
@@ -213,8 +224,13 @@ function EventZeile({
         <Icon className={`w-3.5 h-3.5 ${cfg.farbe}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-sm text-gray-900 truncate">{ev.titel}</span>
+          {showProjektBadge && ev.projekt && (
+            <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded shrink-0 font-medium">
+              {ev.projekt.name}
+            </span>
+          )}
           {showRaumBadge && ev.raum && (
             <span className="text-[10px] px-1.5 py-0.5 bg-wellbeing-green/10 text-wellbeing-green rounded shrink-0 font-medium">
               {ev.raum.name}
@@ -238,10 +254,11 @@ function EventZeile({
 
 // ── Gruppiert nach Produkt ────────────────────────────────────
 function GruppiertView({
-  events, showRaumBadge, maxHoehe, onSelect,
+  events, showRaumBadge, showProjektBadge, maxHoehe, onSelect,
 }: {
   events: EvTyp[]
   showRaumBadge: boolean
+  showProjektBadge: boolean
   maxHoehe: string
   onSelect: (ev: EvTyp) => void
 }) {
@@ -264,12 +281,18 @@ function GruppiertView({
   return (
     <div className="overflow-y-auto pr-1 space-y-2" style={{ maxHeight: maxHoehe }}>
       {eintraege.map(([produkt, evs]) => {
-        const raum = evs.find((e) => e.raum)?.raum
+        const raum    = evs.find((e) => e.raum)?.raum
+        const projekt = evs.find((e) => e.projekt)?.projekt
         return (
           <div key={produkt} className="border border-gray-100 rounded-lg overflow-hidden">
             <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-b border-gray-100">
               <Package className="w-3 h-3 text-gray-400 shrink-0" />
               <p className="text-xs font-semibold text-gray-700 truncate flex-1">{produkt}</p>
+              {showProjektBadge && projekt && (
+                <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded shrink-0 font-medium">
+                  {projekt.name}
+                </span>
+              )}
               {showRaumBadge && raum && (
                 <span className="text-[10px] px-1.5 py-0.5 bg-wellbeing-green/10 text-wellbeing-green rounded shrink-0 font-medium">
                   {raum.name}
