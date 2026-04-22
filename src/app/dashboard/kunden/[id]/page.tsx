@@ -73,11 +73,6 @@ export default async function KundeDetailPage({ params }: { params: { id: string
         </div>
       )}
 
-      {/* KPI-Band: Projekte / Angebote / Verträge / Letzter Kontakt */}
-      <div className="mb-6">
-        <KundeStatsBand stats={stats} />
-      </div>
-
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -100,6 +95,11 @@ export default async function KundeDetailPage({ params }: { params: { id: string
             <KundeLoeschenModal kundeId={kunde.id} kundeName={kunde.name} />
           )}
         </div>
+      </div>
+
+      {/* KPI-Band: Projekte / Angebote / Verträge / Letzter Kontakt */}
+      <div className="mb-6">
+        <KundeStatsBand stats={stats} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
