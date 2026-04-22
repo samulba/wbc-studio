@@ -201,6 +201,29 @@ export interface PartnerKondition {
   updated_at: string
 }
 
+// ── Partner-Verträge (Migration 079) — hochgeladene PDFs/Docs ──
+export interface PartnerVertrag {
+  id:              string
+  organisation_id: string
+  partner_id:      string
+  // Datei-Metadaten
+  dateiname:       string
+  dateityp:        string
+  dateigroesse:    number
+  storage_pfad:    string
+  // Inhaltlich (optional)
+  titel:           string | null
+  vertragstyp:     string | null
+  gueltig_von:     string | null
+  gueltig_bis:     string | null
+  notizen:         string | null
+  // Audit
+  hochgeladen_von: string | null
+  hochgeladen_am:  string
+  created_at:      string
+  updated_at:      string
+}
+
 // Öffentliche Produkt-Felder für Freigabe-Ansicht – KEINE internen Felder
 export interface FreigabeProdukt {
   /**

@@ -7,6 +7,8 @@ import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
 import PartnerProduktHinzufuegen from '@/components/PartnerProduktHinzufuegen'
 import PartnerKonditionenBlock from '@/components/PartnerKonditionenBlock'
+import PartnerVertraegeBlock from '@/components/PartnerVertraegeBlock'
+import { vertraegeAbrufen } from '@/app/actions/partner-vertraege'
 import { ExternalLink, Mail, Phone, Globe, Star } from 'lucide-react'
 
 type ProduktMitRaum = {
@@ -57,7 +59,7 @@ async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
 
 export default async function PartnerDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
-  const [{ data: partner }, { data: produkte }, notizen, konditionen] = await Promise.all([
+  const [{ data: partner }, { data: produkte }, notizen, konditionen, vertraege] = await Promise.all([
     supabase.from('partner').select('*').eq('id', params.id).is('deleted_at', null).single(),
     supabase
       .from('produkte')
@@ -66,6 +68,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
       .order('created_at', { ascending: false }),
     getPartnerNotizen(params.id),
     getPartnerKonditionen(params.id),
+    vertraegeAbrufen(params.id),
   ])
 
   if (!partner) notFound()
@@ -244,6 +247,9 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
         <div className="lg:col-span-2 space-y-4">
           {/* Konditionen */}
           <PartnerKonditionenBlock partnerId={partner.id} initialKonditionen={konditionen} />
+
+          {/* Verträge & Dokumente (Migration 079) */}
+          <PartnerVertraegeBlock partnerId={partner.id} initialVertraege={vertraege} />
 
           {/* Produkte-Tabelle */}
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">

@@ -44,6 +44,15 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - Timeline Auto-Sync Status-Events werden korrekt erzeugt
 - Bei fehlender SUPABASE-ENV-Var crasht der Build nicht mehr (Fallback auf Platzhalter)
 
+### Partner-Verträge: Dokumente hochladen
+- Auf der Partner-Detailseite gibt's jetzt einen neuen Block „Verträge & Dokumente"
+- Du kannst PDFs, Word-/Excel-Dateien und Bilder vom Partner per Drag & Drop oder Klick hochladen (max. 50 MB)
+- Pro Datei optional: Titel, Typ (Rahmenvertrag, Einzelauftrag, NDA, Konditionsvereinbarung, Lieferantenvertrag, Sonstiges), Gültigkeitszeitraum, Notizen
+- In der Liste siehst du Datei-Icon, Titel, Typ-Badge, Größe, Hochladedatum
+- Bald ablaufende Verträge bekommen einen amber „Läuft bald aus"-Badge, abgelaufene einen roten „Abgelaufen"-Badge
+- Download via Hover-Button (Signed URL, kurzlebig — Datei bleibt privat im Storage)
+- Lösch-Button mit Bestätigung
+
 ### App-Chrome fühlt sich jetzt wie eine echte App an (statt einer Webseite)
 - Sidebar-Nav, Buttons, Badges, Card-Header und Labels können nicht mehr versehentlich mit der Maus markiert werden
 - Echter Content wie Kunden-Kontaktdaten, Notizen, Kommunikations-Einträge, Beschreibungen, Eingabefelder bleiben markierbar (zum Kopieren)
