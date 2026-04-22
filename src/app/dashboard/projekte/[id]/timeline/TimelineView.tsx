@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Plus, ChevronRight, Calendar, List, X, Flag, Truck, Clock, Layers } from 'lucide-react'
+import { Plus, ChevronRight, Calendar, List, X, Flag, Truck, Clock, Layers, Columns3, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import { eventErstellen, eventAktualisieren, eventLoeschen } from '@/app/actions/timeline'
 import type { TimelineEvent, TimelineEventTyp, TimelineEventStatus } from '@/lib/supabase/types'
 import { ConfirmModal } from '@/components/ConfirmModal'
@@ -691,68 +691,43 @@ function GanttChart({
               style={{ height: rowHoehe }}
             >
               {istMeilenstein ? (
-                <>
-                  {/* Diamant für Meilenstein */}
-                  <div
-                    className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 rotate-45 transition-transform shadow-sm ${
-                      istAuto ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'
-                    } ${istDragging ? '' : 'hover:scale-125'} ${istAuto ? 'ring-2 ring-amber-300 ring-offset-1' : ''}`}
-                    style={{ left: x + tagBreite / 2 + dragX, backgroundColor: farbe, zIndex: istDragging ? 20 : 10 }}
-                    onMouseDown={handleMouseDown}
-                    onClick={() => { if (!istDragging) onEventClick(event) }}
-                    title={istAuto ? `${event.titel} (Auto-Sync aus ${event.quelle})` : event.titel}
-                  />
-                  {/* Label rechts vom Diamant */}
-                  <button
-                    type="button"
-                    onClick={() => onEventClick(event)}
-                    className="absolute top-1/2 -translate-y-1/2 text-[11px] font-medium truncate max-w-[200px] hover:underline text-left"
-                    style={{ left: x + tagBreite / 2 + 14 + dragX, color: ueberfaellig ? '#ef4444' : farbe }}
-                  >
-                    {ueberfaellig && '⚠ '}{event.titel}
-                  </button>
-                </>
+                /* Diamant für Meilenstein — Label sitzt in der linken Sidebar */
+                <div
+                  className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-5 h-5 rotate-45 transition-transform shadow-sm ${
+                    istAuto ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'
+                  } ${istDragging ? '' : 'hover:scale-125'} ${istAuto ? 'ring-2 ring-amber-300 ring-offset-1' : ''}`}
+                  style={{ left: x + tagBreite / 2 + dragX, backgroundColor: farbe, zIndex: istDragging ? 20 : 10 }}
+                  onMouseDown={handleMouseDown}
+                  onClick={() => { if (!istDragging) onEventClick(event) }}
+                  title={istAuto ? `${event.titel} (Auto-Sync aus ${event.quelle})` : event.titel}
+                />
               ) : (
-                <>
-                  {/* Balken */}
-                  <div
-                    className={`absolute top-1/2 -translate-y-1/2 h-7 rounded-lg transition-all flex items-center overflow-hidden shadow-sm ${
-                      labelInBalken ? 'px-2.5' : ''
-                    } ${istAuto ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'} ${istDragging ? 'opacity-60 ring-2 ring-wellbeing-green' : 'hover:shadow'}`}
-                    style={{
-                      left: x + dragX,
-                      width: breite,
-                      backgroundColor: farbe + 'dd',
-                      border: istAuto ? `1.5px dashed ${farbe}` : `1.5px solid ${farbe}`,
-                      zIndex: istDragging ? 20 : 10,
-                    }}
-                    onMouseDown={handleMouseDown}
-                    onClick={() => { if (!istDragging) onEventClick(event) }}
-                    title={`${event.titel}${istAuto ? ` (Auto-Sync aus ${event.quelle})` : ''}`}
-                  >
-                    {labelInBalken && (
-                      <>
-                        {istAuto && <span className="text-[10px] text-white/90 mr-1">⚡</span>}
-                        <span className="text-[11px] font-medium text-white truncate whitespace-nowrap">
-                          {ueberfaellig && '⚠ '}{event.titel}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  {/* Label rechts wenn Balken zu kurz */}
-                  {!labelInBalken && (
-                    <button
-                      type="button"
-                      onClick={() => onEventClick(event)}
-                      className="absolute top-1/2 -translate-y-1/2 text-[11px] font-medium truncate max-w-[200px] hover:underline text-left flex items-center gap-1"
-                      style={{ left: x + breite + 8 + dragX, color: ueberfaellig ? '#ef4444' : farbe }}
-                    >
-                      {istAuto && <span>⚡</span>}
-                      {ueberfaellig && <span>⚠</span>}
-                      {event.titel}
-                    </button>
+                /* Balken — Label ist in der linken Sidebar; hier nur
+                   optional der Titel IM Balken wenn breit genug. */
+                <div
+                  className={`absolute top-1/2 -translate-y-1/2 h-7 rounded-lg transition-all flex items-center overflow-hidden shadow-sm ${
+                    labelInBalken ? 'px-2.5' : ''
+                  } ${istAuto ? 'cursor-pointer' : 'cursor-grab active:cursor-grabbing'} ${istDragging ? 'opacity-60 ring-2 ring-wellbeing-green' : 'hover:shadow'}`}
+                  style={{
+                    left: x + dragX,
+                    width: breite,
+                    backgroundColor: farbe + 'dd',
+                    border: istAuto ? `1.5px dashed ${farbe}` : `1.5px solid ${farbe}`,
+                    zIndex: istDragging ? 20 : 10,
+                  }}
+                  onMouseDown={handleMouseDown}
+                  onClick={() => { if (!istDragging) onEventClick(event) }}
+                  title={`${event.titel}${istAuto ? ` (Auto-Sync aus ${event.quelle})` : ''}`}
+                >
+                  {labelInBalken && (
+                    <>
+                      {istAuto && <span className="text-[10px] text-white/90 mr-1">⚡</span>}
+                      <span className="text-[11px] font-medium text-white truncate whitespace-nowrap">
+                        {ueberfaellig && '⚠ '}{event.titel}
+                      </span>
+                    </>
                   )}
-                </>
+                </div>
               )}
             </div>
           )
@@ -918,6 +893,137 @@ function ListenAnsicht({ events, onEventClick }: { events: TimelineEvent[]; onEv
   )
 }
 
+// ── Kanban-Ansicht (nach Status gruppiert) ────────────────────
+function KanbanAnsicht({ events, onEventClick }: { events: TimelineEvent[]; onEventClick: (e: TimelineEvent) => void }) {
+  // Überfällige Events laufen in einer eigenen Spalte, egal welchen Status sie haben.
+  const spalten: {
+    key: 'ueberfaellig' | TimelineEventStatus
+    label: string
+    farbe: string
+    Icon: React.ComponentType<{ className?: string }>
+    events: TimelineEvent[]
+  }[] = [
+    { key: 'ueberfaellig',  label: 'Überfällig',   farbe: 'bg-red-50 text-red-700 border-red-200',            Icon: AlertTriangle, events: [] },
+    { key: 'geplant',       label: 'Geplant',      farbe: 'bg-gray-50 text-gray-700 border-gray-200',         Icon: Calendar,       events: [] },
+    { key: 'in_arbeit',     label: 'In Arbeit',    farbe: 'bg-blue-50 text-blue-700 border-blue-200',         Icon: Clock,          events: [] },
+    { key: 'abgeschlossen', label: 'Abgeschlossen',farbe: 'bg-emerald-50 text-emerald-700 border-emerald-200',Icon: CheckCircle2,   events: [] },
+  ]
+
+  for (const ev of events) {
+    if (istUeberfaellig(ev)) spalten[0].events.push(ev)
+    else if (ev.status === 'geplant')        spalten[1].events.push(ev)
+    else if (ev.status === 'in_arbeit')      spalten[2].events.push(ev)
+    else if (ev.status === 'abgeschlossen')  spalten[3].events.push(ev)
+    else if (ev.status === 'verspaetet')     spalten[0].events.push(ev)
+  }
+
+  for (const s of spalten) {
+    s.events.sort((a, b) => a.start_datum.localeCompare(b.start_datum))
+  }
+
+  if (events.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Calendar className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+        <p className="text-sm text-gray-400">Keine Events im Filter.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      {spalten.map((sp) => {
+        const Icon = sp.Icon
+        const leer = sp.events.length === 0
+        return (
+          <div
+            key={sp.key}
+            className={`rounded-2xl border bg-white overflow-hidden flex flex-col ${leer ? 'opacity-70' : ''}`}
+          >
+            {/* Spalten-Header */}
+            <div className={`px-4 py-3 border-b flex items-center justify-between gap-2 ${sp.farbe}`}>
+              <div className="flex items-center gap-2">
+                <Icon className="w-4 h-4" />
+                <span className="text-sm font-semibold">{sp.label}</span>
+              </div>
+              <span className="text-xs font-medium tabular-nums px-2 py-0.5 rounded-full bg-white/60">
+                {sp.events.length}
+              </span>
+            </div>
+
+            {/* Karten */}
+            <div className="p-3 space-y-2 min-h-[120px] flex-1">
+              {leer ? (
+                <p className="text-[11px] text-gray-400 text-center pt-4">Keine Events.</p>
+              ) : (
+                sp.events.map((ev) => {
+                  const cfg   = TYP_CONFIG[ev.typ]
+                  const Icon2 = cfg.icon
+                  const ueberfaellig = istUeberfaellig(ev)
+                  const mehrtaegig   = ev.end_datum && ev.end_datum !== ev.start_datum
+                  const istAuto      = ev.quelle && ev.quelle !== 'manuell'
+                  const farbe = ev.farbe ?? null
+                  const tageBisFaelligkeit = Math.round(
+                    (new Date(ev.start_datum + 'T00:00:00').getTime() - new Date(heute + 'T00:00:00').getTime()) / 86400000,
+                  )
+                  return (
+                    <button
+                      key={ev.id}
+                      type="button"
+                      onClick={() => onEventClick(ev)}
+                      className="w-full bg-white border border-gray-200 rounded-xl p-3 text-left hover:border-wellbeing-green/40 hover:shadow-sm transition-all group"
+                      style={farbe ? { borderLeftColor: farbe, borderLeftWidth: 3 } : undefined}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div
+                          className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 border ${cfg.bgFarbe}`}
+                          style={farbe ? { backgroundColor: farbe + '22', borderColor: farbe + '66' } : undefined}
+                        >
+                          <Icon2 className={`w-3 h-3 ${cfg.farbe}`} style={farbe ? { color: farbe } : undefined} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-wellbeing-green transition-colors">
+                            {ev.titel}
+                          </p>
+                          {ev.beschreibung && (
+                            <p className="text-[11px] text-gray-500 line-clamp-2 mt-0.5">{ev.beschreibung}</p>
+                          )}
+                        </div>
+                        {istAuto && <span className="text-[11px] text-amber-600 shrink-0" title="Auto-Event">⚡</span>}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 text-[10px] text-gray-400">
+                        <span className="tabular-nums">
+                          {formatDatum(ev.start_datum)}
+                          {mehrtaegig && ` → ${formatDatum(ev.end_datum!)}`}
+                        </span>
+                        {!ueberfaellig && sp.key !== 'abgeschlossen' && (
+                          <span className={`ml-auto tabular-nums ${
+                            tageBisFaelligkeit <= 3 ? 'text-amber-600 font-medium' : ''
+                          }`}>
+                            {tageBisFaelligkeit === 0 ? 'heute' :
+                             tageBisFaelligkeit === 1 ? 'morgen' :
+                             tageBisFaelligkeit > 0 ? `in ${tageBisFaelligkeit} Tg.` :
+                             `${Math.abs(tageBisFaelligkeit)} Tg. zurück`}
+                          </span>
+                        )}
+                        {ueberfaellig && (
+                          <span className="ml-auto tabular-nums text-red-600 font-medium">
+                            {Math.abs(tageBisFaelligkeit)} Tg. überfällig
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Haupt-Komponente ──────────────────────────────────────────
 export default function TimelineView({
   projektId,
@@ -933,7 +1039,7 @@ export default function TimelineView({
   const searchParams = useSearchParams()
   const initialRaum  = searchParams?.get('raum')
   const [events,      setEvents]      = useState(initialEvents)
-  const [ansicht,     setAnsicht]     = useState<'gantt' | 'liste'>('gantt')
+  const [ansicht,     setAnsicht]     = useState<'gantt' | 'liste' | 'kanban'>('gantt')
   const [modalEvent,  setModalEvent]  = useState<Partial<TimelineEvent> | null | false>(false) // false = geschlossen
   const [filterStatus, setFilterStatus] = useState<'alle' | 'offen' | 'ueberfaellig'>('alle')
   const [filterRaum,   setFilterRaum]   = useState<string | 'alle'>(initialRaum ?? 'alle')
@@ -1057,6 +1163,13 @@ export default function TimelineView({
               <Calendar className="w-4 h-4" />
             </button>
             <button
+              onClick={() => setAnsicht('kanban')}
+              className={`px-3 py-1.5 border-l border-gray-200 transition-colors ${ansicht === 'kanban' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}
+              title="Kanban (nach Status)"
+            >
+              <Columns3 className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => setAnsicht('liste')}
               className={`px-3 py-1.5 border-l border-gray-200 transition-colors ${ansicht === 'liste' ? 'bg-wellbeing-green text-white' : 'bg-white text-gray-400 hover:bg-gray-50'}`}
               title="Liste"
@@ -1141,6 +1254,8 @@ export default function TimelineView({
             onEventClick={(e) => setModalEvent(e)}
             onEventMove={handleEventMove}
           />
+        ) : ansicht === 'kanban' ? (
+          <KanbanAnsicht events={gefilterteEvents} onEventClick={(e) => setModalEvent(e)} />
         ) : (
           <ListenAnsicht events={gefilterteEvents} onEventClick={(e) => setModalEvent(e)} />
         )}
