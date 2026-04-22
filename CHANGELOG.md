@@ -5,6 +5,19 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-22
 
+### Chat — Stabilität und Bug-Fixes
+- Doppelt-Senden verhindert: Enter-Spam und schnelles Klicken erzeugt keine Duplikate mehr, solange die vorherige Nachricht noch unterwegs ist
+- Dieselbe Datei kann direkt nochmal angehängt werden (der File-Dialog triggert jetzt auch bei identischer Auswahl)
+- 50-MB-Limit wird jetzt sofort beim Auswählen geprüft (nicht mehr erst nach dem Upload)
+- Nur ein Sprachmemo spielt gleichzeitig — startet man ein zweites, wird das erste automatisch pausiert (wie bei WhatsApp)
+- Auto-Scroll ist höflicher: wenn du nach oben gescrollt hast, unterbricht eine neue Nachricht dein Lesen nicht mehr
+- Abgelaufene Vorschau-URLs (Bilder, Audio) werden automatisch neu geholt, wenn sie stocken
+- Mikrofon-Button ist ausgegraut, wenn das Gerät/der Browser keine Aufnahme unterstützt (z.B. alte iOS, http)
+- Polling holt sich keine Nachrichten mehr doppelt parallel ab — das spart Netzwerk und stabilisiert den Chat
+- Nach dem Senden springt der Cursor automatisch zurück in das Textfeld — schnelle Folge-Nachrichten ohne Klicken
+- Im Kunden-Portal wird ein Anhang jetzt sofort optimistisch mit „wird hochgeladen…" angezeigt (vorher war nur der Text zu sehen)
+- Sprachaufnahme: Race-Condition zwischen „Senden" und „Abbrechen" behoben — es kommt keine leere Aufnahme mehr an
+
 ### Chat wie WhatsApp — Fotos, Dateien, Sprachmemos
 - Im Chat (Admin-Seite und Kunden-Portal) gibt es jetzt ein Büroklammer-Icon für Foto- oder Datei-Anhang und ein Mikrofon-Icon für Sprachmemos
 - Sprachmemos werden direkt im Browser aufgenommen (rote Aufnahme-Leiste mit Timer, Abbrechen oder Senden) und im Chat als kleiner Player abgespielt

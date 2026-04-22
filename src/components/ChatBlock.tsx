@@ -34,6 +34,7 @@ export default function ChatBlock({
 }: Props) {
   const [nachrichten, setNachrichten] = useState<ClientNachricht[]>(initialNachrichten)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const isFetchingRef = useRef(false)
 
   useEffect(() => {
     adminNachrichtenAlsGelesen(projektId).catch(() => {})
@@ -42,10 +43,13 @@ export default function ChatBlock({
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null
     async function refetch() {
+      if (isFetchingRef.current) return
+      isFetchingRef.current = true
       try {
         const fresh = await getNachrichtenFuerProjekt(projektId)
         setNachrichten(fresh)
       } catch { /* ignore */ }
+      finally { isFetchingRef.current = false }
     }
     function start() {
       if (interval !== null) return
@@ -64,18 +68,25 @@ export default function ChatBlock({
     return () => { stop(); document.removeEventListener('visibilitychange', onVis) }
   }, [projektId, pollingMs])
 
+  // Auto-Scroll: nur wenn User ohnehin nah am unteren Rand ist — sonst unterbrechen wir sein Scrollen.
   useEffect(() => {
     const el = scrollRef.current
-    if (el) el.scrollTop = el.scrollHeight
+    if (!el) return
+    const abstand = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (abstand < 150) el.scrollTop = el.scrollHeight
   }, [nachrichten.length])
 
   async function handleSend(formData: FormData): Promise<{ fehler?: string }> {
     const res = await teamNachrichtSenden(projektId, formData)
     if (!res.fehler) {
-      try {
-        const fresh = await getNachrichtenFuerProjekt(projektId)
-        setNachrichten(fresh)
-      } catch { /* ignore */ }
+      if (!isFetchingRef.current) {
+        isFetchingRef.current = true
+        try {
+          const fresh = await getNachrichtenFuerProjekt(projektId)
+          setNachrichten(fresh)
+        } catch { /* ignore */ }
+        finally { isFetchingRef.current = false }
+      }
     }
     return res
   }
@@ -175,6 +186,15 @@ function AnhangRenderer({
   const [fehler, setFehler] = useState<string | null>(null)
   const [bildAuf, setBildAuf] = useState(false)
 
+  function refetch() {
+    if (!n.anhang_pfad || n.id.startsWith('temp-')) return
+    setFehler(null)
+    getUrl(n.id).then((r) => {
+      if (r.url) setUrl(r.url + (r.url.includes('?') ? '&' : '?') + '_=' + Date.now())
+      else setFehler(r.fehler ?? 'Fehler beim Laden.')
+    })
+  }
+
   useEffect(() => {
     if (!n.anhang_pfad || n.id.startsWith('temp-')) return
     let aktiv = true
@@ -217,6 +237,7 @@ function AnhangRenderer({
             height={210}
             className="w-full h-auto max-h-[320px] object-cover"
             unoptimized
+            onError={refetch}
           />
         </button>
         {bildAuf && (
@@ -248,7 +269,7 @@ function AnhangRenderer({
 
   // Audio
   if (n.typ === 'audio') {
-    return <AudioPlayer url={url} dauer={n.anhang_dauer} istEigene={istEigene} />
+    return <AudioPlayer url={url} dauer={n.anhang_dauer} istEigene={istEigene} onError={refetch} />
   }
 
   // Datei
@@ -283,7 +304,7 @@ function AnhangRenderer({
 
 // ── Audio-Player ────────────────────────────────────────────────
 
-function AudioPlayer({ url, dauer, istEigene }: { url: string; dauer: number | null; istEigene: boolean }) {
+function AudioPlayer({ url, dauer, istEigene, onError }: { url: string; dauer: number | null; istEigene: boolean; onError?: () => void }) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const [spielt, setSpielt] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -302,15 +323,21 @@ function AudioPlayer({ url, dauer, istEigene }: { url: string; dauer: number | n
       }
     }
     const onEnd = () => { setSpielt(false); setProgress(0); setCurrentTime(0) }
+    const onPauseEvt = () => setSpielt(false)
+    const onPlayEvt = () => setSpielt(true)
     const onMeta = () => {
       if (el.duration && isFinite(el.duration)) setFallbackDauer(el.duration)
     }
     el.addEventListener('timeupdate', onTime)
     el.addEventListener('ended', onEnd)
+    el.addEventListener('pause', onPauseEvt)
+    el.addEventListener('play', onPlayEvt)
     el.addEventListener('loadedmetadata', onMeta)
     return () => {
       el.removeEventListener('timeupdate', onTime)
       el.removeEventListener('ended', onEnd)
+      el.removeEventListener('pause', onPauseEvt)
+      el.removeEventListener('play', onPlayEvt)
       el.removeEventListener('loadedmetadata', onMeta)
     }
   }, [])
@@ -318,8 +345,16 @@ function AudioPlayer({ url, dauer, istEigene }: { url: string; dauer: number | n
   function toggle() {
     const el = audioRef.current
     if (!el) return
-    if (spielt) { el.pause(); setSpielt(false) }
-    else { el.play(); setSpielt(true) }
+    if (spielt) { el.pause() }
+    else {
+      // Alle anderen Audios pausieren — WhatsApp-Verhalten.
+      if (typeof document !== 'undefined') {
+        document.querySelectorAll('audio').forEach((a) => {
+          if (a !== el && !a.paused) a.pause()
+        })
+      }
+      el.play().catch(() => { onError?.() })
+    }
   }
 
   function fmt(s: number) {
@@ -330,7 +365,7 @@ function AudioPlayer({ url, dauer, istEigene }: { url: string; dauer: number | n
 
   return (
     <div className="flex items-center gap-2.5 m-1.5 px-2.5 py-2 min-w-[200px]">
-      <audio ref={audioRef} src={url} preload="metadata" />
+      <audio ref={audioRef} src={url} preload="metadata" onError={() => onError?.()} />
       <button
         type="button"
         onClick={toggle}
@@ -377,6 +412,7 @@ export function ChatInputBar({
   const dateiRef = useRef<HTMLInputElement | null>(null)
   const bildRef = useRef<HTMLInputElement | null>(null)
   const btnGruppeRef = useRef<HTMLDivElement | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [plusAuf, setPlusAuf] = useState(false)
 
   // Audio-Recorder
@@ -386,6 +422,28 @@ export function ChatInputBar({
   const chunksRef = useRef<Blob[]>([])
   const startTimeRef = useRef<number>(0)
   const recIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const shouldSendRef = useRef(false)
+
+  // Feature-Detection Mikrofon (alte iOS / http / fehlende API).
+  const [micSupported, setMicSupported] = useState(true)
+  useEffect(() => {
+    const ok = typeof navigator !== 'undefined'
+      && typeof window !== 'undefined'
+      && typeof window.MediaRecorder !== 'undefined'
+      && !!navigator.mediaDevices?.getUserMedia
+    setMicSupported(ok)
+  }, [])
+
+  const MAX_BYTES = 50 * 1024 * 1024
+  function waehleDatei(f: File | null) {
+    if (!f) { setDatei(null); return }
+    if (f.size > MAX_BYTES) {
+      setFehler(`Datei zu groß (max. 50 MB). Gewählt: ${Math.round(f.size / 1024 / 1024)} MB.`)
+      return
+    }
+    setFehler(null)
+    setDatei(f)
+  }
 
   useEffect(() => {
     if (!datei) { setPreview(null); return }
@@ -407,13 +465,28 @@ export function ChatInputBar({
 
   async function startRecording() {
     setFehler(null)
+    if (!micSupported) {
+      setFehler('Sprachmemos werden auf diesem Gerät nicht unterstützt.')
+      return
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mr = new MediaRecorder(stream)
       chunksRef.current = []
+      shouldSendRef.current = false
       mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+      // ein EINZIGES onstop — entscheidet per shouldSendRef, was zu tun ist (kein Race bei Stop vs. Cancel).
       mr.onstop = () => {
         stream.getTracks().forEach((t) => t.stop())
+        if (recIntervalRef.current) { clearInterval(recIntervalRef.current); recIntervalRef.current = null }
+        const dauer = (Date.now() - startTimeRef.current) / 1000
+        setRecording(false)
+        setRecDauer(0)
+        if (!shouldSendRef.current) return
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' })
+        if (blob.size === 0) return
+        const file = new File([blob], `sprachmemo-${Date.now()}.webm`, { type: blob.type })
+        sendenMit(file, dauer)
       }
       mr.start()
       mediaRef.current = mr
@@ -430,33 +503,17 @@ export function ChatInputBar({
 
   function stopRecording(senden: boolean) {
     const mr = mediaRef.current
-    if (!mr) return
-    const dauer = (Date.now() - startTimeRef.current) / 1000
-    mr.onstop = () => {
-      mr.stream.getTracks().forEach((t) => t.stop())
-      if (recIntervalRef.current) { clearInterval(recIntervalRef.current); recIntervalRef.current = null }
-      setRecording(false)
-      setRecDauer(0)
-      if (!senden) return
-      const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' })
-      if (blob.size === 0) return
-      const file = new File([blob], `sprachmemo-${Date.now()}.webm`, { type: blob.type })
-      sendenMit(file, dauer)
-    }
+    if (!mr || mr.state === 'inactive') return
+    shouldSendRef.current = senden
     mr.stop()
   }
 
   function cancelRecording() {
-    const mr = mediaRef.current
-    if (!mr) return
-    if (recIntervalRef.current) { clearInterval(recIntervalRef.current); recIntervalRef.current = null }
-    mr.onstop = () => { mr.stream.getTracks().forEach((t) => t.stop()) }
-    mr.stop()
-    setRecording(false)
-    setRecDauer(0)
+    stopRecording(false)
   }
 
   function sendenMit(audioDatei: File, dauer: number) {
+    if (isSending) return
     const fd = new FormData()
     fd.append('nachricht', '')
     fd.append('datei', audioDatei)
@@ -468,6 +525,7 @@ export function ChatInputBar({
   }
 
   function handleSenden() {
+    if (isSending) return
     setFehler(null)
     const trimmed = text.trim()
     if (!trimmed && !datei) return
@@ -484,12 +542,16 @@ export function ChatInputBar({
       setDatei(null)
       if (dateiRef.current) dateiRef.current.value = ''
       if (bildRef.current)  bildRef.current.value = ''
+      // Focus zurück auf Textarea, damit man sofort weiter schreiben kann.
+      requestAnimationFrame(() => textareaRef.current?.focus())
     })
   }
 
   function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault(); handleSenden()
+      e.preventDefault()
+      if (isSending) return
+      handleSenden()
     }
   }
 
@@ -596,16 +658,26 @@ export function ChatInputBar({
           type="file"
           accept="image/*"
           className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) setDatei(f) }}
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null
+            waehleDatei(f)
+            // Reset Value, damit die gleiche Datei erneut ausgewählt werden kann.
+            e.target.value = ''
+          }}
         />
         <input
           ref={dateiRef}
           type="file"
           className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) setDatei(f) }}
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null
+            waehleDatei(f)
+            e.target.value = ''
+          }}
         />
 
         <textarea
+          ref={textareaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKey}
@@ -630,7 +702,8 @@ export function ChatInputBar({
           <button
             type="button"
             onClick={startRecording}
-            disabled={isSending}
+            disabled={isSending || !micSupported}
+            title={micSupported ? 'Sprachmemo aufnehmen' : 'Sprachmemos auf diesem Gerät nicht unterstützt'}
             className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-500 transition-colors disabled:opacity-40"
             aria-label="Sprachmemo aufnehmen"
           >

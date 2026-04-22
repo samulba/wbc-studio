@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   CheckCircle2, MessageSquare, FileText, CalendarDays,
   LayoutGrid, Check, X, ChevronDown, ChevronUp, Download,
@@ -250,24 +251,52 @@ function NachrichtenTab({
 }) {
   const [nachrichten, setNachrichten] = useState<Nachricht[]>(initialNachrichten)
   const scrollRef = useRef<HTMLDivElement | null>(null)
+  const router = useRouter()
 
+  // Server-gerenderte Nachrichten übernehmen, wenn neue eintreffen (ersetzt temp-Items).
+  useEffect(() => {
+    setNachrichten(initialNachrichten)
+  }, [initialNachrichten])
+
+  // Auto-Scroll nur wenn User schon nah am unteren Rand ist.
   useEffect(() => {
     const el = scrollRef.current
-    if (el) el.scrollTop = el.scrollHeight
+    if (!el) return
+    const abstand = el.scrollHeight - el.scrollTop - el.clientHeight
+    if (abstand < 150) el.scrollTop = el.scrollHeight
   }, [nachrichten.length])
 
   async function handleSend(formData: FormData): Promise<{ fehler?: string; erfolg?: string }> {
     formData.set('projekt_id', projektId)
     const res = await portalNachrichtSenden(null, formData)
     if (res?.erfolg) {
-      // Optimistisch — Anhang wird beim nächsten Reload (Navigation) voll geladen
+      const datei = formData.get('datei') as File | null
+      const text  = (formData.get('nachricht') as string) ?? ''
+      let typ: ChatNachrichtTyp = 'text'
+      let anhangName: string | null = null
+      let anhangGroesse: number | null = null
+      let anhangTyp: string | null = null
+      if (datei && datei.size > 0) {
+        if (datei.type.startsWith('image/'))      typ = 'bild'
+        else if (datei.type.startsWith('audio/')) typ = 'audio'
+        else                                      typ = 'datei'
+        anhangName    = datei.name
+        anhangGroesse = datei.size
+        anhangTyp     = datei.type
+      }
       setNachrichten((prev) => [...prev, {
-        id:         crypto.randomUUID(),
-        nachricht:  (formData.get('nachricht') as string) ?? '',
-        von_kunde:  true,
-        created_at: new Date().toISOString(),
-        typ:        'text',
+        id:            `temp-${crypto.randomUUID()}`,
+        nachricht:     text,
+        von_kunde:     true,
+        created_at:    new Date().toISOString(),
+        typ,
+        anhang_pfad:   anhangName ? 'pending-upload' : null,
+        anhang_name:   anhangName,
+        anhang_groesse:anhangGroesse,
+        anhang_typ:    anhangTyp,
       }])
+      // Server-Refresh, um temp-Items durch die echten zu ersetzen.
+      router.refresh()
     }
     return res ?? {}
   }
