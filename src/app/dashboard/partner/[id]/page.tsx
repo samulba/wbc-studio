@@ -13,7 +13,8 @@ type ProduktMitRaum = {
   id: string; name: string; menge: number; einheit: string
   verkaufspreis: number | null
   raeume: { id: string; name: string; projekte: { id: string; name: string } | null } | null
-  produktstatus: { status: string } | null
+  // Aggregierter Freigabe-Status aus raum_produkte (Mig. 078)
+  aggStatus?: string
 }
 
 const eur = (n: number) =>
@@ -61,7 +62,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
     supabase.from('partner').select('*').eq('id', params.id).is('deleted_at', null).single(),
     supabase
       .from('produkte')
-      .select('id, name, menge, einheit, verkaufspreis, produktstatus(status), raeume(id, name, projekte(id, name))')
+      .select('id, name, menge, einheit, verkaufspreis, raeume(id, name, projekte(id, name))')
       .eq('partner_id', params.id).is('deleted_at', null)
       .order('created_at', { ascending: false }),
     getPartnerNotizen(params.id),
@@ -72,8 +73,24 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
 
   const loeschenAktion = partnerSoftDelete.bind(null, partner.id)
   const gesamtUmsatz   = (produkte ?? []).reduce((s, p) => s + (p.verkaufspreis ?? 0) * p.menge, 0)
-  const produktListe   = (produkte ?? []) as unknown as ProduktMitRaum[]
+  let produktListe     = (produkte ?? []) as unknown as ProduktMitRaum[]
   const bewertung      = partner.bewertung as number | null
+
+  // Aggregierter Freigabe-Status pro Produkt (Mig. 078): wenn irgendein
+  // raum_produkte-Eintrag 'freigegeben' ist → freigegeben; sonst erstes Vorkommen.
+  if (produktListe.length > 0) {
+    const produktIds = produktListe.map((p) => p.id)
+    const { data: rpStatus } = await supabase
+      .from('raum_produkte')
+      .select('produkt_id, freigabe_status')
+      .in('produkt_id', produktIds)
+    const statusMap: Record<string, string> = {}
+    for (const r of rpStatus ?? []) {
+      const cur = statusMap[r.produkt_id]
+      if (!cur || r.freigabe_status === 'freigegeben') statusMap[r.produkt_id] = r.freigabe_status
+    }
+    produktListe = produktListe.map((p) => ({ ...p, aggStatus: statusMap[p.id] ?? 'ausstehend' }))
+  }
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
@@ -277,7 +294,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                   </thead>
                   <tbody>
                     {produktListe.map((p, i) => {
-                      const status = (p.produktstatus as { status: string } | null)?.status ?? 'ausstehend'
+                      const status = p.aggStatus ?? 'ausstehend'
                       return (
                         <tr key={p.id} className={`hover:bg-gray-50 transition-colors ${i < produktListe.length - 1 ? 'border-b border-gray-100' : ''}`}>
                           <td className="px-4 py-3.5 font-medium text-gray-900">{p.name}</td>

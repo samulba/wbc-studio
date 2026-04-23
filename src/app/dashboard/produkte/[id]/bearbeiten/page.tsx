@@ -17,13 +17,17 @@ async function getPartner(): Promise<Pick<Partner, 'id' | 'name'>[]> {
 
 async function getProdukt(produktId: string): Promise<ProduktMitDetails | null> {
   const supabase = await createClient()
+  // Mig. 078: produktstatus-JOIN entfernt; das Bearbeiten-Formular nutzt
+  // das Feld nicht mehr aktiv (Status wird jetzt pro raum_produkte gesetzt).
   const { data } = await supabase
     .from('produkte')
-    .select('*, partner(id, name), produktstatus(status, kommentar)')
+    .select('*, partner(id, name)')
     .eq('id', produktId)
     .is('deleted_at', null)
     .single()
-  return data as ProduktMitDetails | null
+  if (!data) return null
+  // Altes Interface erwartet noch produktstatus — neutrales Default liefern
+  return { ...data, produktstatus: null } as ProduktMitDetails
 }
 
 async function getProduktNotizen(produktId: string): Promise<Notiz[]> {

@@ -371,34 +371,50 @@ export async function konfiguratorAuswahlZuAngebot(
 
 
 // ── Auswahl als Freigabe-Status übernehmen (Admin) ────────────
+// Seit Mig. 078: schreibt auf raum_produkte.freigabe_status via
+// freigabeStatusSetzen (kanal='admin') statt in produktstatus.
+// 'alternative_gewuenscht' wird auf 'abgelehnt' gemappt (keine
+// ueberarbeitung mehr im neuen 3-Werte-Schema).
 export async function auswahlAlsFreigabeUebernehmen(sessionId: string): Promise<{ fehler?: string }> {
   const supabase = await createClient()
 
   const { data: auswahl } = await supabase
     .from('konfigurator_auswahl')
-    .select('produkt_id, status')
+    .select('produkt_id, status, session:konfigurator_sessions!inner(projekt_id)')
     .eq('session_id', sessionId)
 
-  if (!auswahl) return { fehler: 'Keine Auswahl gefunden.' }
+  if (!auswahl || auswahl.length === 0) return { fehler: 'Keine Auswahl gefunden.' }
 
+  const projektId = (auswahl[0].session as unknown as { projekt_id: string } | null)?.projekt_id
+  if (!projektId) return { fehler: 'Konfigurator-Session ohne Projekt.' }
+
+  // Alle raum_produkte des Projekts für die betroffenen produkt_ids laden
+  const produktIds = Array.from(new Set(auswahl.map((a) => a.produkt_id)))
+  const { data: rps } = await supabase
+    .from('raum_produkte')
+    .select('id, produkt_id, raeume!inner(projekt_id)')
+    .in('produkt_id', produktIds)
+
+  const rpsImProjekt = (rps ?? []).filter(
+    (r) => (r.raeume as unknown as { projekt_id: string }).projekt_id === projektId,
+  )
+
+  const { freigabeStatusSetzen } = await import('./freigaben')
   for (const a of auswahl) {
-    const freigabeStatus =
-      a.status === 'ausgewaehlt'              ? 'freigegeben'   :
-      a.status === 'abgelehnt'                ? 'abgelehnt'     :
-      a.status === 'alternative_gewuenscht'   ? 'ueberarbeitung' :
+    const status: 'freigegeben' | 'abgelehnt' | null =
+      a.status === 'ausgewaehlt'            ? 'freigegeben' :
+      a.status === 'abgelehnt'              ? 'abgelehnt'   :
+      a.status === 'alternative_gewuenscht' ? 'abgelehnt'   :
       null
-    if (!freigabeStatus) continue
-
-    const { data: existing } = await supabase
-      .from('produktstatus')
-      .select('id')
-      .eq('produkt_id', a.produkt_id)
-      .maybeSingle()
-
-    if (existing) {
-      await supabase.from('produktstatus').update({ status: freigabeStatus }).eq('id', existing.id)
-    } else {
-      await supabase.from('produktstatus').insert({ produkt_id: a.produkt_id, status: freigabeStatus })
+    if (!status) continue
+    for (const rp of rpsImProjekt.filter((r) => r.produkt_id === a.produkt_id)) {
+      await freigabeStatusSetzen({
+        raumProduktId: rp.id,
+        status,
+        kommentar:     a.status === 'alternative_gewuenscht' ? 'Alternative gewünscht (Konfigurator)' : null,
+        kanal:         'admin',
+        kontext:       { geaendertVon: 'Admin (Konfigurator-Übernahme)' },
+      })
     }
   }
 

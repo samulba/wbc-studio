@@ -4,16 +4,14 @@ import FreigabenTabelle, { type FreigabeEintrag } from '@/components/FreigabenTa
 async function getAlleProdukte(): Promise<FreigabeEintrag[]> {
   const supabase = await createClient()
 
-  // Lädt via raum_produkte – erfasst sowohl direkt angelegte als auch
-  // Library-Produkte (ProduktHinzufuegenModal), die nur via raum_produkte verknüpft sind.
+  // Seit Mig. 078: freigabe_status/kommentar direkt auf raum_produkte.
+  // Eintrag = pro Raum-Instanz eines Produkts (kein globaler produktstatus-JOIN mehr).
   const { data } = await supabase
     .from('raum_produkte')
     .select(`
-      menge,
-      verkaufspreis_override,
+      id, menge, verkaufspreis_override, freigabe_status, freigabe_kommentar,
       produkte!inner(
-        id, name, kategorie, einheit, verkaufspreis, bild_url, created_at, deleted_at,
-        produktstatus ( status, kommentar )
+        id, name, kategorie, einheit, verkaufspreis, bild_url, created_at, deleted_at
       ),
       raeume!inner(
         id, name, projekt_id,
@@ -23,13 +21,15 @@ async function getAlleProdukte(): Promise<FreigabeEintrag[]> {
     .order('created_at', { referencedTable: 'produkte', ascending: false })
 
   type RpRow = {
+    id: string
     menge: number
     verkaufspreis_override: number | null
+    freigabe_status: string
+    freigabe_kommentar: string | null
     produkte: {
       id: string; name: string; kategorie: string | null; einheit: string
       verkaufspreis: number | null; bild_url: string | null
       created_at: string; deleted_at: string | null
-      produktstatus: { status: string; kommentar: string | null } | { status: string; kommentar: string | null }[] | null
     }
     raeume: {
       id: string; name: string; projekt_id: string
@@ -39,24 +39,21 @@ async function getAlleProdukte(): Promise<FreigabeEintrag[]> {
 
   return ((data ?? []) as unknown as RpRow[])
     .filter((row) => !row.produkte.deleted_at)
-    .map((row): FreigabeEintrag => {
-      type PS = { status: string; kommentar: string | null } | null
-      const psRaw = row.produkte.produktstatus as PS | PS[]
-      const ps = Array.isArray(psRaw) ? psRaw[0] ?? null : psRaw
-      return {
-        id:         row.produkte.id,
-        name:       row.produkte.name,
-        kategorie:  row.produkte.kategorie,
-        menge:      row.menge,
-        einheit:    row.produkte.einheit,
-        // Preis-Override aus raum_produkte hat Vorrang
-        verkaufspreis: row.verkaufspreis_override ?? row.produkte.verkaufspreis,
-        bild_url:   row.produkte.bild_url,
-        created_at: row.produkte.created_at,
-        raeume:     row.raeume,
-        produktstatus: ps,
-      }
-    })
+    .map((row): FreigabeEintrag => ({
+      id:         row.id,                    // raum_produkte.id (für Reset-Action)
+      name:       row.produkte.name,
+      kategorie:  row.produkte.kategorie,
+      menge:      row.menge,
+      einheit:    row.produkte.einheit,
+      verkaufspreis: row.verkaufspreis_override ?? row.produkte.verkaufspreis,
+      bild_url:   row.produkte.bild_url,
+      created_at: row.produkte.created_at,
+      raeume:     row.raeume,
+      produktstatus: {
+        status:    row.freigabe_status,
+        kommentar: row.freigabe_kommentar,
+      },
+    }))
 }
 
 export default async function FreigabenPage() {

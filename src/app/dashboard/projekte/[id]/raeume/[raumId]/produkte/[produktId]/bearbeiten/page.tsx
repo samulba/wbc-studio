@@ -17,13 +17,15 @@ async function getPartner(): Promise<Pick<Partner, 'id' | 'name'>[]> {
 
 async function getProdukt(produktId: string): Promise<ProduktMitDetails | null> {
   const supabase = await createClient()
+  // Mig. 078: produktstatus-JOIN entfernt (Status ist pro raum_produkte)
   const { data } = await supabase
     .from('produkte')
-    .select('*, partner(id, name), produktstatus(status, kommentar)')
+    .select('*, partner(id, name)')
     .eq('id', produktId)
     .is('deleted_at', null)
     .single()
-  return data as ProduktMitDetails | null
+  if (!data) return null
+  return { ...data, produktstatus: null } as ProduktMitDetails
 }
 
 async function getProduktNotizen(produktId: string): Promise<Notiz[]> {

@@ -125,9 +125,29 @@ export async function getRaumProdukte(raumId: string): Promise<RaumProduktMitDet
   const supabase = await createClient()
   const { data } = await supabase
     .from('raum_produkte')
-    .select('*, produkte(*, partner(id, name), produktstatus(status, kommentar))')
+    // Mig. 078: freigabe_status/kommentar liegen auf raum_produkte.
+    // ProduktMitDetails erwartet noch ein produktstatus-Objekt — wir
+    // synthetisieren es aus den raum_produkte-Feldern, damit bestehende
+    // UI-Komponenten (SortableProduktTabelle etc.) unverändert laufen.
+    .select('*, produkte(*, partner(id, name))')
     .eq('raum_id', raumId)
     .order('reihenfolge')
     .order('created_at')
-  return (data ?? []) as RaumProduktMitDetails[]
+
+  type RpRow = {
+    freigabe_status: string
+    freigabe_kommentar: string | null
+    produkte: Record<string, unknown>
+  }
+
+  return ((data ?? []) as unknown as (RpRow & Record<string, unknown>)[]).map((rp) => ({
+    ...rp,
+    produkte: {
+      ...rp.produkte,
+      produktstatus: {
+        status:    rp.freigabe_status,
+        kommentar: rp.freigabe_kommentar,
+      },
+    },
+  })) as RaumProduktMitDetails[]
 }

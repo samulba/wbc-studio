@@ -115,7 +115,7 @@ export async function produktInBibliothekAnlegen(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
-  const { data: produkt, error } = await supabase
+  const { error } = await supabase
     .from('produkte')
     .insert({
       raum_id: null,
@@ -135,16 +135,12 @@ export async function produktInBibliothekAnlegen(
       ...neueFelder(formData),
       organisation_id: orgId,
     })
-    .select('id')
-    .single()
 
   if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
 
-  await supabase.from('produktstatus').insert({
-    produkt_id: produkt.id,
-    status: 'ausstehend',
-    organisation_id: orgId,
-  })
+  // Seit Mig. 078: kein produktstatus-Insert mehr — Freigabe-Status
+  // liegt auf raum_produkte (default 'ausstehend'). Library-Produkt ohne
+  // Raum-Zuordnung braucht keinen Status-Eintrag.
 
   revalidatePath('/dashboard/produkte')
   redirect('/dashboard/produkte')
@@ -185,13 +181,9 @@ export async function produktAnlegen(
 
   if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
 
-  // Produktstatus + Raum-Verknüpfung parallel anlegen
+  // Seit Mig. 078: freigabe_status liegt auf raum_produkte (default
+  // 'ausstehend' via Column-Default). Kein produktstatus-Insert mehr.
   await Promise.all([
-    supabase.from('produktstatus').insert({
-      produkt_id: produkt.id,
-      status: 'ausstehend',
-      organisation_id: orgId,
-    }),
     supabase.from('raum_produkte').insert({
       organisation_id: orgId,
       raum_id: raumId,
@@ -275,16 +267,9 @@ export async function produktAktualisieren(
     }
   }
 
-  // Status upserten
-  await supabase
-    .from('produktstatus')
-    .upsert(
-      {
-        produkt_id: produktId,
-        status: (formData.get('status') as ProduktStatus) || 'ausstehend',
-      },
-      { onConflict: 'produkt_id' }
-    )
+  // Seit Mig. 078: kein produktstatus-Upsert mehr — Freigabe-Status
+  // wird über die neuen Actions in freigaben.ts pro raum_produkte
+  // gesetzt (Portal/Token/Admin-Flows).
 
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
   redirect(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
@@ -386,7 +371,7 @@ export async function produktFuerPartnerAnlegen(
   const name = (formData.get('name') as string)?.trim()
   if (!name) return { fehler: 'Produktname ist erforderlich.' }
 
-  const { data: produkt, error } = await supabase
+  const { error } = await supabase
     .from('produkte')
     .insert({
       raum_id: null,
@@ -398,16 +383,9 @@ export async function produktFuerPartnerAnlegen(
       produkt_url: (formData.get('produkt_url') as string) || null,
       organisation_id: orgId,
     })
-    .select('id')
-    .single()
 
   if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
-
-  await supabase.from('produktstatus').insert({
-    produkt_id: produkt.id,
-    status: 'ausstehend',
-    organisation_id: orgId,
-  })
+  // Seit Mig. 078: kein produktstatus-Insert mehr.
 
   revalidatePath(`/dashboard/partner/${partnerId}`)
   return null
@@ -537,18 +515,21 @@ export async function produktDatumAktualisieren(
   return { bestellstatus: neuerStatus }
 }
 
+/**
+ * @deprecated seit Mig. 078. produktstatus wurde durch raum_produkte.
+ *   freigabe_status ersetzt. Nutze freigabeStatusSetzen() aus
+ *   freigaben.ts mit raum_produkte.id + kanal='admin'.
+ */
 export async function produktStatusAendern(
-  produktId: string,
-  raumId: string,
+  _produktId: string,
+  _raumId: string,
   projektId: string,
-  status: ProduktStatus
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _status: ProduktStatus
 ): Promise<void> {
-  const supabase = await createClient()
-  await supabase
-    .from('produktstatus')
-    .upsert({ produkt_id: produktId, status }, { onConflict: 'produkt_id' })
-
-  revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
+  // No-op: alte Aufrufer werden beim nächsten Release entfernt.
+  console.warn('[produktStatusAendern] deprecated seit Mig. 078 — nutze freigabeStatusSetzen')
+  revalidatePath(`/dashboard/projekte/${projektId}`)
 }
 
 // ── Produkt-Varianten (Migration 041) ─────────────────────────
@@ -605,13 +586,7 @@ export async function varianteAnlegen(
     .single()
 
   if (error || !variante) return { fehler: 'Fehler beim Anlegen der Variante.' }
-
-  // Produktstatus für Variante anlegen
-  await supabase.from('produktstatus').insert({
-    produkt_id: variante.id,
-    status: 'ausstehend',
-    organisation_id: orgId,
-  })
+  // Seit Mig. 078: kein produktstatus-Insert mehr.
 
   revalidatePath('/dashboard/produkte')
   return { id: variante.id }

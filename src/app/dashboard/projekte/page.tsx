@@ -12,9 +12,10 @@ async function getProjekteMitStats(): Promise<ProjektMitStats[]> {
   const [{ data: projekte }, { data: raeume }, { data: rps }] = await Promise.all([
     supabase.from('projekte').select('*, kunden(id, name, logo_url)').is('deleted_at', null).order('archiviert').order('created_at', { ascending: false }),
     supabase.from('raeume').select('id, projekt_id').is('deleted_at', null),
+    // Mig. 078: freigabe_status direkt auf raum_produkte (nicht produktstatus-JOIN)
     supabase
       .from('raum_produkte')
-      .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, produkte(verkaufspreis, deleted_at, bestellstatus, produktstatus(status))'),
+      .select('raum_id, menge, verkaufspreis_override, rabatt_prozent, freigabe_status, produkte(verkaufspreis, deleted_at, bestellstatus)'),
   ])
 
   // raum_id → projekt_id
@@ -36,11 +37,11 @@ async function getProjekteMitStats(): Promise<ProjektMitStats[]> {
     menge: number
     verkaufspreis_override: number | null
     rabatt_prozent: number | null
+    freigabe_status: string | null
     produkte: {
       verkaufspreis: number | null
       deleted_at: string | null
       bestellstatus: string | null
-      produktstatus: { status: string } | { status: string }[] | null
     } | null
   }
   for (const e of (rps ?? []) as unknown as Row[]) {
@@ -57,10 +58,8 @@ async function getProjekteMitStats(): Promise<ProjektMitStats[]> {
     const vp = Math.round(basis * (1 - rabatt / 100) * 100) / 100
     vpGesamt[pid] = (vpGesamt[pid] ?? 0) + vp * e.menge
 
-    // Freigabe
-    const psRaw = prod.produktstatus
-    const ps = Array.isArray(psRaw) ? psRaw[0] : psRaw
-    if (ps?.status === 'freigegeben') {
+    // Freigabe (Mig. 078: raum_produkte.freigabe_status)
+    if (e.freigabe_status === 'freigegeben') {
       freigegebenCount[pid] = (freigegebenCount[pid] ?? 0) + 1
     }
 

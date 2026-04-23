@@ -11,7 +11,6 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { freigabeStatusSetzen } from './freigaben'
 import type { FreigabeStatus } from '@/lib/supabase/types'
@@ -70,26 +69,16 @@ export async function freigabeStatusAendern(
 }
 
 /**
- * @deprecated — nutze freigabeStatusSetzen mit kanal='admin'.
+ * Setzt die Freigabe einer raum_produkt-Instanz auf 'ausstehend' zurück.
+ * Wird aus der Admin-Freigaben-Übersicht gecallt. Schreibt Audit-Log.
  */
-export async function freigabeZuruecksetzenAdmin(produktId: string): Promise<void> {
-  const supabase = await createClient()
-
-  // Alle raum_produkte-Einträge dieses Produkts finden und zurücksetzen
-  const { data: rps } = await supabase
-    .from('raum_produkte')
-    .select('id')
-    .eq('produkt_id', produktId)
-
-  for (const rp of rps ?? []) {
-    await freigabeStatusSetzen({
-      raumProduktId: rp.id,
-      status:        'ausstehend',
-      kommentar:     null,
-      kanal:         'admin',
-      kontext:       { geaendertVon: 'Admin' },
-    })
-  }
-
+export async function freigabeZuruecksetzenAdmin(raumProduktId: string): Promise<void> {
+  await freigabeStatusSetzen({
+    raumProduktId,
+    status:    'ausstehend',
+    kommentar: null,
+    kanal:     'admin',
+    kontext:   { geaendertVon: 'Admin' },
+  })
   revalidatePath('/dashboard/freigaben')
 }
