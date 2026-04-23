@@ -288,7 +288,9 @@ export type ProduktMitDetails = Produkt & {
   produktstatus: { status: ProduktStatus; kommentar: string | null } | null
 }
 
-// ── Raum-Produkt-Verknüpfung (Migration 038 + 058 Rabatt) ────
+// ── Raum-Produkt-Verknüpfung (Migration 038 + 058 Rabatt + 078 Freigabe) ────
+export type FreigabeStatus = 'ausstehend' | 'freigegeben' | 'abgelehnt'
+
 export interface RaumProdukt {
   id: string
   organisation_id: string
@@ -299,6 +301,10 @@ export interface RaumProdukt {
   rabatt_prozent: number | null
   reihenfolge: number
   notizen: string | null
+  // Freigabe-Felder (Migration 078) — Single Source of Truth
+  freigabe_status: FreigabeStatus
+  freigabe_kommentar: string | null
+  freigegeben_am: string | null
   created_at: string
 }
 
@@ -323,6 +329,9 @@ export interface Produktstatus {
   updated_at: string
 }
 
+// ── Freigabe-Token + Scope + Abschluss (Migration 078) ────────
+export type FreigabeScopeTyp = 'projekt' | 'raum' | 'auswahl'
+
 export interface FreigabeToken {
   id: string
   organisation_id?: string | null
@@ -330,6 +339,30 @@ export interface FreigabeToken {
   token: string
   gueltig_bis: string | null
   aktiv: boolean
+  // Scope (Migration 078)
+  scope_typ: FreigabeScopeTyp
+  scope_ids: string[]
+  // Abschluss (Migration 078)
+  abgeschlossen_am: string | null
+  abgeschlossen_durch: string | null
+  abgeschlossen_kommentar: string | null
+  deleted_at: string | null
+  created_at: string
+}
+
+// ── Freigabe-Audit-Log (Migration 079) ───────────────────────
+export type FreigabeKanal = 'portal' | 'token' | 'admin' | 'system'
+
+export interface FreigabeAudit {
+  id: string
+  organisation_id: string
+  token_id: string | null
+  raum_produkt_id: string | null
+  alter_status: FreigabeStatus | null
+  neuer_status: FreigabeStatus
+  kommentar: string | null
+  geaendert_von: string
+  kanal: FreigabeKanal
   created_at: string
 }
 
@@ -606,7 +639,7 @@ export interface KonfiguratorAuswahl {
 export type TimelineEventTyp    = 'meilenstein' | 'lieferung' | 'termin' | 'phase'
 export type TimelineEventStatus = 'geplant' | 'in_arbeit' | 'abgeschlossen' | 'verspaetet'
 
-export type TimelineEventQuelle = 'manuell' | 'produkt' | 'bestellstatus' | 'deadline' | 'angebot' | 'vertrag'
+export type TimelineEventQuelle = 'manuell' | 'produkt' | 'bestellstatus' | 'deadline' | 'angebot' | 'vertrag' | 'freigabe'
 
 export interface TimelineEvent {
   id: string

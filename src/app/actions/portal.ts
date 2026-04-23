@@ -351,19 +351,19 @@ export async function portalDashboardDaten() {
     for (const r of raeume ?? []) raumMap[r.id] = r.projekt_id
 
     if (raumIds.length > 0) {
-      const { data: produkte } = await supabase
-        .from('produkte')
+      // Seit Mig. 078: freigabe_status liegt auf raum_produkte (per Raum-Instanz)
+      const { data: rps } = await supabase
+        .from('raum_produkte')
         .select('raum_id, freigabe_status')
         .in('raum_id', raumIds)
-        .is('deleted_at', null)
 
-      for (const p of produkte ?? []) {
-        const pid = raumMap[p.raum_id]
+      for (const rp of rps ?? []) {
+        const pid = raumMap[rp.raum_id]
         if (!pid) continue
         if (!statsMap[pid]) statsMap[pid] = { gesamt: 0, ausstehend: 0, freigegeben: 0 }
         statsMap[pid].gesamt++
-        if (!p.freigabe_status || p.freigabe_status === 'ausstehend') statsMap[pid].ausstehend++
-        if (p.freigabe_status === 'freigegeben') statsMap[pid].freigegeben++
+        if (!rp.freigabe_status || rp.freigabe_status === 'ausstehend') statsMap[pid].ausstehend++
+        if (rp.freigabe_status === 'freigegeben') statsMap[pid].freigegeben++
       }
     }
   }
@@ -444,16 +444,51 @@ export async function portalProjektAbrufen(projektId: string) {
 
   const raumIds = (raeume ?? []).map((r) => r.id)
 
-  // Produkte (KEINE internen Felder!)
+  // Produkte (KEINE internen Felder!). Seit Mig. 078:
+  // freigabe_status + Menge kommen von raum_produkte (per Raum-Instanz),
+  // Stammdaten (name/bild/preis) vom produkte-Eintrag selbst.
   let produkte: PortalProdukt[] = []
   if (raumIds.length > 0) {
     const { data } = await supabase
-      .from('produkte')
-      .select('id, name, beschreibung, image_url, kategorie, menge, einheit, verkaufspreis, freigabe_status, raum_id')
+      .from('raum_produkte')
+      .select(`
+        id, raum_id, menge, freigabe_status, verkaufspreis_override,
+        produkte(id, name, beschreibung, image_url, kategorie, einheit, verkaufspreis)
+      `)
       .in('raum_id', raumIds)
-      .is('deleted_at', null)
       .order('reihenfolge')
-    produkte = (data ?? []) as PortalProdukt[]
+
+    type RpRow = {
+      id: string
+      raum_id: string
+      menge: number
+      freigabe_status: string | null
+      verkaufspreis_override: number | null
+      produkte: {
+        id: string
+        name: string
+        beschreibung: string | null
+        image_url: string | null
+        kategorie: string | null
+        einheit: string | null
+        verkaufspreis: number | null
+      } | null
+    }
+
+    produkte = ((data ?? []) as unknown as RpRow[])
+      .filter((rp) => rp.produkte !== null)
+      .map((rp) => ({
+        id:              rp.produkte!.id,
+        name:            rp.produkte!.name,
+        beschreibung:    rp.produkte!.beschreibung,
+        image_url:       rp.produkte!.image_url,
+        kategorie:       rp.produkte!.kategorie,
+        menge:           rp.menge,
+        einheit:         rp.produkte!.einheit,
+        verkaufspreis:   rp.verkaufspreis_override ?? rp.produkte!.verkaufspreis,
+        freigabe_status: rp.freigabe_status,
+        raum_id:         rp.raum_id,
+      }))
   }
 
   const raeumeMitProdukten: PortalRaum[] = (raeume ?? []).map((r) => ({
@@ -503,34 +538,59 @@ export async function portalProjektAbrufen(projektId: string) {
 }
 
 // ── PORTAL: PRODUKT FREIGEBEN ─────────────────────────────────
+// Schreibt seit Migration 078 nach raum_produkte.freigabe_status
+// (vorher produkte.freigabe_status) via freigabeStatusSetzen.
+// Audit-Eintrag wird automatisch mit kanal='portal' angelegt.
 
 export async function portalProduktFreigeben(
   produktId: string,
-  status: string
+  status: string,
 ): Promise<void> {
   const session = await requireSession()
   const supabase = createAdminClient()
 
-  // Ownership-Prüfung: Produkt → Raum → Projekt → Kunde
+  // Ownership-Prüfung + alle raum_produkte des Produkts im Projekt des Kunden finden
   const { data: produkt } = await supabase
     .from('produkte')
-    .select('raum_id, raeume(projekt_id, projekte(kunde_id))')
+    .select('id, raum_id, raeume(id, projekt_id, projekte(kunde_id))')
     .eq('id', produktId)
     .maybeSingle()
 
   const raumData = Array.isArray(produkt?.raeume) ? produkt?.raeume[0] : produkt?.raeume
-  const raw = raumData as { projekt_id: string; projekte: { kunde_id: string } | { kunde_id: string }[] | null } | null
+  const raw = raumData as
+    | { id: string; projekt_id: string; projekte: { kunde_id: string } | { kunde_id: string }[] | null }
+    | null
   if (!raw) return
   const projekteRaw = raw.projekte
   const kundeId = Array.isArray(projekteRaw) ? projekteRaw[0]?.kunde_id : projekteRaw?.kunde_id
   if (kundeId !== session.kundeId) return
 
-  await supabase
-    .from('produkte')
-    .update({ freigabe_status: status })
-    .eq('id', produktId)
+  // Nur gültige Freigabe-Status akzeptieren
+  if (status !== 'freigegeben' && status !== 'abgelehnt' && status !== 'ausstehend') return
 
-  // Aktivität loggen
+  const { freigabeStatusSetzen } = await import('./freigaben')
+
+  // Alle raum_produkte-Einträge dieses Produkts im Projekt finden
+  const { data: rps } = await supabase
+    .from('raum_produkte')
+    .select('id, raeume!inner(projekt_id)')
+    .eq('produkt_id', produktId)
+
+  const betroffen = (rps ?? []).filter(
+    (row) => (row.raeume as unknown as { projekt_id: string }).projekt_id === raw.projekt_id,
+  )
+
+  for (const rp of betroffen) {
+    await freigabeStatusSetzen({
+      raumProduktId: rp.id,
+      status,
+      kommentar:     null,
+      kanal:         'portal',
+      kontext:       { geaendertVon: `${session.vorname} ${session.nachname}`.trim() || session.email },
+    })
+  }
+
+  // Aktivität loggen (alt, bleibt für Portal-History)
   await supabase.from('client_aktivitaeten').insert({
     projekt_id:  raw.projekt_id,
     kunde_id:    session.kundeId,
@@ -543,7 +603,6 @@ export async function portalAlleFreigeben(projektId: string): Promise<void> {
   const session = await requireSession()
   const supabase = createAdminClient()
 
-  // Projekt gehört zum Kunden?
   const { data: projekt } = await supabase
     .from('projekte')
     .select('id')
@@ -552,7 +611,6 @@ export async function portalAlleFreigeben(projektId: string): Promise<void> {
     .maybeSingle()
   if (!projekt) return
 
-  // Räume → Produkte
   const { data: raeume } = await supabase
     .from('raeume')
     .select('id')
@@ -562,12 +620,23 @@ export async function portalAlleFreigeben(projektId: string): Promise<void> {
   const raumIds = (raeume ?? []).map((r) => r.id)
   if (raumIds.length === 0) return
 
-  await supabase
-    .from('produkte')
-    .update({ freigabe_status: 'freigegeben' })
+  // Alle offenen raum_produkte finden
+  const { data: offeneRps } = await supabase
+    .from('raum_produkte')
+    .select('id')
     .in('raum_id', raumIds)
-    .is('deleted_at', null)
-    .or('freigabe_status.is.null,freigabe_status.eq.ausstehend')
+    .eq('freigabe_status', 'ausstehend')
+
+  const { freigabeStatusSetzen } = await import('./freigaben')
+  for (const rp of offeneRps ?? []) {
+    await freigabeStatusSetzen({
+      raumProduktId: rp.id,
+      status:        'freigegeben',
+      kommentar:     null,
+      kanal:         'portal',
+      kontext:       { geaendertVon: `${session.vorname} ${session.nachname}`.trim() || session.email },
+    })
+  }
 }
 
 // ── PORTAL: NACHRICHTEN ───────────────────────────────────────
