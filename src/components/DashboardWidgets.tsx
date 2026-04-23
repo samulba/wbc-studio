@@ -527,8 +527,15 @@ export function LetzteProjekte({ projekte }: { projekte: LetzesProjekt[] }) {
       </div>
 
       {projekte.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-xs text-gray-400">Noch keine Projekte vorhanden.</p>
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 py-12 px-6 text-center min-h-[180px]">
+          <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+            <FolderOpen className="w-5 h-5 text-gray-400" />
+          </div>
+          <p className="text-sm font-medium text-gray-500">Noch keine Projekte vorhanden</p>
+          <p className="text-xs text-gray-400">Leg dein erstes Projekt an, um loszulegen.</p>
+          <Link href="/dashboard/projekte/neu" className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-xs font-medium rounded-lg transition-colors">
+            Projekt anlegen →
+          </Link>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">

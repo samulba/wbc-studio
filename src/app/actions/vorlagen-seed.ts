@@ -353,6 +353,21 @@ export async function standardVorlagenErstellenAction(): Promise<{ erstellt: num
 export async function erstelleStandardKategorien(orgId: string): Promise<void> {
   const admin = createAdminClient()
 
+  const produktkategorien = [
+    { name: 'Möbel',        icon: 'Sofa',       reihenfolge: 1 },
+    { name: 'Leuchten',     icon: 'Lightbulb',  reihenfolge: 2 },
+    { name: 'Textilien',    icon: 'Shirt',      reihenfolge: 3 },
+    { name: 'Accessoires',  icon: 'Sparkles',   reihenfolge: 4 },
+    { name: 'Teppiche',     icon: 'Square',     reihenfolge: 5 },
+    { name: 'Sanitär',      icon: 'Bath',       reihenfolge: 6 },
+    { name: 'Küche',        icon: 'ChefHat',    reihenfolge: 7 },
+    { name: 'Boden',        icon: 'Grid',       reihenfolge: 8 },
+    { name: 'Wand',         icon: 'Paintbrush', reihenfolge: 9 },
+    { name: 'Pflanzen',     icon: 'Leaf',       reihenfolge: 10 },
+    { name: 'Kunst',        icon: 'Palette',    reihenfolge: 11 },
+    { name: 'Sonstiges',    icon: 'Package',    reihenfolge: 12 },
+  ]
+
   const projektarten = [
     { name: 'Privat',       icon: 'Home',        reihenfolge: 1 },
     { name: 'Gewerbe',      icon: 'Store',       reihenfolge: 2 },
@@ -381,8 +396,9 @@ export async function erstelleStandardKategorien(orgId: string): Promise<void> {
   ]
 
   const rows = [
-    ...projektarten.map((p) => ({ organisation_id: orgId, typ: 'projektart', ...p })),
-    ...raumtypen.map((r)    => ({ organisation_id: orgId, typ: 'raumtyp',    ...r })),
+    ...produktkategorien.map((p) => ({ organisation_id: orgId, typ: 'produktkategorie', ...p })),
+    ...projektarten.map((p)      => ({ organisation_id: orgId, typ: 'projektart',       ...p })),
+    ...raumtypen.map((r)         => ({ organisation_id: orgId, typ: 'raumtyp',          ...r })),
   ]
 
   // onConflict auf (organisation_id, typ, name) → idempotent
@@ -390,4 +406,67 @@ export async function erstelleStandardKategorien(orgId: string): Promise<void> {
     onConflict: 'organisation_id,typ,name',
     ignoreDuplicates: true,
   })
+}
+
+
+// ============================================================
+// Kombinierter Seed für die UI: Kategorien + Vertragsvorlagen + Onboarding
+// ============================================================
+
+/**
+ * Führt alle drei Standard-Seeds für die aktuelle Organisation aus.
+ * Wird vom Kategorien-Banner aufgerufen, damit Admins neuer Orgs
+ * (z.B. per SQL-Insert ohne Auth-Callback angelegt) die Default-Daten
+ * nachladen können. Alle Teil-Seeds sind idempotent.
+ */
+export async function alleStandardDatenLadenAction(): Promise<{
+  kategorien: number
+  vertragsvorlagen: number
+  onboardingvorlagen: number
+  fehler?: string
+}> {
+  const { createClient, getOrganisationId } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { kategorien: 0, vertragsvorlagen: 0, onboardingvorlagen: 0, fehler: 'Nicht angemeldet.' }
+
+  const orgId = await getOrganisationId()
+  if (!orgId) return { kategorien: 0, vertragsvorlagen: 0, onboardingvorlagen: 0, fehler: 'Keine Organisation gefunden.' }
+
+  const admin = createAdminClient()
+
+  const { count: kategorienVorher } = await admin
+    .from('kategorien')
+    .select('id', { count: 'exact', head: true })
+    .eq('organisation_id', orgId)
+
+  await erstelleStandardKategorien(orgId)
+
+  const { count: kategorienNachher } = await admin
+    .from('kategorien')
+    .select('id', { count: 'exact', head: true })
+    .eq('organisation_id', orgId)
+
+  const deltaKategorien = (kategorienNachher ?? 0) - (kategorienVorher ?? 0)
+
+  // Vertragsvorlagen (nur wenn noch keine existieren)
+  const { data: bestehendeVV } = await admin
+    .from('vertrags_vorlagen')
+    .select('id')
+    .eq('organisation_id', orgId)
+    .limit(1)
+  let vvErstellt = 0
+  if (!bestehendeVV || bestehendeVV.length === 0) {
+    const r = await erstelleStandardVorlagen(orgId)
+    vvErstellt = r.erstellt
+  }
+
+  // Onboarding-Vorlagen (prüft selbst auf Bestehendes)
+  const ov = await erstelleStandardOnboardingVorlagen(orgId)
+
+  return {
+    kategorien:         deltaKategorien,
+    vertragsvorlagen:   vvErstellt,
+    onboardingvorlagen: ov.erstellt,
+  }
 }
