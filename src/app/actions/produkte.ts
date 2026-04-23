@@ -214,21 +214,34 @@ export async function produktAktualisieren(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
+  // Alten Stand laden für Auto-Invalidierung der Freigaben
+  const { data: vorher } = await supabase
+    .from('produkte')
+    .select('verkaufspreis, menge, beschreibung, bild_url')
+    .eq('id', produktId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+
+  const neuerVerkaufspreis = parseOptionalNumber(formData.get('verkaufspreis'))
+  const neueMenge          = parseOptionalNumber(formData.get('menge')) ?? 1
+  const neueBeschreibung   = (formData.get('beschreibung') as string) || null
+  const neuesBildUrl       = (formData.get('bild_url') as string) || null
+
   const [{ error: produktError }] = await Promise.all([
     supabase
       .from('produkte')
       .update({
         partner_id: (formData.get('partner_id') as string) || null,
         name: formData.get('name') as string,
-        beschreibung: (formData.get('beschreibung') as string) || null,
+        beschreibung: neueBeschreibung,
         kategorie: (formData.get('kategorie') as string) || null,
-        menge: parseOptionalNumber(formData.get('menge')) ?? 1,
+        menge: neueMenge,
         einheit: (formData.get('einheit') as string) || 'Stk',
         einkaufspreis: parseOptionalNumber(formData.get('einkaufspreis')),
         marge_prozent: parseOptionalNumber(formData.get('marge_prozent')),
         provision_prozent: parseOptionalNumber(formData.get('provision_prozent')),
-        verkaufspreis: parseOptionalNumber(formData.get('verkaufspreis')),
-        bild_url: (formData.get('bild_url') as string) || null,
+        verkaufspreis: neuerVerkaufspreis,
+        bild_url: neuesBildUrl,
         produkt_url: (formData.get('produkt_url') as string) || null,
         notizen_intern: (formData.get('notizen_intern') as string) || null,
         ...neueFelder(formData),
@@ -239,6 +252,28 @@ export async function produktAktualisieren(
   ])
 
   if (produktError) return { fehler: 'Fehler beim Aktualisieren. Bitte erneut versuchen.' }
+
+  // Auto-Invalidierung: wenn preisrelevante Felder sich geändert haben,
+  // freigegebene raum_produkte zurück auf 'ausstehend'.
+  if (vorher) {
+    const geaendert: string[] = []
+    if (vorher.verkaufspreis !== neuerVerkaufspreis) geaendert.push('Preis')
+    if (vorher.menge !== neueMenge)                   geaendert.push('Menge')
+    if (vorher.beschreibung !== neueBeschreibung)     geaendert.push('Beschreibung')
+    if (vorher.bild_url !== neuesBildUrl)             geaendert.push('Bild')
+
+    if (geaendert.length > 0) {
+      try {
+        const { freigabeInvalidierenBeiProduktAenderung } = await import('./freigaben')
+        await freigabeInvalidierenBeiProduktAenderung({
+          produktId,
+          grund: `${geaendert.join(', ')} geändert am ${new Date().toLocaleDateString('de-DE')}`,
+        })
+      } catch (e) {
+        console.error('[produktAktualisieren:invalidate]', e)
+      }
+    }
+  }
 
   // Status upserten
   await supabase
@@ -263,20 +298,33 @@ export async function produktAktualisierenBibliothek(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
+  // Alten Stand laden für Auto-Invalidierung
+  const { data: vorher } = await supabase
+    .from('produkte')
+    .select('verkaufspreis, menge, beschreibung, bild_url')
+    .eq('id', produktId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+
+  const neuerVerkaufspreis = parseOptionalNumber(formData.get('verkaufspreis'))
+  const neueMenge          = parseOptionalNumber(formData.get('menge')) ?? 1
+  const neueBeschreibung   = (formData.get('beschreibung') as string) || null
+  const neuesBildUrl       = (formData.get('bild_url') as string) || null
+
   const { error } = await supabase
     .from('produkte')
     .update({
       partner_id: (formData.get('partner_id') as string) || null,
       name: formData.get('name') as string,
-      beschreibung: (formData.get('beschreibung') as string) || null,
+      beschreibung: neueBeschreibung,
       kategorie: (formData.get('kategorie') as string) || null,
-      menge: parseOptionalNumber(formData.get('menge')) ?? 1,
+      menge: neueMenge,
       einheit: (formData.get('einheit') as string) || 'Stk',
       einkaufspreis: parseOptionalNumber(formData.get('einkaufspreis')),
       marge_prozent: parseOptionalNumber(formData.get('marge_prozent')),
       provision_prozent: parseOptionalNumber(formData.get('provision_prozent')),
-      verkaufspreis: parseOptionalNumber(formData.get('verkaufspreis')),
-      bild_url: (formData.get('bild_url') as string) || null,
+      verkaufspreis: neuerVerkaufspreis,
+      bild_url: neuesBildUrl,
       produkt_url: (formData.get('produkt_url') as string) || null,
       notizen_intern: (formData.get('notizen_intern') as string) || null,
       ...neueFelder(formData),
@@ -286,6 +334,26 @@ export async function produktAktualisierenBibliothek(
     .is('deleted_at', null)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren. Bitte erneut versuchen.' }
+
+  // Auto-Invalidierung bei preisrelevanten Änderungen
+  if (vorher) {
+    const geaendert: string[] = []
+    if (vorher.verkaufspreis !== neuerVerkaufspreis) geaendert.push('Preis')
+    if (vorher.menge !== neueMenge)                   geaendert.push('Menge')
+    if (vorher.beschreibung !== neueBeschreibung)     geaendert.push('Beschreibung')
+    if (vorher.bild_url !== neuesBildUrl)             geaendert.push('Bild')
+    if (geaendert.length > 0) {
+      try {
+        const { freigabeInvalidierenBeiProduktAenderung } = await import('./freigaben')
+        await freigabeInvalidierenBeiProduktAenderung({
+          produktId,
+          grund: `${geaendert.join(', ')} geändert am ${new Date().toLocaleDateString('de-DE')}`,
+        })
+      } catch (e) {
+        console.error('[produktAktualisierenBibliothek:invalidate]', e)
+      }
+    }
+  }
 
   revalidatePath('/dashboard/produkte')
   redirect('/dashboard/produkte')

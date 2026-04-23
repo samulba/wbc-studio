@@ -621,6 +621,57 @@ export async function freigabeAbschliessen(
 }
 
 // ═══════════════════════════════════════════════════════════════
+// AUTO-INVALIDIERUNG BEI PRODUKT-ÄNDERUNG
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Setzt alle freigegebenen raum_produkte eines Produkts auf 'ausstehend'
+ * zurück und legt pro Eintrag einen Audit-Log mit kanal='system' an.
+ * Wird von produktAktualisieren aufgerufen, wenn preisrelevante Felder
+ * (verkaufspreis, menge, beschreibung, bild_url) sich geändert haben.
+ *
+ * Idempotent: ignoriert raum_produkte die bereits 'ausstehend' oder
+ * 'abgelehnt' sind. Nur 'freigegeben' wird zurückgesetzt, weil andere
+ * Stati noch nicht unter Vertrauensschutz stehen.
+ *
+ * Filtert optional auf bestimmte raum_produkte_ids (bei Änderung des
+ * per-Raum-Overrides).
+ */
+export async function freigabeInvalidierenBeiProduktAenderung(opts: {
+  produktId: string
+  grund: string
+  nurRaumProdukteIds?: string[]
+}): Promise<void> {
+  const supabase = createAdminClient()
+
+  let query = supabase
+    .from('raum_produkte')
+    .select('id, organisation_id, freigabe_status')
+    .eq('produkt_id', opts.produktId)
+    .eq('freigabe_status', 'freigegeben')
+
+  if (opts.nurRaumProdukteIds && opts.nurRaumProdukteIds.length > 0) {
+    query = query.in('id', opts.nurRaumProdukteIds)
+  }
+
+  const { data: betroffen } = await query
+  if (!betroffen || betroffen.length === 0) return
+
+  const kommentar = `Automatisch zurückgesetzt: ${opts.grund}`
+
+  for (const rp of betroffen) {
+    await freigabeStatusSetzen({
+      raumProduktId: rp.id,
+      status:        'ausstehend',
+      kommentar,
+      kanal:         'system',
+      kontext:       { geaendertVon: 'system' },
+    })
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
 // AUDIT (Admin-UI)
 // ═══════════════════════════════════════════════════════════════
 
