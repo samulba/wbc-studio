@@ -197,7 +197,7 @@ export default function ChangelogTab({ eintraege }: { eintraege: ChangelogEntry[
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-6xl">
       {/* Hero-Band (kompakt) */}
       <div className="relative mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-wellbeing-green via-wellbeing-green to-wellbeing-green-dark text-white px-5 py-4">
         <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-wellbeing-green-light/20 blur-3xl pointer-events-none" />

@@ -687,7 +687,7 @@ function TeamTab({
       confirmText="Deaktivieren"
       variant="warning"
     />
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-6xl">
 
       {/* Backdrop: schließt offene Dropdowns */}
       {offenesMenue && (
@@ -1489,7 +1489,7 @@ function RechtlichesTab({
 
 function VorlagenTab({ vorlagen }: { vorlagen: VertragsVorlage[] }) {
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-6xl">
       <div className="mb-6">
         <h2 className="text-base font-semibold text-gray-900">Vertragsvorlagen</h2>
         <p className="text-xs text-gray-500 mt-1">
