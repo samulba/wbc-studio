@@ -56,15 +56,24 @@ async function getRaeume(projektId: string): Promise<Raum[]> {
   return data ?? []
 }
 
-async function getAktivenToken(projektId: string) {
+async function getAktiveTokens(projektId: string) {
   const supabase = await createClient()
   const { data } = await supabase
     .from('freigabe_tokens')
-    .select('id, token, gueltig_bis')
+    .select('id, token, gueltig_bis, scope_typ, scope_ids, created_at')
     .eq('projekt_id', projektId)
     .eq('aktiv', true)
-    .maybeSingle()
-  return data
+    .is('abgeschlossen_am', null)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+  return (data ?? []) as {
+    id: string
+    token: string
+    gueltig_bis: string | null
+    scope_typ: 'projekt' | 'raum' | 'auswahl' | null
+    scope_ids: string[] | null
+    created_at: string
+  }[]
 }
 
 async function getProjektStats(projektId: string) {
@@ -145,10 +154,10 @@ export default async function ProjektDetailPage({
   searchParams: Promise<{ tab?: string }>
 }) {
   const { tab: tabParam } = await searchParams
-  const [projekt, raeume, aktiverToken, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten] = await Promise.all([
+  const [projekt, raeume, aktiveTokens, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
-    getAktivenToken(params.id),
+    getAktiveTokens(params.id),
     freigabeTokensAbrufenFuerProjekt(params.id),
     getDateien(params.id),
     getProjektStats(params.id),
@@ -162,7 +171,7 @@ export default async function ProjektDetailPage({
     getNachrichtenFuerProjekt(params.id),
   ])
 
-  if (!projekt) notFound()
+  if (!projekt) return notFound()
 
   // Hat der Kunde einen Portal-Zugang? (Voraussetzung für Chat)
   let hatPortal = false
@@ -641,7 +650,8 @@ export default async function ProjektDetailPage({
           <div className="space-y-5">
             <FreigabeLinkKarte
               projektId={projekt.id}
-              initialToken={aktiverToken ?? null}
+              initialTokens={aktiveTokens}
+              raeume={raeume.map((r) => ({ id: r.id, name: r.name }))}
               initialHatPin={!!projekt.freigabe_pin && projekt.freigabe_pin.toString().trim().length >= 4}
             />
             <FreigabeUebersicht projektId={projekt.id} initialTokens={alleTokens} />
