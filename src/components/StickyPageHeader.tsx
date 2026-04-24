@@ -27,7 +27,7 @@ export default function StickyPageHeader({
   extra?: ReactNode
 }) {
   return (
-    <div className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-gray-100 px-6 py-4">
+    <div className="sticky top-0 z-30 bg-white border-b border-gray-100 px-6 py-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="min-w-0">
           <div className="flex items-baseline gap-3 flex-wrap">

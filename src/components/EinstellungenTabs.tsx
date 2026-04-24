@@ -1463,8 +1463,8 @@ export default function EinstellungenTabs({
 
   return (
     <div>
-      {/* Tab-Leiste (sticky unter dem Page-Header) */}
-      <div className="sticky top-[65px] z-20 bg-white/90 backdrop-blur-md -mx-6 px-6 flex flex-wrap gap-0 mb-8 border-b border-gray-200">
+      {/* Tab-Leiste (sticky direkt unter dem Page-Header, ohne 4px-Spalt) */}
+      <div className="sticky top-[60px] z-20 bg-white -mx-6 px-6 flex flex-wrap gap-0 mb-8 border-b border-gray-200">
         {sichtbareTabs.map((t) => (
           <a
             key={t.key}
