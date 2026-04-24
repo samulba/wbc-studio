@@ -434,7 +434,7 @@ export default async function ProjektDetailPage({
 
         {/* ── ÜBERSICHT ─────────────────────────────────────────── */}
         {(!tabParam || tabParam === 'uebersicht') && (
-          <div className="max-w-7xl mx-auto space-y-5">
+          <div className="space-y-5">
             {/* Row 1: Budget-Karte + Status-Kacheln */}
             <div className="grid grid-cols-1 xl:grid-cols-[auto_1fr] gap-5">
               {/* Budget-Karte */}
@@ -605,7 +605,7 @@ export default async function ProjektDetailPage({
 
         {/* ── RÄUME ──────────────────────────────────────────────── */}
         {tabParam === 'raeume' && (
-          <div className="max-w-7xl mx-auto space-y-5">
+          <div className="space-y-5">
             <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               <RaumHinzufuegen
                 aktion={raumHinzufuegenAktion}
@@ -638,7 +638,7 @@ export default async function ProjektDetailPage({
 
         {/* ── FREIGABEN ─────────────────────────────────────────── */}
         {tabParam === 'freigaben' && (
-          <div className="max-w-5xl mx-auto space-y-5">
+          <div className="space-y-5">
             <FreigabeLinkKarte
               projektId={projekt.id}
               initialToken={aktiverToken ?? null}
@@ -650,7 +650,7 @@ export default async function ProjektDetailPage({
 
         {/* ── TIMELINE ──────────────────────────────────────────── */}
         {tabParam === 'timeline' && (
-          <div className="max-w-5xl mx-auto">
+          <div>
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -676,14 +676,14 @@ export default async function ProjektDetailPage({
 
         {/* ── DATEIEN ───────────────────────────────────────────── */}
         {tabParam === 'dateien' && (
-          <div className="max-w-5xl mx-auto">
+          <div>
             <DateiUpload projektId={projekt.id} initialDateien={dateien} />
           </div>
         )}
 
         {/* ── CHAT ──────────────────────────────────────────────── */}
         {tabParam === 'chat' && hatPortal && projekt.kunden && (
-          <div className="max-w-5xl mx-auto">
+          <div>
             <ChatBlock
               projektId={projekt.id}
               kundeName={projekt.kunden.name}
@@ -694,7 +694,7 @@ export default async function ProjektDetailPage({
 
         {/* ── NOTIZEN ───────────────────────────────────────────── */}
         {tabParam === 'notizen' && (
-          <div className="max-w-5xl mx-auto">
+          <div>
             <NotizBlock typ="projekt" referenzId={projekt.id} initialNotizen={notizen} />
           </div>
         )}
