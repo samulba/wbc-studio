@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-24
 
+### Onboarding: Standard-Vorlagen laden
+- **6 vorgefertigte Onboarding-Vorlagen** können jetzt auf Knopfdruck geladen werden, wenn die Liste noch leer ist — analog zum Vertrags-Vorlagen-System. Im Empty-State erscheint ein großer Sparkles-Button „Standard-Vorlagen laden".
+- Die Vorlagen decken die typischen Szenarien ab: **Kontaktanfrage** (kurzes Formular für Erstkontakte), **Neukunden-Onboarding Standard** (Erstgespräch für neue Kunden), **Projekt-Briefing bestehender Kunde** (schnelles Briefing ohne Kontaktfragen), **Projekt-Privat** (detailliertes Wohnprojekt), **Projekt-Gewerbe** (umfassend für Gewerbe) und **Raum-Bestandsaufnahme** (pro Raum, vor Vor-Ort-Termin).
+- Nach dem Laden können alle Vorlagen beliebig angepasst, dupliziert oder gelöscht werden. „Leere Vorlage erstellen" bleibt als Alternative daneben.
+
 ### Dashboard: 100vh-Layout + Budget & Projekte nebeneinander
 - **Auf Laptop/PC (≥ 1280px) füllt das Dashboard jetzt exakt die volle Viewport-Höhe** — kein Scrollen mehr zum Ende. Header oben bleibt fix, die vier Widget-Bereiche (KPIs, Deadlines/Follow-ups, Budget, Projekte) teilen den verfügbaren Platz auf. Lange Listen scrollen nur noch innerhalb ihrer Karte.
 - **Budget-Übersicht + Letzte Projekte** stehen jetzt nebeneinander statt untereinander — nutzt die breite Bildschirmfläche und halbiert die Scroll-Distanz. Auf kleineren Bildschirmen (< 1024px) fällt das Layout automatisch auf Stack zurück.

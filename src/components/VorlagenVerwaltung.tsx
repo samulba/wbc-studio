@@ -8,7 +8,7 @@ import {
   Sliders, List, CheckSquare, ToggleLeft, FolderPlus,
   Upload, Package, BarChart2, Layers, Clock, Users,
   ClipboardList, ArrowUpDown, GitBranch, Palette, Link,
-  Euro,
+  Euro, Sparkles,
 } from 'lucide-react'
 import {
   vorlageLoeschen,
@@ -16,6 +16,7 @@ import {
 import {
   vorlageErstellenV2, vorlageAktualisierenV2,
 } from '@/app/actions/onboarding-erweitert'
+import { standardOnboardingVorlagenErstellenAction } from '@/app/actions/vorlagen-seed'
 import type {
   OnboardingVorlage, OnboardingFrage, OnboardingFrageTyp, OnboardingSektion,
   OnboardingBedingtVon, OnboardingTyp,
@@ -1537,6 +1538,21 @@ export default function VorlagenVerwaltung({ vorlagen: initVorlagen }: { vorlage
   const [vorlagen, setVorlagen]           = useState<OnboardingVorlage[]>(initVorlagen)
   const [editorVorlage, setEditorVorlage] = useState<OnboardingVorlage | null | undefined>(undefined)
   const [isPending, startTransition]      = useTransition()
+  const [seedFehler, setSeedFehler]       = useState<string | null>(null)
+
+  function handleStandardLaden() {
+    setSeedFehler(null)
+    startTransition(async () => {
+      const res = await standardOnboardingVorlagenErstellenAction()
+      if (res.fehler) { setSeedFehler(res.fehler); return }
+      if (res.erstellt === 0) {
+        setSeedFehler('Es sind bereits Vorlagen vorhanden.')
+        return
+      }
+      // Seite neu laden, damit die frisch angelegten Vorlagen sichtbar werden
+      window.location.reload()
+    })
+  }
 
   function handleSave(
     name: string,
@@ -1594,25 +1610,71 @@ export default function VorlagenVerwaltung({ vorlagen: initVorlagen }: { vorlage
         />
       )}
 
-      <div className="space-y-3">
-        {vorlagen.map((v) => (
-          <VorlageKarte
-            key={v.id}
-            vorlage={v}
-            onEdit={() => setEditorVorlage(v)}
-            onDelete={() => handleDelete(v.id)}
-          />
-        ))}
+      {seedFehler && (
+        <div className="mb-4 px-4 py-2.5 rounded-lg bg-red-50 border border-red-100 text-xs text-red-600">
+          {seedFehler}
+        </div>
+      )}
 
-        <button
-          onClick={() => setEditorVorlage(null)}
-          disabled={isPending}
-          className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-wellbeing-green border-2 border-dashed border-wellbeing-green/30 hover:border-wellbeing-green/60 rounded-xl transition-colors disabled:opacity-50"
-        >
-          <Plus className="w-4 h-4" />
-          Neue Vorlage erstellen
-        </button>
-      </div>
+      {/* Empty-State: Standard-Vorlagen laden oder leer starten */}
+      {vorlagen.length === 0 ? (
+        <div className="border border-dashed border-gray-300 rounded-2xl py-14 px-6 text-center">
+          <div className="inline-flex w-12 h-12 rounded-2xl bg-wellbeing-green/10 items-center justify-center mb-4">
+            <ClipboardList className="w-6 h-6 text-wellbeing-green" />
+          </div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">Noch keine Onboarding-Vorlagen</h3>
+          <p className="text-xs text-gray-500 max-w-md mx-auto mb-5">
+            Lade 6 sorgfältig ausgearbeitete Standard-Vorlagen für Kontaktanfragen, Neukunden-Onboarding und Projekt-Briefings. Du kannst sie danach beliebig anpassen oder löschen.
+          </p>
+          <div className="flex items-center justify-center gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={handleStandardLaden}
+              disabled={isPending}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-wellbeing-green hover:bg-wellbeing-green-dark disabled:opacity-50 text-white rounded-lg transition-colors shadow-sm"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              {isPending ? 'Lade…' : 'Standard-Vorlagen laden'}
+            </button>
+            <span className="text-[11px] text-gray-300">oder</span>
+            <button
+              type="button"
+              onClick={() => setEditorVorlage(null)}
+              disabled={isPending}
+              className="text-xs font-medium text-wellbeing-green hover:text-wellbeing-green-dark transition-colors"
+            >
+              Leere Vorlage erstellen
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs text-gray-500">
+              {vorlagen.length} {vorlagen.length === 1 ? 'Vorlage' : 'Vorlagen'}
+            </p>
+          </div>
+          <div className="space-y-3">
+            {vorlagen.map((v) => (
+              <VorlageKarte
+                key={v.id}
+                vorlage={v}
+                onEdit={() => setEditorVorlage(v)}
+                onDelete={() => handleDelete(v.id)}
+              />
+            ))}
+
+            <button
+              onClick={() => setEditorVorlage(null)}
+              disabled={isPending}
+              className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-wellbeing-green border-2 border-dashed border-wellbeing-green/30 hover:border-wellbeing-green/60 rounded-xl transition-colors disabled:opacity-50"
+            >
+              <Plus className="w-4 h-4" />
+              Neue Vorlage erstellen
+            </button>
+          </div>
+        </>
+      )}
     </>
   )
 }

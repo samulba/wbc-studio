@@ -337,6 +337,34 @@ export async function standardVorlagenErstellenAction(): Promise<{ erstellt: num
   return erstelleStandardVorlagen(orgId)
 }
 
+/**
+ * Server-Action zum manuellen Auslösen der Standard-Onboarding-Vorlagen.
+ * Wird aus dem Empty-State der Onboarding-Vorlagen-Seite aufgerufen.
+ */
+export async function standardOnboardingVorlagenErstellenAction(): Promise<{ erstellt: number; fehler?: string }> {
+  const { createClient, getOrganisationId } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { erstellt: 0, fehler: 'Nicht angemeldet.' }
+
+  const orgId = await getOrganisationId()
+  if (!orgId) return { erstellt: 0, fehler: 'Keine Organisation gefunden.' }
+
+  // Prüfen ob bereits Vorlagen existieren
+  const admin = createAdminClient()
+  const { data: bestehende } = await admin
+    .from('onboarding_vorlagen')
+    .select('id')
+    .eq('organisation_id', orgId)
+    .limit(1)
+
+  if (bestehende && bestehende.length > 0) {
+    return { erstellt: 0, fehler: 'Es sind bereits Onboarding-Vorlagen vorhanden. Bitte lösche bestehende Vorlagen zuerst, falls du einen Neustart wünschst.' }
+  }
+
+  return erstelleStandardOnboardingVorlagen(orgId)
+}
+
 
 // ============================================================
 // Standard-Kategorien für neue Organisationen
