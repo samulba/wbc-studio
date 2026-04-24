@@ -782,7 +782,7 @@ function BudgetBar({
   const eurFmt = (n: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
   const pct = budget && budget > 0 ? Math.min((wert / budget) * 100, 100) : null
   const exakt = budget && budget > 0 ? Math.round((wert / budget) * 100) : null
-  const ueber = pct == 100 && wert > budget!
+  const ueber = pct === 100 && budget !== null && wert > budget
 
   const barFarbe = ueber
     ? 'bg-red-400'
@@ -829,11 +829,3 @@ function BudgetBar({
   )
 }
 
-function InfoPill({ label, wert }: { label: string; wert: string }) {
-  return (
-    <div>
-      <p className="text-[10px] text-gray-400 mb-0.5 uppercase tracking-widest font-medium">{label}</p>
-      <p className="text-xs font-semibold text-gray-700">{wert}</p>
-    </div>
-  )
-}
