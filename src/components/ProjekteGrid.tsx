@@ -214,7 +214,7 @@ export default function ProjekteGrid({ projekte }: { projekte: ProjektMitStats[]
 
       {/* Grid */}
       {gefiltert.length > 0 && ansicht === 'grid' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {gefiltert.map((p) => {
             const kunde = p.kunden
             const deadline = !p.archiviert && p.deadline ? deadlineChip(p.deadline) : null
