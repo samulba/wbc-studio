@@ -1,14 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { X, Check, XCircle, CircleDashed, Zap, User, LinkIcon } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  X, Check, XCircle, CircleDashed, Zap, User, LinkIcon,
+  Plus, Trash2, CheckCircle2, AlertTriangle,
+} from 'lucide-react'
 import { freigabeAuditFuerToken } from '@/app/actions/freigaben'
-import type { FreigabeAudit, FreigabeKanal } from '@/lib/supabase/types'
+import type { FreigabeAudit, FreigabeKanal, FreigabeToken } from '@/lib/supabase/types'
 
 interface Props {
   isOpen: boolean
   onClose: () => void
-  tokenId: string | null
+  token:   FreigabeToken | null
   tokenLabel: string
 }
 
@@ -32,20 +35,99 @@ function statusIcon(status: string | null) {
   return <CircleDashed className="w-4 h-4 text-gray-400" />
 }
 
-export default function FreigabeAuditDrawer({ isOpen, onClose, tokenId, tokenLabel }: Props) {
-  const [eintraege, setEintraege] = useState<FreigabeAudit[]>([])
+// Lifecycle-Events (erstellt, zurueckgezogen, abgeschlossen) werden
+// aus den Token-Feldern selbst abgeleitet und mit dem Audit-Log zu
+// einem chronologischen Verlauf vereint.
+type LifecycleEintrag = {
+  key:       string
+  kind:      'erstellt' | 'abgeschlossen' | 'zurueckgezogen' | 'abgelaufen'
+  datum:     string
+  akteur:    string
+  kommentar: string | null
+}
+
+function lifecycleAusToken(token: FreigabeToken | null): LifecycleEintrag[] {
+  if (!token) return []
+  const eintraege: LifecycleEintrag[] = []
+
+  eintraege.push({
+    key:   `${token.id}-erstellt`,
+    kind:  'erstellt',
+    datum: token.created_at,
+    akteur: 'Admin',
+    kommentar: null,
+  })
+
+  if (token.abgeschlossen_am) {
+    eintraege.push({
+      key:   `${token.id}-abgeschlossen`,
+      kind:  'abgeschlossen',
+      datum: token.abgeschlossen_am,
+      akteur: token.abgeschlossen_durch ?? 'Kunde',
+      kommentar: token.abgeschlossen_kommentar ?? null,
+    })
+  }
+
+  if (token.deleted_at) {
+    eintraege.push({
+      key:   `${token.id}-zurueckgezogen`,
+      kind:  'zurueckgezogen',
+      datum: token.deleted_at,
+      akteur: 'Admin',
+      kommentar: null,
+    })
+  }
+
+  if (token.gueltig_bis && new Date(token.gueltig_bis) < new Date() && !token.abgeschlossen_am && !token.deleted_at) {
+    eintraege.push({
+      key:   `${token.id}-abgelaufen`,
+      kind:  'abgelaufen',
+      datum: token.gueltig_bis,
+      akteur: 'System',
+      kommentar: null,
+    })
+  }
+
+  return eintraege
+}
+
+const lifecycleStyle: Record<LifecycleEintrag['kind'], { Icon: typeof Plus; farbe: string; label: string }> = {
+  erstellt:       { Icon: Plus,          farbe: 'text-wellbeing-green', label: 'Link erstellt' },
+  abgeschlossen:  { Icon: CheckCircle2,  farbe: 'text-emerald-600',     label: 'Link abgeschlossen' },
+  zurueckgezogen: { Icon: Trash2,        farbe: 'text-red-500',         label: 'Link zurückgezogen' },
+  abgelaufen:     { Icon: AlertTriangle, farbe: 'text-amber-500',       label: 'Link abgelaufen' },
+}
+
+type TimelineEintrag =
+  | { typ: 'audit';    datum: string; entry: FreigabeAudit }
+  | { typ: 'lifecycle'; datum: string; entry: LifecycleEintrag }
+
+export default function FreigabeAuditDrawer({ isOpen, onClose, token, tokenLabel }: Props) {
+  const [audit, setAudit]   = useState<FreigabeAudit[]>([])
   const [ladend, setLadend] = useState(false)
 
   useEffect(() => {
-    if (!isOpen || !tokenId) return
+    if (!isOpen || !token) return
     let abgebrochen = false
     setLadend(true)
-    freigabeAuditFuerToken(tokenId)
-      .then((data) => { if (!abgebrochen) setEintraege(data) })
-      .catch(() => { if (!abgebrochen) setEintraege([]) })
+    freigabeAuditFuerToken(token.id)
+      .then((data) => { if (!abgebrochen) setAudit(data) })
+      .catch(() => { if (!abgebrochen) setAudit([]) })
       .finally(() => { if (!abgebrochen) setLadend(false) })
     return () => { abgebrochen = true }
-  }, [isOpen, tokenId])
+  }, [isOpen, token])
+
+  const timeline: TimelineEintrag[] = useMemo(() => {
+    const lifecycle = lifecycleAusToken(token).map<TimelineEintrag>((e) => ({
+      typ: 'lifecycle', datum: e.datum, entry: e,
+    }))
+    const auditEntries = audit.map<TimelineEintrag>((e) => ({
+      typ: 'audit', datum: e.created_at, entry: e,
+    }))
+    return [...lifecycle, ...auditEntries].sort((a, b) =>
+      new Date(b.datum).getTime() - new Date(a.datum).getTime()
+    )
+  }, [token, audit])
 
   if (!isOpen) return null
 
@@ -75,31 +157,58 @@ export default function FreigabeAuditDrawer({ isOpen, onClose, tokenId, tokenLab
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {ladend && <p className="text-xs text-gray-400">Lädt…</p>}
-          {!ladend && eintraege.length === 0 && (
-            <p className="text-xs text-gray-400">Noch keine Statusänderungen protokolliert.</p>
+          {!ladend && timeline.length === 0 && (
+            <p className="text-xs text-gray-400">Noch keine Ereignisse.</p>
           )}
-          <ol className="space-y-4">
-            {eintraege.map((e) => {
-              const Icon = kanalIcon[e.kanal]
+          <ol className="space-y-4 relative">
+            {timeline.length > 0 && (
+              <div className="absolute left-2 top-2 bottom-2 w-px bg-gray-100" aria-hidden />
+            )}
+            {timeline.map((item) => {
+              if (item.typ === 'lifecycle') {
+                const style = lifecycleStyle[item.entry.kind]
+                const { Icon } = style
+                return (
+                  <li key={item.entry.key} className="relative pl-7">
+                    <div className="absolute left-0 top-0.5 w-5 h-5 rounded-full bg-white border border-gray-200 flex items-center justify-center">
+                      <Icon className={`w-3 h-3 ${style.farbe}`} />
+                    </div>
+                    <div className="text-xs">
+                      <p className="font-medium text-gray-900">{style.label}</p>
+                      <p className="mt-0.5 text-[11px] text-gray-500">von {item.entry.akteur}</p>
+                      {item.entry.kommentar && (
+                        <p className="mt-1 text-[11px] text-gray-500 italic">&bdquo;{item.entry.kommentar}&ldquo;</p>
+                      )}
+                      <p className="mt-1 text-[10px] text-gray-400">
+                        {new Date(item.entry.datum).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' })}
+                      </p>
+                    </div>
+                  </li>
+                )
+              }
+              const a = item.entry
+              const KanalIcon = kanalIcon[a.kanal]
               return (
-                <li key={e.id} className="relative pl-6">
-                  <div className="absolute left-0 top-1">{statusIcon(e.neuer_status)}</div>
+                <li key={a.id} className="relative pl-7">
+                  <div className="absolute left-0 top-0.5 w-5 h-5 rounded-full bg-white border border-gray-200 flex items-center justify-center">
+                    {statusIcon(a.neuer_status)}
+                  </div>
                   <div className="text-xs text-gray-700">
                     <div className="flex items-center gap-1.5 text-gray-500">
-                      <Icon className="w-3 h-3" />
-                      <span className="font-medium">{kanalLabel[e.kanal]}</span>
+                      <KanalIcon className="w-3 h-3" />
+                      <span className="font-medium">{kanalLabel[a.kanal]}</span>
                       <span>·</span>
-                      <span>{e.geaendert_von}</span>
+                      <span>{a.geaendert_von}</span>
                     </div>
                     <div className="mt-0.5 text-gray-900">
-                      Status: <strong>{e.neuer_status}</strong>
-                      {e.alter_status && <span className="text-gray-400"> (vorher: {e.alter_status})</span>}
+                      Status: <strong>{a.neuer_status}</strong>
+                      {a.alter_status && <span className="text-gray-400"> (vorher: {a.alter_status})</span>}
                     </div>
-                    {e.kommentar && (
-                      <p className="mt-1 text-[11px] text-gray-500 italic">&bdquo;{e.kommentar}&ldquo;</p>
+                    {a.kommentar && (
+                      <p className="mt-1 text-[11px] text-gray-500 italic">&bdquo;{a.kommentar}&ldquo;</p>
                     )}
                     <p className="mt-1 text-[10px] text-gray-400">
-                      {new Date(e.created_at).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' })}
+                      {new Date(a.created_at).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' })}
                     </p>
                   </div>
                 </li>

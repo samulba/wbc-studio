@@ -39,13 +39,13 @@ function tokenStatus(t: FreigabeToken): { label: string; cls: string } {
 export default function FreigabeUebersicht({ projektId, initialTokens }: Props) {
   const [tokens, setTokens] = useState(initialTokens)
   const [drawerOffen, setDrawerOffen] = useState(false)
-  const [drawerTokenId, setDrawerTokenId] = useState<string | null>(null)
+  const [drawerToken, setDrawerToken] = useState<FreigabeToken | null>(null)
   const [drawerTokenLabel, setDrawerTokenLabel] = useState('')
   const [confirmTokenId, setConfirmTokenId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleAuditOeffnen(t: FreigabeToken) {
-    setDrawerTokenId(t.id)
+    setDrawerToken(t)
     setDrawerTokenLabel(`${scopeLabel[t.scope_typ]} · erstellt ${fmtDatum(t.created_at)}`)
     setDrawerOffen(true)
   }
@@ -134,7 +134,7 @@ export default function FreigabeUebersicht({ projektId, initialTokens }: Props) 
       <FreigabeAuditDrawer
         isOpen={drawerOffen}
         onClose={() => setDrawerOffen(false)}
-        tokenId={drawerTokenId}
+        token={drawerToken}
         tokenLabel={drawerTokenLabel}
       />
 

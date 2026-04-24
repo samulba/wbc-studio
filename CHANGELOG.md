@@ -5,6 +5,13 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-24
 
+### Projekt-Detail: Header-Refresh + Übersicht-Dashboard + Audit-Timeline
+- **Neuer Hero-Header**: Titel, Status-Toggle (Aktiv/Warten/Abgeschlossen) und Deadline-Countdown in einer Zeile. Darunter eine kompakte Meta-Leiste mit Icons (👤 Kunde · 📍 Standort · 💰 Budget · 🏷 Projektart · 📅 Angelegt) statt der alten Pill-Karten. Toolbar rechts: Verträge + Angebote als Text-Buttons, dahinter kleine Icon-Buttons für Timeline/CSV/PDF/Bearbeiten + ⋮-Menü. Kein graustufiger Strip mehr — alles in einem sauberen weißen Header.
+- **Übersicht neu: Dashboard-Karte** mit Ring, Progress-Bars (Produkt-Kosten, Service-Kosten, Gesamt) inkl. 80%-Warn-Marker und Überschreitungs-Anzeige in Euro. Status-Kacheln (Freigegeben/Ausstehend/Räume/Produkte) sind jetzt als 4-Feld-Strip direkt an der Budget-Karte dran — keine fetten leeren Flächen mehr.
+- **Übersicht bekommt Budget-pro-Raum-Widget** mit Kategorie-Breakdown — das lebt jetzt hier statt doppelt im Räume-Tab.
+- **Räume-Tab entschlackt**: nur noch die sortierbare Raum-Liste (mit Budget-Progressbar pro Raum). Das Budget-pro-Raum-Grid ist aus dem Tab raus und liegt nur noch einmal auf der Übersicht — kein doppeltes Budget-Anzeigen mehr.
+- **Freigabe-Verlauf**: der Audit-Drawer zeigt jetzt nicht mehr nur Produkt-Entscheidungen, sondern auch **Lifecycle-Events**: Link erstellt, abgeschlossen, zurückgezogen, abgelaufen — chronologisch gemerged. Dadurch ist der Verlauf auch VOR der ersten Kunden-Entscheidung befüllt.
+
 ### Projekt-Detail: Tab-Navigation statt 2-Spalten-Chaos
 - Die Projekt-Detailseite war sehr dicht gepackt — links Räume/Budget/Freigabe untereinander, rechts Budget-Ring/Status/Timeline/Dateien/Chat/Notizen in einem einzigen Scroll-Strang. Jetzt klar strukturiert über **7 Tabs** mit Icons und Badge-Counts: **Übersicht** (Default), **Räume**, **Freigaben**, **Timeline**, **Dateien**, **Chat** (nur wenn Portal aktiv), **Notizen**.
 - **Übersicht** zeigt die wichtigsten Kennzahlen kompakt: Budget-Ring + 4 Status-Kacheln (Freigegeben/Ausstehend/Räume/Produkte), darunter Räume-Kurzliste und Mini-Timeline nebeneinander. Zeiterfassung erscheint bei Stundensatz-Projekten direkt darunter.
