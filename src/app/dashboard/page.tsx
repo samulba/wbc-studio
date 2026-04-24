@@ -303,10 +303,10 @@ export default async function DashboardPage() {
   } = await getDashboardData()
 
   return (
-    <div className="h-full overflow-y-auto animate-fadeIn">
+    <div className="h-full flex flex-col overflow-y-auto xl:overflow-hidden animate-fadeIn">
 
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-30 bg-white/85 backdrop-blur-md border-b border-gray-100 px-6 py-4">
+      {/* Header – shrink-0 damit Content-Bereich die restliche Höhe bekommt */}
+      <div className="shrink-0 bg-white border-b border-gray-100 px-6 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="min-w-0">
             <h1 className="font-syne text-[24px] font-bold text-gray-900 leading-tight tracking-tight">Dashboard</h1>
@@ -329,29 +329,28 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="px-6 py-5 space-y-4">
+      {/* Content – auf xl+ fest 100vh, intern flex-col mit zwei „flex-1"-Zeilen */}
+      <div className="flex-1 xl:min-h-0 flex flex-col px-6 py-4 gap-4">
 
         {/* ROW 1: KPI-Kacheln */}
-        <KpiKartenReihe
-          aktiveKunden={aktiveKunden}
-          laufendeProjekte={laufendeProjekte}
-          offeneAngebote={offeneAngebote}
-          monatsumsatz={monatsumsatz}
-        />
+        <div className="shrink-0">
+          <KpiKartenReihe
+            aktiveKunden={aktiveKunden}
+            laufendeProjekte={laufendeProjekte}
+            offeneAngebote={offeneAngebote}
+            monatsumsatz={monatsumsatz}
+          />
+        </div>
 
-        {/* ROW 2: Deadlines + Follow-ups */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[220px]">
+        {/* ROW 2: Deadlines + Follow-ups (nebeneinander, flexibler Höhe) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[220px] xl:flex-1 xl:min-h-0">
           <NaechsteDeadlines projekte={naechsteDeadlines} events={anstehendeEvents} />
           <OffeneFollowUps eintraege={followUpEintraege} />
         </div>
 
-        {/* ROW 3: Budget-Übersicht */}
-        <div>
+        {/* ROW 3: Budget + Letzte Projekte (nebeneinander, fluid rest of viewport) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-[280px] xl:flex-1 xl:min-h-0">
           <BudgetUebersicht projekte={budgetProjekte} />
-        </div>
-
-        {/* ROW 4: Letzte Projekte */}
-        <div>
           <LetzteProjekte projekte={letzteProjekte} />
         </div>
 

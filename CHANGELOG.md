@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-24
 
+### Dashboard: 100vh-Layout + Budget & Projekte nebeneinander
+- **Auf Laptop/PC (≥ 1280px) füllt das Dashboard jetzt exakt die volle Viewport-Höhe** — kein Scrollen mehr zum Ende. Header oben bleibt fix, die vier Widget-Bereiche (KPIs, Deadlines/Follow-ups, Budget, Projekte) teilen den verfügbaren Platz auf. Lange Listen scrollen nur noch innerhalb ihrer Karte.
+- **Budget-Übersicht + Letzte Projekte** stehen jetzt nebeneinander statt untereinander — nutzt die breite Bildschirmfläche und halbiert die Scroll-Distanz. Auf kleineren Bildschirmen (< 1024px) fällt das Layout automatisch auf Stack zurück.
+
 ### Einstellungen: Sidebar-Nav + 2-Spalten-Layout
 - **Neue Seiten-Sidebar statt horizontaler Tabs**: Links in den Einstellungen findest du jetzt eine Navigation mit 5 Gruppen (Persönlich · Firma · Workspace · Team & Zugriff · System), jedes Item mit Icon und hover. Aktives Tab grün hinterlegt. Viel übersichtlicher als die 12-Tab-Zeile oben drüber.
 - **2-Spalten-Layout im Content**: Profil, Firma, Workspace und Rechtliches nutzen jetzt den rechten weißen Platz auf großen Bildschirmen — Cards stehen nebeneinander statt untereinander. Weniger scrollen, alles im Blick. Auf kleineren Bildschirmen (< 1280px) fällt das Layout automatisch auf eine Spalte zurück.
