@@ -198,77 +198,80 @@ export default function ChangelogTab({ eintraege }: { eintraege: ChangelogEntry[
 
   return (
     <div className="max-w-6xl">
-      {/* Hero-Band (kompakt) */}
-      <div className="relative mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-wellbeing-green via-wellbeing-green to-wellbeing-green-dark text-white px-5 py-4">
-        <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-wellbeing-green-light/20 blur-3xl pointer-events-none" />
-        <div className="relative flex items-center justify-between gap-4 flex-wrap">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-white/80">Changelog</span>
+      {/* ── Sticky Header: Hero + Filter-Bar zusammen ──────────── */}
+      <div className="sticky top-[60px] z-10 bg-white pt-1 pb-3 -mt-1 space-y-3">
+        {/* Hero-Band (kompakt) */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-wellbeing-green via-wellbeing-green to-wellbeing-green-dark text-white px-5 py-4">
+          <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-wellbeing-green-light/20 blur-3xl pointer-events-none" />
+          <div className="relative flex items-center justify-between gap-4 flex-wrap">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-white/80">Changelog</span>
+              </div>
+              <h1 className="text-lg font-semibold tracking-tight">Was ist neu?</h1>
+              <p className="text-xs text-white/70">
+                Zuletzt aktualisiert: <strong className="text-white font-medium">{relativesDatum(eintraege[0].datum)}</strong>
+              </p>
             </div>
-            <h1 className="text-lg font-semibold tracking-tight">Was ist neu?</h1>
-            <p className="text-xs text-white/70">
-              Zuletzt aktualisiert: <strong className="text-white font-medium">{relativesDatum(eintraege[0].datum)}</strong>
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-xs tabular-nums">
-            <HeroStatKompakt label="Updates" wert={eintraege.length} />
-            <HeroStatKompakt label="Letzte 30 Tage" wert={updatesLetzte30} highlight />
-            <HeroStatKompakt label="Änderungen" wert={gesamtPunkte} />
+            <div className="flex items-center gap-2 text-xs tabular-nums">
+              <HeroStatKompakt label="Updates" wert={eintraege.length} />
+              <HeroStatKompakt label="Letzte 30 Tage" wert={updatesLetzte30} highlight />
+              <HeroStatKompakt label="Änderungen" wert={gesamtPunkte} />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Sticky Filter-Bar: Suche + Kategorien (klebt unter dem Einstellungs-Page-Header) */}
-      <div className="sticky top-[60px] z-10 bg-white -mx-6 px-6 py-3 mb-3 border-b border-gray-100">
-        <div className="relative mb-2.5">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="In allen Änderungen suchen..."
-            className="w-full pl-9 pr-9 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 rounded"
-              aria-label="Suche zurücksetzen"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
-
-        {/* Kategorie-Chips */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {KATEGORIE_FILTER.map((k) => {
-            const aktiv = kategorie === k.key
-            const count = kategorieCount[k.key]
-            if (k.key !== 'alle' && count === 0) return null
-            const Icon = k.Icon
-            return (
+        {/* Filter-Bar: Suche + Kategorien */}
+        <div>
+          <div className="relative mb-2.5">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="In allen Änderungen suchen..."
+              className="w-full pl-9 pr-9 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20 focus:border-wellbeing-green transition"
+            />
+            {query && (
               <button
-                key={k.key}
                 type="button"
-                onClick={() => setKategorie(k.key)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full transition-all ${
-                  aktiv
-                    ? 'bg-wellbeing-green text-white shadow-sm'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300 hover:text-gray-900'
-                }`}
+                onClick={() => setQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 rounded"
+                aria-label="Suche zurücksetzen"
               >
-                <Icon className="w-3 h-3" />
-                {k.label}
-                <span className={`tabular-nums ${aktiv ? 'text-white/80' : 'text-gray-400'}`}>
-                  {count}
-                </span>
+                <X className="w-4 h-4" />
               </button>
-            )
-          })}
+            )}
+          </div>
+
+          {/* Kategorie-Chips */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {KATEGORIE_FILTER.map((k) => {
+              const aktiv = kategorie === k.key
+              const count = kategorieCount[k.key]
+              if (k.key !== 'alle' && count === 0) return null
+              const Icon = k.Icon
+              return (
+                <button
+                  key={k.key}
+                  type="button"
+                  onClick={() => setKategorie(k.key)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-full transition-all ${
+                    aktiv
+                      ? 'bg-wellbeing-green text-white shadow-sm'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:border-gray-300 hover:text-gray-900'
+                  }`}
+                >
+                  <Icon className="w-3 h-3" />
+                  {k.label}
+                  <span className={`tabular-nums ${aktiv ? 'text-white/80' : 'text-gray-400'}`}>
+                    {count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
