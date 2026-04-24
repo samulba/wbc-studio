@@ -199,7 +199,7 @@ export default function ChangelogTab({ eintraege }: { eintraege: ChangelogEntry[
   return (
     <div className="max-w-6xl">
       {/* ── Sticky Header: Hero + Filter-Bar zusammen ──────────── */}
-      <div className="sticky top-[60px] z-10 bg-white pt-1 pb-3 -mt-1 space-y-3">
+      <div className="sticky top-[60px] z-30 bg-white pt-1 pb-3 -mt-1 space-y-3">
         {/* Hero-Band (kompakt) */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-wellbeing-green via-wellbeing-green to-wellbeing-green-dark text-white px-5 py-4">
           <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-wellbeing-green-light/20 blur-3xl pointer-events-none" />
