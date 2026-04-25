@@ -556,59 +556,74 @@ function ProjekteKapitel() {
 function ProdukteKapitel() {
   return (
     <div>
-      <H2 id="produkte-status">Produktstatus-Flow</H2>
-      <P>Jedes Produkt durchläuft einen klar definierten Status-Workflow:</P>
+      <H2 id="produkte-bibliothek">Bibliothek vs. Raum-Einsatz</H2>
+      <P>Wir trennen <strong>Bibliotheks-Produkt</strong> und <strong>Raum-Einsatz</strong> sauber:</P>
       <Ul>
-        <li><strong>Geplant</strong> – Initial-Status, Produkt ist erfasst</li>
-        <li><strong>Bestellt</strong> – Bestellung beim Lieferanten aufgegeben</li>
-        <li><strong>Geliefert</strong> – Produkt ist eingetroffen</li>
-        <li><strong>Montiert</strong> – Produkt ist verbaut/installiert</li>
-        <li><strong>Abgeschlossen</strong> – Prozess abgeschlossen</li>
+        <li><strong>Produkt</strong> = der Eintrag in der Bibliothek (Sidebar → <strong>Produkte</strong>) mit Stammdaten: Name, Bild, Bibliotheks-Preis, Material, Maße, Partner</li>
+        <li><strong>Raum-Einsatz</strong> = die Verknüpfung Produkt ↔ Raum (Junction-Tabelle <code>raum_produkte</code>) mit Menge, optionalem Preis-Override, Rabatt %, eigenem Bestell- und Freigabe-Status</li>
       </Ul>
-      <P>Den Status ändern Sie direkt in der Produkttabelle über das Status-Dropdown in der jeweiligen Zeile. Alle Änderungen werden sofort gespeichert (optimistisches UI).</P>
+      <P>Daher kann derselbe Bibliotheks-Eintrag in 5 Räumen verschieden viel kosten und unterschiedliche Status haben. Auf der Bibliotheks-Seite siehst du pro Produkt &bdquo;In 3 Räumen verbaut · 8 Stk.&ldquo;.</P>
 
       <Divider />
-      <H2 id="produkte-freigabe">Freigabe-Status</H2>
-      <P>Parallel zum Bestellstatus gibt es einen Freigabe-Status, der die Kundenentscheidung abbildet:</P>
+      <H2 id="produkte-autofill">Auto-Fill (URL + AI)</H2>
+      <P>Beim Anlegen eines Produkts URL einfügen → <strong>Auto-Fill</strong>:</P>
+      <Ol>
+        <li><strong>Klassischer Scraper</strong> (cheerio) liest JSON-LD, Microdata, OpenGraph + Shop-spezifische Selektoren (Shopify, WooCommerce, Magento).</li>
+        <li>Findet er weniger als 3 Felder, eskaliert das System automatisch zu <strong>Claude Haiku 4.5</strong> mit dem bereinigten Seitentext — füllt fehlende Felder strukturiert auf. Im Modal-Header erscheint ein violettes &bdquo;✨ AI&ldquo;-Badge.</li>
+        <li>Mehrere Bilder werden gesammelt, du wählst im Modal als Grid bis zu 5 aus.</li>
+        <li><strong>Auto-Partner</strong>: passt die Domain zu einem deiner Partner, wird dieser direkt im Formular gesetzt + Logo via Favicon übernommen.</li>
+        <li><strong>URL-History</strong>: zuletzt gescrapte Domains als Klick-Chips unter dem URL-Feld.</li>
+      </Ol>
+
+      <Divider />
+      <H2 id="produkte-screenshot">Screenshot-Upload</H2>
+      <P>Wenn die Seite gescraped nicht funktioniert (Cloudflare, Login, JavaScript-only): klick auf <strong>Screenshot</strong> neben dem Auto-Fill-Knopf.</P>
       <Ul>
-        <li><strong>Offen</strong> – Kunde hat noch nicht entschieden</li>
-        <li><strong>Akzeptiert</strong> – Kunde hat das Produkt bestätigt</li>
-        <li><strong>Abgelehnt</strong> – Kunde möchte das Produkt nicht</li>
-        <li><strong>Alternative gewünscht</strong> – Kunde wünscht eine Alternativoption</li>
+        <li>Drag-and-Drop oder Datei-Picker, PNG/JPG/WebP/GIF, max. 5 MB</li>
+        <li>Live-Vorschau, &bdquo;Analysieren&ldquo;-Button</li>
+        <li><strong>Claude Sonnet 4.6 Vision</strong> liest die sichtbaren Daten aus → öffnet das normale Auto-Fill-Modal mit den extrahierten Feldern</li>
+        <li>Konservativer Prompt: keine Halluzinationen, weglassen statt raten</li>
       </Ul>
-      <InfoBox type="info" title="Freigabe vs. Konfigurator">
-        Der Freigabe-Status wird über den klassischen Freigabe-Link gesetzt. Der Konfigurator ist ein separates Tool mit erweiterter Interaktion.
+      <InfoBox type="info" title="Cost">
+        Haiku-HTML-Fallback ~$0.001 pro Aufruf · Sonnet-Vision-Screenshot ~$0.005. Voraussetzung ist <code>ANTHROPIC_API_KEY</code> in den Server-Env-Vars (Vercel).
       </InfoBox>
+
+      <Divider />
+      <H2 id="produkte-bilder">Mehrere Bilder</H2>
+      <P>Pro Produkt bis zu <strong>5 Bilder</strong>. Drag-and-Drop im Bilder-Grid, Reihenfolge per Pfeil-Buttons. Erste Bild ist das Hauptbild für Listen + Kunden-Freigabe.</P>
 
       <Divider />
       <H2 id="produkte-preise">Preisberechnung</H2>
-      <P>Wellbeing Spaces berechnet Preise automatisch nach folgender Logik:</P>
       <Ul>
-        <li><strong>Einkaufspreis (EP) netto</strong> – Ihr Einkaufspreis beim Lieferanten</li>
-        <li><strong>Marge %</strong> → <strong>Verkaufspreis (VP) netto</strong> = EP ÷ (1 − Marge/100)</li>
-        <li><strong>VP brutto</strong> = VP netto × (1 + MwSt.-Satz/100)</li>
-        <li><strong>Provision</strong> = VP netto × Provisions%</li>
+        <li><strong>EP netto</strong> = dein Einkaufspreis</li>
+        <li><strong>VP netto</strong> = EP × (1 + Marge / 100)</li>
+        <li><strong>VP brutto</strong> = VP netto × (1 + MwSt-Satz, default 19 %)</li>
+        <li><strong>Provision</strong> = VP netto × Provision %</li>
       </Ul>
-      <InfoBox type="tip" title="MwSt.-Satz konfigurieren">
-        Der MwSt.-Satz wird global in <strong>Einstellungen → Allgemein</strong> gesetzt und gilt für alle Projekte.
+      <P>Du kannst alternativ direkt <strong>VP netto</strong> oder <strong>VP brutto</strong> eingeben — die anderen Werte rechnen sich rückwärts. Im Raum-Einsatz lassen sich VP-Override + Rabatt zusätzlich setzen, ohne den Bibliothekspreis zu ändern.</P>
+      <InfoBox type="tip" title="MwSt-Satz">
+        Global in <strong>Einstellungen → Workspace</strong> einstellbar. Wirkt überall gleich.
       </InfoBox>
 
       <Divider />
-      <H2 id="produkte-autofill">Auto-Fill via URL</H2>
-      <P>Beim Anlegen eines Produkts können Sie eine Produkt-URL (z. B. des Herstellers) einfügen. Das System versucht, Name, Beschreibung und Bild automatisch auszulesen.</P>
-      <Ol>
-        <li>Neues Produkt anlegen</li>
-        <li>URL-Feld ausfüllen und auf <strong>Abrufen</strong> klicken</li>
-        <li>Vorgeschlagene Daten prüfen und ggf. anpassen</li>
-      </Ol>
-      <InfoBox type="warning" title="Hinweis">
-        Nicht alle Websites erlauben automatisches Auslesen. Bei Fehlern füllen Sie die Felder manuell aus.
-      </InfoBox>
+      <H2 id="produkte-status">Status pro Raum-Einsatz</H2>
+      <P>Bestell- und Freigabe-Status liegen <strong>pro raum_produkte-Eintrag</strong> (Migration 076):</P>
+      <H3>Bestell-Status</H3>
+      <Ul>
+        <li><strong>Ausstehend</strong> — noch nichts bestellt</li>
+        <li><strong>Bestellt</strong> — Bestellung beim Lieferanten raus</li>
+        <li><strong>Geliefert</strong> — Ware eingetroffen</li>
+        <li><strong>Rechnung erhalten</strong> — Rechnung vom Lieferant da</li>
+      </Ul>
+      <H3>Freigabe-Status</H3>
+      <Ul>
+        <li><strong>Ausstehend</strong> · <strong>Freigegeben</strong> · <strong>Abgelehnt</strong> · <strong>Überarbeitung</strong></li>
+      </Ul>
+      <P>Inline ändern in der Sortable-Produkt-Tabelle pro Raum (optimistisches UI). Liefertermin + Bestellt-Datum lassen sich direkt am Raum-Einsatz setzen.</P>
 
       <Divider />
-      <H2 id="produkte-bibliothek">Produktbibliothek</H2>
-      <P>Die Bibliothek (Raum ohne Projekt-Zuordnung) dient als Vorlagen-Pool. Produkte ohne Raum-Zuweisung landen automatisch in der Bibliothek und können mehreren Projekten zugewiesen werden.</P>
-      <P>Erreichbar über <strong>Produkte → Bibliothek</strong> in der Seitenleiste.</P>
+      <H2 id="produkte-varianten">Varianten</H2>
+      <P>Ein Produkt kann <strong>Varianten</strong> haben — selbe Basis, unterschiedliche Attribute (z. B. Farbe, Größe). Auf der Produkt-Bearbeiten-Seite legst du Varianten-Definitionen an (Attribut + Optionen) und erzeugst pro Kombination eine Variante. Jede Variante ist ein eigenes Produkt mit Verweis auf das Eltern-Produkt.</P>
     </div>
   )
 }
@@ -616,22 +631,35 @@ function ProdukteKapitel() {
 function FreigabenKapitel() {
   return (
     <div>
-      <H2 id="freigaben-uebersicht">Übersicht</H2>
-      <P>Die Freigaben-Seite zeigt alle Produkte aller Projekte nach ihrem Freigabestatus gegliedert. Sie erhalten einen schnellen Überblick, wo noch Kundenentscheidungen ausstehen.</P>
+      <H2 id="freigaben-uebersicht">Dashboard</H2>
+      <P>Sidebar → <strong>Freigaben</strong> zeigt alle Produkte aller Projekte:</P>
+      <Ul>
+        <li><strong>Hero-Progressbar</strong> oben — Verteilung über alle Status (grün/amber/rot/violett) auf einen Blick</li>
+        <li><strong>Status-Chips</strong>: 4 farbige Filter-Pills mit Anzahl (• 4 Freigegeben, • 34 Ausstehend …) — klickbar zum Umschalten + Alle-Chip rechts</li>
+        <li><strong>Action-Bar</strong>: Volltextsuche (Produkt / Raum / Projekt / Kategorie) + Projekt-Filter-Dropdown + View-Toggle</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="freigaben-bulk">Bulk-Aktionen</H2>
+      <P>Pro Zeile + pro Gruppen-Header gibt es eine Checkbox. Sobald mindestens 1 Produkt markiert ist, erscheint unten eine <strong>Floating Action-Bar</strong>:</P>
+      <Ul>
+        <li>&bdquo;N ausgewählt&ldquo; · Freigeben · Ablehnen · Überarbeiten · Zurücksetzen · Alle sichtbaren · X (deselect)</li>
+        <li>Sammel-Aktion betrifft alle markierten Produkte gleichzeitig (1 Batch-Update statt N Requests)</li>
+        <li>Alle Bulk-Änderungen werden ins <strong>Audit-Log</strong> geschrieben (Kanal &bdquo;admin&ldquo;)</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="freigaben-filter">Filter &amp; Suche</H2>
+      <P>Status-Chips funktionieren als Filter + Volltext + Projekt-Dropdown lassen sich kombinieren (UND).</P>
 
       <Divider />
       <H2 id="freigaben-ansichten">Ansichten</H2>
-      <P>Wechseln Sie zwischen drei Darstellungsmodi:</P>
+      <P>View-Toggle rechts:</P>
       <Ul>
-        <li><strong>Donut-Diagramm</strong> – Prozentualer Anteil je Status</li>
-        <li><strong>Balkendiagramm</strong> – Absolute Zahlen im Vergleich</li>
-        <li><strong>Liste</strong> – Tabellarische Aufstellung mit Details</li>
+        <li><strong>Gruppen</strong> — aufklappbare Projekt-Karten mit Mini-Progressbar pro Projekt, VP-Summe, Offen-Badge</li>
+        <li><strong>Tabelle</strong> — flache Liste mit Projekt-Info pro Zeile (CSV-ähnlich)</li>
+        <li><strong>Balken</strong> — visueller Vergleich der Statusverteilung</li>
       </Ul>
-      <P>Der Toggle oben rechts in der Freigaben-Karte schaltet zwischen den Ansichten um.</P>
-
-      <Divider />
-      <H2 id="freigaben-filter">Filter</H2>
-      <P>In der Listenansicht können Sie nach Status, Raum und Freitext filtern. Die Filter kombinieren sich automatisch (UND-Verknüpfung).</P>
     </div>
   )
 }
@@ -639,40 +667,33 @@ function FreigabenKapitel() {
 function KundenfreigabeKapitel() {
   return (
     <div>
-      <H2 id="kf-link">Link erstellen</H2>
-      <P>Der Freigabe-Link gibt dem Kunden eine sichere, passwortgeschützte Ansicht aller Produkte seines Projekts.</P>
-      <Ol>
-        <li>Projekt öffnen → Karte <strong>Freigabe-Link</strong></li>
-        <li>Auf <strong>Link erstellen</strong> klicken</li>
-        <li>Link per E-Mail oder Messenger teilen</li>
-      </Ol>
-      <InfoBox type="tip" title="Link kopieren">
-        Klicken Sie auf <strong>Kopieren</strong> neben der URL, um den Link in die Zwischenablage zu übernehmen. Das externe Link-Icon öffnet die Kundenansicht zur Vorschau.
-      </InfoBox>
-
-      <Divider />
-      <H2 id="kf-pin">PIN-Schutz aktivieren</H2>
-      <P>Um unbefugten Zugriff zu verhindern, können Sie einen 6-stelligen PIN aktivieren. Der Kunde muss diesen beim ersten Öffnen des Links eingeben.</P>
-      <Ol>
-        <li>In den Einstellungen → <strong>Freigabe & Links</strong></li>
-        <li><strong>PIN-Schutz aktivieren</strong> einschalten</li>
-        <li>PIN generieren oder manuell eingeben</li>
-        <li>PIN dem Kunden separat mitteilen (nicht im Link!)</li>
-      </Ol>
-      <InfoBox type="warning" title="Sicherheit">
-        Teilen Sie den PIN niemals im selben Kanal wie den Link. Versenden Sie beides separat.
-      </InfoBox>
-
-      <Divider />
-      <H2 id="kf-ansicht">Kundenansicht</H2>
-      <P>In der Kundenansicht sieht der Empfänger alle Produkte seines Projekts, aufgeteilt nach Räumen. Er kann pro Produkt:</P>
+      <H2 id="kf-link">Link erstellen (Scopes)</H2>
+      <P>Auf der Projekt-Detail-Seite öffnest du die <strong>Freigabe-Link</strong>-Karte. Pro Link kannst du den <strong>Scope</strong> wählen — was der Kunde sehen darf:</P>
       <Ul>
-        <li>Akzeptieren (grüner Haken)</li>
-        <li>Ablehnen (rotes X)</li>
-        <li>Alternative anfragen (Tausch-Icon)</li>
-        <li>Status offen lassen</li>
+        <li><strong>Gesamtes Projekt</strong> — alle Räume + alle Produkte</li>
+        <li><strong>Einzelner Raum</strong> — nur die Produkte eines Raums</li>
+        <li><strong>Auswahl</strong> — du markierst genau die Produkte, die freigegeben werden sollen</li>
       </Ul>
-      <P>Die Ansicht ist für Mobilgeräte optimiert und zeigt Produktbilder, Beschreibungen und – wenn konfiguriert – Preise an.</P>
+      <P>Token wird kryptographisch erzeugt, Gültigkeitsdauer ist konfigurierbar (default unbegrenzt). Beim Abschluss wird der Token <strong>nicht gelöscht</strong> — er bleibt für Audit-Zwecke abrufbar, aber inaktiv.</P>
+
+      <Divider />
+      <H2 id="kf-pin">PIN-Schutz</H2>
+      <P>Pro Link optional ein <strong>4–6-stelliger PIN</strong> aktivieren — der Kunde muss ihn beim Öffnen eingeben. Wir hashen den PIN serverseitig (bcrypt). Toast-Feedback im Admin-UI zeigt nach Speichern an, dass der PIN aktiv ist. Versende den PIN immer auf einem anderen Kanal als den Link.</P>
+
+      <Divider />
+      <H2 id="kf-mobile">Mobile Kundenansicht</H2>
+      <P>Die Freigabe-Seite (<code>/freigabe/&lt;token&gt;</code>) ist mobil-first gebaut:</P>
+      <Ul>
+        <li>Großes Produktbild oben, einklappbare Beschreibung</li>
+        <li>Touch-optimierte Buttons (py-3.5, flex-col → row auf größeren Screens): Freigeben · Ablehnen · Überarbeitung · Zurücksetzen</li>
+        <li>Mini-Donut im Header zeigt Gesamtfortschritt</li>
+        <li>Preis-Grid in 2 Spalten (VP netto / brutto)</li>
+        <li>Branding: Logo, Farben, Schrift, Welcome-Text aus deinem Branding-Tab werden übernommen</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="kf-audit">Audit-Log</H2>
+      <P>Jede Status-Änderung (durch Kunde oder Admin) wird im <code>freigabe_audit</code>-Log mit Timestamp + IP + User-Agent festgehalten. Auf Wunsch im Admin-Tool einsehbar.</P>
     </div>
   )
 }
@@ -850,8 +871,96 @@ function PartnerKapitel() {
   )
 }
 
-function RaeumeKapitel() { return <P>(folgt)</P> }
-function PortalKapitel() { return <P>(folgt)</P> }
+function RaeumeKapitel() {
+  return (
+    <div>
+      <H2 id="raeume-anlegen">Raum anlegen</H2>
+      <P>Räume strukturieren ein Projekt thematisch. Auf der Projekt-Detail-Seite klickst du auf <strong>+ Raum hinzufügen</strong>:</P>
+      <Ol>
+        <li>Name eingeben (z. B. &bdquo;Wohnzimmer&ldquo;, &bdquo;Büro EG Süd&ldquo;)</li>
+        <li>Optional: Raumtyp aus Dropdown wählen (Wohnzimmer, Büro, Bad, Küche, …) — Icon erscheint später in der Karte</li>
+        <li>Speichern</li>
+      </Ol>
+      <P>Raumtypen kommen aus dem Kategorien-Tab in den Einstellungen — kannst eigene anlegen mit eigenem Icon (Lucide-Name).</P>
+
+      <Divider />
+      <H2 id="raeume-budget">Budget pro Raum</H2>
+      <P>Jeder Raum hat ein eigenes optionales Budget. In der Raum-Karte auf der Projekt-Seite siehst du einen <strong>Fortschrittsbalken</strong>: Ist-Kosten (effektiver VP × Menge aller zugewiesenen Produkte) gegen Raum-Budget. Über 100 % wird rot.</P>
+
+      <Divider />
+      <H2 id="raeume-produkte">Produkte zuweisen</H2>
+      <P>Auf der Raum-Detail-Seite gibt es zwei Wege:</P>
+      <Ul>
+        <li><strong>Neues Produkt anlegen</strong> — direkt im Raum, geht direkt in die Bibliothek + den Raum zugleich</li>
+        <li><strong>Aus Bibliothek zuweisen</strong> — Modal mit Suche, klickst dir bestehende Produkte rein</li>
+      </Ul>
+      <P>Pro Raum-Einsatz kannst du:</P>
+      <Ul>
+        <li><strong>Menge</strong> setzen (z. B. 2 Stk.)</li>
+        <li><strong>VP-Override</strong> — eigener Preis nur für diesen Einsatz (ohne den Bibliotheks-Preis zu ändern)</li>
+        <li><strong>Rabatt %</strong> — wird auf den effektiven VP angewendet</li>
+        <li><strong>Bestellstatus + Freigabe-Status</strong> getrennt pro Einsatz (siehe Produkte-Kapitel)</li>
+      </Ul>
+      <InfoBox type="tip" title="Hintergrund">
+        Junction-Tabelle <code>raum_produkte</code>: derselbe Bibliotheks-Artikel kann in Raum A 2x und in Raum B 5x verbaut sein — mit eigenen Mengen, Preisen und Status pro Einsatz.
+      </InfoBox>
+
+      <Divider />
+      <H2 id="raeume-grundriss">Grundriss-Vorschau</H2>
+      <P>Über der Produkttabelle siehst du eine <strong>Mini-Vorschau des Grundrisses</strong>, sobald du im Raumplaner einen Plan gespeichert hast. Klick auf &bdquo;Im Raumplaner bearbeiten&ldquo; öffnet den vollen Editor (siehe Raumplaner-Kapitel).</P>
+
+      <Divider />
+      <H2 id="raeume-reihenfolge">Reihenfolge per Drag &amp; Drop</H2>
+      <P>Auf der Projekt-Seite kannst du Räume per <strong>⠿-Handle</strong> links neben der Karte umsortieren. Optimistisches UI — sofort sichtbar, im Hintergrund gespeichert. Genauso für Produkte innerhalb eines Raums.</P>
+    </div>
+  )
+}
+function PortalKapitel() {
+  return (
+    <div>
+      <H2 id="portal-zugang">Zugang einrichten</H2>
+      <P>Im Gegensatz zum öffentlichen Freigabe-Link hat das Portal einen <strong>echten Login</strong>. Schritte:</P>
+      <Ol>
+        <li>Auf der Kunden-Detail-Seite Block <strong>Kunden-Portal</strong> öffnen</li>
+        <li><strong>Einladung erstellen</strong> → E-Mail eingeben, optional Vor-/Nachname</li>
+        <li>Einladungslink wird generiert (bcrypt + Session-Cookie-Auth, unabhängig von Supabase Auth)</li>
+        <li>Link an Kunde senden — er setzt sein Passwort beim Erstaufruf</li>
+      </Ol>
+      <InfoBox type="info" title="Hintergrund">
+        Eigenes Auth-System (Tabellen <code>client_users</code>, Session-Token-Cookie), damit Portal-User nicht im Supabase-User-Pool landen. Admin-Operationen via <code>createAdminClient()</code>.
+      </InfoBox>
+
+      <Divider />
+      <H2 id="portal-welcome">Willkommens-Tour</H2>
+      <P>Beim ersten Login startet automatisch ein 3-Schritt-Intro:</P>
+      <Ul>
+        <li>&bdquo;Willkommen bei {'{'}Firma{'}'}&ldquo; mit Branding-Akzentfarbe</li>
+        <li>&bdquo;Produkte freigeben&ldquo; — kurze Erklärung des Freigabe-Workflows</li>
+        <li>&bdquo;Direkter Chat statt E-Mail-Ping-Pong&ldquo; — Verweis auf Chat-Block</li>
+      </Ul>
+      <P>LocalStorage-Flag verhindert, dass die Tour bei jedem Login wieder aufpoppt. X-Button oder Hintergrund-Klick schließt sie jederzeit.</P>
+
+      <Divider />
+      <H2 id="portal-projekt">Projektansicht</H2>
+      <P>Pro Projekt sieht der Kunde:</P>
+      <Ul>
+        <li>Produkte gruppiert nach Raum mit Status-Badges</li>
+        <li>Freigabe-Aktionen direkt inline (selber Mechanismus wie Freigabe-Link, aber mit Login)</li>
+        <li>Mini-Timeline mit allen Events, die <strong>kunde_sichtbar = true</strong> markiert sind</li>
+        <li>Fortschrittsanzeige (Freigaben %)</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="portal-chat">Chat &amp; Dokumente</H2>
+      <P><strong>Chat</strong> — Echtzeit-Nachrichten zwischen Kunde und Studio, mit Datei-/Bild-/Audio-Anhängen (max. 50 MB). Ungelesene Nachrichten erscheinen als Badge im Sidebar-Tab.</P>
+      <P><strong>Dokumente</strong> — Der Kunde kann Briefings, Skizzen, Inspirationsbilder hochladen, die du im Admin sehen kannst.</P>
+
+      <Divider />
+      <H2 id="portal-team">Team &amp; Einstellungen</H2>
+      <P>Wenn der Kunde mehrere Mitarbeiter hat, kann er weitere Portal-User einladen (Rolle: Owner / Member). Im Profil-Tab kann er Vorname, Nachname, Avatar und Passwort ändern.</P>
+    </div>
+  )
+}
 function AngeboteKapitel() { return <P>(folgt)</P> }
 function VertraegeKapitel() { return <P>(folgt)</P> }
 function RaumplanerKapitel() { return <P>(folgt)</P> }
