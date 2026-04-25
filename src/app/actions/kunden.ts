@@ -7,7 +7,7 @@ import { redirect } from 'next/navigation'
 import { meineRolleAbrufen } from '@/app/actions/team'
 import { istAdmin } from '@/lib/permissions'
 import { ableitenFaviconUrl, applyFaviconIfNeeded } from '@/lib/favicon'
-import type { KommunikationTyp, ProjektStatus } from '@/lib/supabase/types'
+import type { KommunikationTyp, KundeKontakt, ProjektStatus } from '@/lib/supabase/types'
 
 export type KundeActionState = { fehler: string } | null
 
@@ -32,11 +32,11 @@ export async function kundeAnlegen(
   const websiteRaw = (formData.get('website') as string) || null
   const autoFavicon = ableitenFaviconUrl(websiteRaw)
 
+  // Hinweis: ansprechpartner/email/telefon werden ab Migration 091 nicht mehr
+  // direkt ueber das Formular gepflegt, sondern vom Hauptkontakt im Kontakte-
+  // Block via syncKundeHauptkontakt() gespiegelt.
   const { error } = await supabase.from('kunden').insert({
     name: formData.get('name') as string,
-    ansprechpartner: (formData.get('ansprechpartner') as string) || null,
-    email: (formData.get('email') as string) || null,
-    telefon: (formData.get('telefon') as string) || null,
     adresse: (formData.get('adresse') as string) || null,
     website: websiteRaw,
     logo_url: autoFavicon,
@@ -58,13 +58,11 @@ export async function kundeAktualisieren(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
+  // ansprechpartner/email/telefon kommen ueber syncKundeHauptkontakt
   const { error } = await supabase
     .from('kunden')
     .update({
       name: formData.get('name') as string,
-      ansprechpartner: (formData.get('ansprechpartner') as string) || null,
-      email: (formData.get('email') as string) || null,
-      telefon: (formData.get('telefon') as string) || null,
       adresse: (formData.get('adresse') as string) || null,
       website: (formData.get('website') as string) || null,
       notizen: (formData.get('notizen') as string) || null,
@@ -420,4 +418,188 @@ export async function kundeProjekteMitStats(
       },
     }
   })
+}
+
+// ── Kunden-Kontaktpersonen (Migration 091) ────────────────────
+
+export interface KundeKontaktDaten {
+  name:             string
+  rolle:            string | null
+  email:            string | null
+  telefon:          string | null
+  mobil:            string | null
+  notizen:          string | null
+  ist_hauptkontakt: boolean
+  reihenfolge?:     number
+}
+
+export type KundeKontaktResult = { fehler?: string; erfolg?: boolean }
+
+/**
+ * Spiegelt den aktuellen Hauptkontakt in die Legacy-Spalten
+ * kunden.ansprechpartner / email / telefon zurück, damit Listen-
+ * Ansichten und PDFs ohne JOIN funktionieren.
+ */
+async function syncKundeHauptkontakt(kundeId: string, orgId: string): Promise<void> {
+  const supabase = await createClient()
+  const { data: kontakte } = await supabase
+    .from('kunden_kontakte')
+    .select('name, email, telefon, ist_hauptkontakt, reihenfolge, created_at')
+    .eq('kunde_id', kundeId)
+    .eq('organisation_id', orgId)
+    .order('ist_hauptkontakt', { ascending: false })
+    .order('reihenfolge', { ascending: true })
+    .order('created_at', { ascending: true })
+    .limit(1)
+
+  const primaer = (kontakte ?? [])[0] as { name: string; email: string | null; telefon: string | null } | undefined
+
+  await supabase
+    .from('kunden')
+    .update({
+      ansprechpartner: primaer?.name ?? null,
+      email:           primaer?.email ?? null,
+      telefon:         primaer?.telefon ?? null,
+    })
+    .eq('id', kundeId)
+    .eq('organisation_id', orgId)
+}
+
+export async function getKundenKontakte(kundeId: string): Promise<KundeKontakt[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('kunden_kontakte')
+    .select('*')
+    .eq('kunde_id', kundeId)
+    .order('ist_hauptkontakt', { ascending: false })
+    .order('reihenfolge',      { ascending: true })
+    .order('created_at',       { ascending: true })
+  return (data ?? []) as KundeKontakt[]
+}
+
+export async function kundeKontaktAnlegen(
+  kundeId: string,
+  daten: KundeKontaktDaten,
+): Promise<KundeKontaktResult> {
+  if (!daten.name?.trim()) return { fehler: 'Name ist erforderlich.' }
+
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  if (daten.ist_hauptkontakt) {
+    await supabase
+      .from('kunden_kontakte')
+      .update({ ist_hauptkontakt: false })
+      .eq('kunde_id', kundeId)
+      .eq('organisation_id', orgId)
+  }
+
+  const { error } = await supabase.from('kunden_kontakte').insert({
+    organisation_id: orgId,
+    kunde_id:        kundeId,
+    name:            daten.name.trim(),
+    rolle:           daten.rolle?.trim() || null,
+    email:           daten.email?.trim() || null,
+    telefon:         daten.telefon?.trim() || null,
+    mobil:           daten.mobil?.trim() || null,
+    notizen:         daten.notizen?.trim() || null,
+    ist_hauptkontakt: !!daten.ist_hauptkontakt,
+    reihenfolge:     daten.reihenfolge ?? 0,
+  })
+  if (error) return { fehler: 'Fehler beim Speichern.' }
+
+  await syncKundeHauptkontakt(kundeId, orgId)
+  revalidatePath(`/dashboard/kunden/${kundeId}`)
+  revalidatePath(`/dashboard/kunden`)
+  return { erfolg: true }
+}
+
+export async function kundeKontaktAktualisieren(
+  id: string,
+  kundeId: string,
+  daten: KundeKontaktDaten,
+): Promise<KundeKontaktResult> {
+  if (!daten.name?.trim()) return { fehler: 'Name ist erforderlich.' }
+
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  if (daten.ist_hauptkontakt) {
+    await supabase
+      .from('kunden_kontakte')
+      .update({ ist_hauptkontakt: false })
+      .eq('kunde_id', kundeId)
+      .eq('organisation_id', orgId)
+      .neq('id', id)
+  }
+
+  const { error } = await supabase
+    .from('kunden_kontakte')
+    .update({
+      name:             daten.name.trim(),
+      rolle:            daten.rolle?.trim() || null,
+      email:            daten.email?.trim() || null,
+      telefon:          daten.telefon?.trim() || null,
+      mobil:            daten.mobil?.trim() || null,
+      notizen:          daten.notizen?.trim() || null,
+      ist_hauptkontakt: !!daten.ist_hauptkontakt,
+      ...(daten.reihenfolge != null ? { reihenfolge: daten.reihenfolge } : {}),
+    })
+    .eq('id', id)
+    .eq('kunde_id', kundeId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Fehler beim Aktualisieren.' }
+
+  await syncKundeHauptkontakt(kundeId, orgId)
+  revalidatePath(`/dashboard/kunden/${kundeId}`)
+  revalidatePath(`/dashboard/kunden`)
+  return { erfolg: true }
+}
+
+export async function kundeKontaktLoeschen(
+  id: string,
+  kundeId: string,
+): Promise<KundeKontaktResult> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { error } = await supabase
+    .from('kunden_kontakte')
+    .delete()
+    .eq('id', id)
+    .eq('kunde_id', kundeId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Fehler beim Löschen.' }
+
+  await syncKundeHauptkontakt(kundeId, orgId)
+  revalidatePath(`/dashboard/kunden/${kundeId}`)
+  revalidatePath(`/dashboard/kunden`)
+  return { erfolg: true }
+}
+
+export async function kundeKontaktAlsHauptkontaktSetzen(
+  id: string,
+  kundeId: string,
+): Promise<KundeKontaktResult> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  await supabase
+    .from('kunden_kontakte')
+    .update({ ist_hauptkontakt: false })
+    .eq('kunde_id', kundeId)
+    .eq('organisation_id', orgId)
+
+  const { error } = await supabase
+    .from('kunden_kontakte')
+    .update({ ist_hauptkontakt: true })
+    .eq('id', id)
+    .eq('kunde_id', kundeId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Fehler beim Setzen.' }
+
+  await syncKundeHauptkontakt(kundeId, orgId)
+  revalidatePath(`/dashboard/kunden/${kundeId}`)
+  revalidatePath(`/dashboard/kunden`)
+  return { erfolg: true }
 }

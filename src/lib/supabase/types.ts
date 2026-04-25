@@ -210,6 +210,23 @@ export interface PartnerKontakt {
   updated_at: string
 }
 
+// ── Kunden-Kontaktpersonen (Migration 091) ────────────────────
+export interface KundeKontakt {
+  id: string
+  organisation_id: string
+  kunde_id: string
+  name: string
+  rolle: string | null
+  email: string | null
+  telefon: string | null
+  mobil: string | null
+  notizen: string | null
+  ist_hauptkontakt: boolean
+  reihenfolge: number
+  created_at: string
+  updated_at: string
+}
+
 // ── Partner-Konditionen (Migration 039) ───────────────────────
 export type PartnerKonditionTyp =
   | 'prozent_fix'

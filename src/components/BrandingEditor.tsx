@@ -109,60 +109,134 @@ function FarbFeld({
 
 // ── Vorschau ──────────────────────────────────────────────────
 function Vorschau({ branding, logoUrl }: { branding: Partial<Branding>; logoUrl: string | null }) {
-  const bg   = branding.background_color ?? DEFAULTS.background_color
-  const prim = branding.primary_color    ?? DEFAULTS.primary_color
-  const text = branding.text_color       ?? DEFAULTS.text_color
-  const name = branding.firmenname       ?? DEFAULTS.firmenname
+  const bg        = branding.background_color  ?? DEFAULTS.background_color
+  const prim      = branding.primary_color     ?? DEFAULTS.primary_color
+  const sec       = branding.secondary_color   ?? DEFAULTS.secondary_color
+  const accent    = branding.accent_color      ?? DEFAULTS.accent_color
+  const text      = branding.text_color        ?? DEFAULTS.text_color
+  const buttonTxt = branding.button_text_color ?? DEFAULTS.button_text_color
+  const name      = branding.firmenname        ?? DEFAULTS.firmenname
+  const slogan    = branding.slogan
+  const font      = branding.font_family       ?? DEFAULTS.font_family
+  const corner    = branding.corner_style      ?? 'soft'
+  const radius    = corner === 'sharp' ? '6px' : corner === 'rounded' ? '20px' : '14px'
+  const radiusSm  = corner === 'sharp' ? '4px' : corner === 'rounded' ? '14px' : '10px'
+  const heroBg    = branding.hero_image_url
+    ? `url("${branding.hero_image_url}") center/cover`
+    : `linear-gradient(135deg, ${branding.accent_gradient_from ?? prim}, ${branding.accent_gradient_to ?? sec})`
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
-      {/* Header-Vorschau */}
-      <div className="px-5 py-4 flex items-center justify-between" style={{ backgroundColor: bg }}>
-        <div className="flex items-center gap-2.5">
+    <div className="rounded-2xl overflow-hidden border border-gray-200 shadow-sm" style={{ fontFamily: font }}>
+      {/* Header */}
+      <div className="px-4 py-3 flex items-center justify-between border-b" style={{ backgroundColor: bg, borderColor: 'rgba(0,0,0,0.05)' }}>
+        <div className="flex items-center gap-2">
           {logoUrl ? (
-            <Image src={logoUrl} alt="Logo" width={28} height={28} className="rounded object-contain" />
+            <Image src={logoUrl} alt="Logo" width={26} height={26} className="rounded object-contain" />
           ) : (
-            <svg width="22" height="22" viewBox="0 0 18 18" fill="none">
-              <rect x="0" y="0" width="10" height="10" rx="2" fill={prim} opacity="0.30" />
-              <rect x="4" y="4" width="10" height="10" rx="2" fill={prim} opacity="0.55" />
-              <rect x="8" y="8" width="10" height="10" rx="2" fill={prim} />
-            </svg>
+            <div className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold" style={{ backgroundColor: prim, color: buttonTxt }}>
+              {name.charAt(0)}
+            </div>
           )}
-          <span
-            className="text-sm font-bold tracking-tight"
-            style={{ color: text, fontFamily: branding.font_family ?? DEFAULTS.font_family }}
-          >
-            {name}
-          </span>
+          <span className="text-sm font-bold tracking-tight" style={{ color: text }}>{name}</span>
         </div>
-        <span className="text-xs px-2 py-0.5 rounded-full text-white font-medium" style={{ backgroundColor: prim }}>
-          Musterraum
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] px-2 py-0.5 font-medium" style={{ backgroundColor: accent, color: text, borderRadius: radiusSm }}>
+            Mein Bereich
+          </span>
+          <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-semibold" style={{ backgroundColor: prim, color: buttonTxt }}>
+            MM
+          </div>
+        </div>
+      </div>
+
+      {/* Hero / Welcome */}
+      <div className="relative px-5 py-6 text-white" style={{ background: heroBg }}>
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="relative">
+          <p className="text-[10px] uppercase tracking-widest font-semibold opacity-80 mb-1">Willkommen</p>
+          <p className="text-base font-bold leading-tight">{slogan ?? `Schön, dass Sie bei ${name} sind.`}</p>
+          <p className="text-[11px] opacity-80 mt-1.5 leading-snug">
+            {branding.welcome_text ?? 'Hier finden Sie alle Produkte und Dokumente Ihres Projekts an einem Ort.'}
+          </p>
+          <button
+            type="button"
+            className="mt-3 text-[11px] font-semibold px-3 py-1.5"
+            style={{ backgroundColor: prim, color: buttonTxt, borderRadius: radius }}
+          >
+            Zu meinen Produkten →
+          </button>
+        </div>
+      </div>
+
+      {/* Karten-Sektion */}
+      <div className="px-4 py-4 grid grid-cols-2 gap-2.5" style={{ backgroundColor: bg }}>
+        {[
+          { label: 'Produkte',   wert: '12', sub: '8 freigegeben' },
+          { label: 'Räume',      wert: '4',  sub: 'Wohn- & Schlafber.' },
+        ].map((k) => (
+          <div key={k.label} className="bg-white p-3 border border-gray-100" style={{ borderRadius: radiusSm }}>
+            <p className="text-[9px] uppercase tracking-widest font-semibold text-gray-400">{k.label}</p>
+            <p className="text-lg font-bold mt-0.5" style={{ color: text }}>{k.wert}</p>
+            <p className="text-[10px] text-gray-400 leading-tight">{k.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Produkt-Karte mit Aktion */}
+      <div className="px-4 pb-4" style={{ backgroundColor: bg }}>
+        <div className="bg-white p-3 border border-gray-100" style={{ borderRadius: radiusSm }}>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 shrink-0" style={{ backgroundColor: accent, borderRadius: radiusSm }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold truncate" style={{ color: text }}>Eames Lounge Chair</p>
+              <p className="text-[10px] text-gray-400">Sessel · Wohnzimmer</p>
+              <p className="text-[11px] font-bold mt-0.5" style={{ color: prim }}>4.290 €</p>
+            </div>
+          </div>
+          <div className="flex gap-1.5 mt-3">
+            <button
+              type="button"
+              className="flex-1 text-[10px] font-semibold py-1.5"
+              style={{ backgroundColor: prim, color: buttonTxt, borderRadius: radiusSm }}
+            >
+              Freigeben
+            </button>
+            <button
+              type="button"
+              className="flex-1 text-[10px] font-medium py-1.5 border border-gray-200 text-gray-500"
+              style={{ borderRadius: radiusSm }}
+            >
+              Ablehnen
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Sekundär-Akzent + Tag */}
+      <div className="px-4 pb-4 flex items-center gap-1.5 flex-wrap" style={{ backgroundColor: bg }}>
+        <span className="text-[10px] px-2 py-0.5 font-medium" style={{ backgroundColor: prim, color: buttonTxt, borderRadius: radiusSm }}>
+          Primärfarbe
+        </span>
+        <span className="text-[10px] px-2 py-0.5 font-medium" style={{ backgroundColor: sec, color: text, borderRadius: radiusSm }}>
+          Sekundär
+        </span>
+        <span className="text-[10px] px-2 py-0.5 font-medium border" style={{ backgroundColor: accent, color: text, borderColor: 'rgba(0,0,0,0.06)', borderRadius: radiusSm }}>
+          Akzent
         </span>
       </div>
 
-      {/* Body-Vorschau */}
-      <div className="px-5 py-5 bg-white">
-        <div className="h-2 rounded bg-gray-100 w-3/4 mb-2" />
-        <div className="h-2 rounded bg-gray-100 w-1/2 mb-5" />
-        <div className="flex gap-2">
-          <div
-            className="h-8 px-4 rounded-lg text-xs text-white font-medium flex items-center"
-            style={{ backgroundColor: prim }}
-          >
-            Freigeben
-          </div>
-          <div className="h-8 px-4 rounded-lg text-xs font-medium flex items-center border border-gray-200 text-gray-500">
-            Ablehnen
-          </div>
-        </div>
-      </div>
-
       {/* Footer */}
-      {branding.show_powered_by && (
-        <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 text-center">
-          <span className="text-[10px] text-gray-400">Powered by Wellbeing Spaces</span>
+      <div className="px-4 py-3 border-t" style={{ backgroundColor: bg, borderColor: 'rgba(0,0,0,0.05)' }}>
+        <div className="flex items-center justify-between gap-2 flex-wrap text-[10px]" style={{ color: text, opacity: 0.7 }}>
+          <span>{branding.footer_text ?? `© ${new Date().getFullYear()} ${name}`}</span>
+          {branding.support_email && <span className="truncate">{branding.support_email}</span>}
         </div>
-      )}
+        {branding.show_powered_by && (
+          <p className="text-[9px] text-center mt-1.5" style={{ color: text, opacity: 0.4 }}>
+            Powered by Wellbeing Spaces
+          </p>
+        )}
+      </div>
     </div>
   )
 }
@@ -842,8 +916,8 @@ export default function BrandingEditor({ branding: initial }: { branding: Brandi
         </div>
       </div>
 
-      {/* ── Rechte Spalte: Vorschau ── */}
-      <div className="space-y-4">
+      {/* ── Rechte Spalte: Vorschau (sticky beim Scrollen) ── */}
+      <div className="xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:pr-1 self-start space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-700">Live-Vorschau</h2>
           <button

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { portalBenutzerAbrufen } from '@/app/actions/portal'
 import { getKommunikation } from '@/app/actions/kommunikation'
 import { meineRolleAbrufen } from '@/app/actions/team'
-import { kundeStats, kundeProjekteMitStats } from '@/app/actions/kunden'
+import { kundeStats, kundeProjekteMitStats, getKundenKontakte } from '@/app/actions/kunden'
 import { kundeEventsAbrufen } from '@/app/actions/timeline'
 import { istAdmin } from '@/lib/permissions'
 import KundeLoeschenModal from '@/components/KundeLoeschenModal'
@@ -15,6 +15,7 @@ import KommunikationBlock from '@/components/KommunikationBlock'
 import KundeStatsBand from '@/components/KundeStatsBand'
 import KundeProjektliste from '@/components/KundeProjektliste'
 import KundeTimelineBlock from '@/components/KundeTimelineBlock'
+import KundeKontakteBlock from '@/components/KundeKontakteBlock'
 
 async function getKunde(id: string) {
   const supabase = await createClient()
@@ -41,7 +42,7 @@ export default async function KundeDetailPage({ params }: { params: { id: string
   if (!kunde) notFound()
 
   const istArchiviert = kunde.deleted_at != null
-  const [projekteMitStats, notizen, portalUser, kommunikation, rolle, stats, kundeEvents] = await Promise.all([
+  const [projekteMitStats, notizen, portalUser, kommunikation, rolle, stats, kundeEvents, kontakte] = await Promise.all([
     kundeProjekteMitStats(params.id, istArchiviert),
     getNotizen(params.id),
     portalBenutzerAbrufen(params.id),
@@ -49,6 +50,7 @@ export default async function KundeDetailPage({ params }: { params: { id: string
     meineRolleAbrufen(),
     kundeStats(params.id),
     kundeEventsAbrufen(params.id),
+    getKundenKontakte(params.id),
   ])
 
   const darfLoeschen = istAdmin(rolle)
@@ -106,14 +108,19 @@ export default async function KundeDetailPage({ params }: { params: { id: string
         {/* Stammdaten + Sidebar */}
         <div className="space-y-4">
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
-            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Kontaktdaten</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Firma</h2>
             <dl className="space-y-3">
-              <InfoZeile label="Ansprechpartner" wert={kunde.ansprechpartner} />
-              <InfoZeile label="E-Mail" wert={kunde.email} link={kunde.email ? `mailto:${kunde.email}` : undefined} />
-              <InfoZeile label="Telefon" wert={kunde.telefon} link={kunde.telefon ? `tel:${kunde.telefon}` : undefined} />
+              <InfoZeile label="Website" wert={kunde.website} link={kunde.website ?? undefined} />
               <InfoZeile label="Adresse" wert={kunde.adresse} />
+              {!kunde.website && !kunde.adresse && (
+                <p className="text-sm text-gray-400">Keine Firmen-Daten hinterlegt.</p>
+              )}
             </dl>
           </div>
+
+          {/* Ansprechpartner: mehrere mit eigenen Kontaktdaten */}
+          <KundeKontakteBlock kundeId={kunde.id} initialKontakte={kontakte} />
+
           {kunde.notizen && (
             <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
               <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">Interne Notizen (alt)</h2>

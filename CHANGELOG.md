@@ -5,6 +5,17 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Branding: Live-Vorschau bleibt sichtbar + ist deutlich aussagekräftiger
+- **Sticky-Vorschau**: Die rechte Spalte „Live-Vorschau" auf der Branding-Seite scrollt jetzt mit — wenn du runterscrollst, bleibt die Vorschau im Blick.
+- **Detailliertere Vorschau**: zeigt jetzt einen kompletten Mini-Portal-Layout (Header mit Logo + User-Avatar + Tab-Badge, Hero mit Slogan/Welcome-Text + CTA-Button, Karten-Sektion mit KPI-Stats, Produkt-Karte mit Freigeben/Ablehnen-Buttons, Farb-Pillen für Primär/Sekundär/Akzent, Footer mit Support-E-Mail). Du siehst sofort wie sich Farben, Schrift, Ecken-Style, Hero-Bild und Gradient zusammenspielen.
+
+### Kunden: mehrere Ansprechpartner pro Firma (analog Partner)
+- **Neuer „Ansprechpartner"-Block** auf der Kunden-Detailseite. Statt eines einzigen Ansprechpartner-Strings legst du jetzt beliebig viele Kontakte mit eigenen Daten an: Name, Rolle (Geschäftsführung / Inhaber:in / Buchhaltung / …), E-Mail, Telefon, Mobil, persönliche Notizen.
+- **Hauptkontakt-Markierung** mit Stern-Badge — pro Kunde gibt es genau einen, er wird in Listen und PDFs verwendet.
+- **Kunden-Formular aufgeräumt**: alte Felder „Ansprechpartner", „E-Mail", „Telefon" sind aus dem Formular verschwunden, kleiner grüner Hinweis weist auf den Kontakte-Block hin. „Firma"-Karte auf der Detailseite zeigt jetzt nur noch Website + Adresse.
+- **Backwards-kompatibel**: Listen, PDF-Exports und alle anderen Stellen, die `kunden.ansprechpartner`/`email`/`telefon` lesen, funktionieren weiter — diese Felder werden automatisch mit dem aktuellen Hauptkontakt synchronisiert.
+- Migration **091** nötig (`kunden_kontakte` + RLS + Backfill bestehender Daten).
+
 ### Partner-Detailseite: einheitliches Look & Feel mit Kunden / Projekten / Räumen
 - Header **deutlich kleiner und ruhiger**: kein font-syne text-2xl-bold mehr, sondern `text-xl semibold` analog zu Kunde- und Raum-Detailseiten.
 - **Breadcrumb mit `›`-Chevron** statt simplem „← Partner"-Link — selbe Navigation wie auf der Raum-Seite.
