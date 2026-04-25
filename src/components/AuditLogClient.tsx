@@ -10,6 +10,7 @@ import {
 import { getAuditLog, type AuditLogEintrag, type AuditLogFilter } from '@/app/actions/audit'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import Dropdown from '@/components/Dropdown'
+import type { TeamMitglied } from '@/lib/supabase/types'
 
 // ── Aktion → Icon + Label ───────────────────────────────────
 const AKTION_INFO: Record<string, { label: string; Icon: LucideIcon; tone: string }> = {
@@ -67,13 +68,59 @@ const ENTITAET_LABEL: Record<string, { label: string; Icon: LucideIcon }> = {
 const AKTIONEN_FILTER = Object.keys(AKTION_INFO)
 const ENTITAETEN_FILTER = Object.keys(ENTITAET_LABEL)
 
+// ── Avatar-Hilfen ──────────────────────────────────────────
+const AVATAR_FARBEN = [
+  'bg-emerald-500', 'bg-blue-500', 'bg-violet-500', 'bg-amber-500',
+  'bg-rose-500', 'bg-teal-500', 'bg-indigo-500', 'bg-pink-500',
+]
+function avatarFarbe(s: string): string {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
+  return AVATAR_FARBEN[h % AVATAR_FARBEN.length]
+}
+function avatarKuerzel(name: string | null, email: string | null): string {
+  const n = name?.trim()
+  if (n) {
+    const parts = n.split(/\s+/).filter(Boolean)
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    return n.slice(0, 2).toUpperCase()
+  }
+  if (email) return email.slice(0, 2).toUpperCase()
+  return '??'
+}
+
 // ── Komponente ──────────────────────────────────────────────
-export default function AuditLogClient() {
+export default function AuditLogClient({ team }: { team: TeamMitglied[] }) {
   const [data, setData] = useState<{ eintraege: AuditLogEintrag[]; total: number; page: number; perPage: number }>({
     eintraege: [], total: 0, page: 0, perPage: 25,
   })
   const [filter, setFilter] = useState<AuditLogFilter>({ page: 0, perPage: 25 })
   const [isPending, startTransition] = useTransition()
+
+  // User-Info-Map per user_id für Avatar + Name in der Liste
+  const userMap = new Map(
+    team
+      .filter((m) => !!m.user_id)
+      .map((m) => [
+        m.user_id as string,
+        {
+          name:       [m.vorname, m.nachname].filter(Boolean).join(' ') || null,
+          email:      m.email,
+          avatar_url: m.avatar_url ?? null,
+        },
+      ]),
+  )
+
+  // Team-Filter-Optionen
+  const teamFilterOptionen = [
+    { value: '', label: 'Alle Mitglieder' },
+    ...team
+      .filter((m) => !!m.user_id)
+      .map((m) => ({
+        value: m.user_id as string,
+        label: [m.vorname, m.nachname].filter(Boolean).join(' ') || m.email,
+      })),
+  ]
 
   function laden(f: AuditLogFilter = filter) {
     startTransition(async () => {
@@ -139,7 +186,15 @@ export default function AuditLogClient() {
           className="w-40"
         />
 
-        {(filter.q || filter.aktion || filter.entitaet) && (
+        <Dropdown
+          value={filter.user_id ?? ''}
+          onChange={(v) => setFilter({ ...filter, user_id: v || undefined, page: 0 })}
+          placeholder="Alle Mitglieder"
+          options={teamFilterOptionen}
+          className="w-44"
+        />
+
+        {(filter.q || filter.aktion || filter.entitaet || filter.user_id) && (
           <button
             type="button"
             onClick={() => setFilter({ page: 0, perPage: 25 })}
@@ -169,6 +224,9 @@ export default function AuditLogClient() {
               const EntIcon  = ent.Icon
               const detVon   = (e.details as { von?: unknown })?.von
               const detZu    = (e.details as { zu?: unknown })?.zu
+              const userInfo = e.user_id ? userMap.get(e.user_id) : null
+              const userName = userInfo?.name ?? e.user_email ?? 'System'
+              const userMail = userInfo?.email ?? e.user_email ?? null
               return (
                 <li key={e.id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50/60 transition-colors">
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${aktion.tone}`}>
@@ -190,11 +248,24 @@ export default function AuditLogClient() {
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-400">
-                      <span>{e.user_email ?? 'System'}</span>
-                      <span>·</span>
+                    <div className="flex items-center gap-2 mt-1 text-[11px] text-gray-500">
+                      {/* Avatar */}
+                      {userInfo?.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={userInfo.avatar_url}
+                          alt={userName}
+                          className="w-5 h-5 rounded-full object-cover border border-gray-200 shrink-0"
+                        />
+                      ) : (
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-semibold text-white shrink-0 ${avatarFarbe(userMail ?? userName)}`}>
+                          {avatarKuerzel(userInfo?.name ?? null, userMail)}
+                        </div>
+                      )}
+                      <span className="font-medium text-gray-700 truncate">{userName}</span>
+                      <span className="text-gray-300">·</span>
                       <span>{formatAbstand(e.created_at)}</span>
-                      <span className="text-gray-300">· {formatDatum(e.created_at)}</span>
+                      <span className="text-gray-300 hidden sm:inline">· {formatDatum(e.created_at)}</span>
                     </div>
                   </div>
                 </li>

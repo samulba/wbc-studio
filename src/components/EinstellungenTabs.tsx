@@ -1599,7 +1599,7 @@ export default function EinstellungenTabs({
         {aktuellerTab === 'abrechnung'         && <AbrechnungTab />}
         {aktuellerTab === 'rechtliches'        && <RechtlichesTab organisation={organisation} istAdmin={istAdmin} />}
         {aktuellerTab === 'handbuch'           && <HandbuchTab />}
-        {aktuellerTab === 'aktivitaet' && istAdmin && <AuditLogClient />}
+        {aktuellerTab === 'aktivitaet' && istAdmin && <AuditLogClient team={team} />}
         {aktuellerTab === 'changelog'          && <ChangelogTab eintraege={changelog} />}
 
         {/* Fallback: alte Tab-Keys weiterleiten */}
