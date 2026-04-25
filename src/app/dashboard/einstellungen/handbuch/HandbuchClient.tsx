@@ -702,49 +702,58 @@ function OnboardingKapitel() {
   return (
     <div>
       <H2 id="ob-link">Link erstellen</H2>
-      <P>Onboarding-Links ermöglichen es neuen Interessenten, sich selbst mit einem Fragebogen vorzustellen, bevor ein erstes Gespräch stattfindet.</P>
+      <P>Sidebar → <strong>Onboarding</strong> → <strong>+ Neuer Link</strong>:</P>
       <Ol>
-        <li>Seitenleiste → <strong>Onboarding</strong> → <strong>+ Neu</strong></li>
-        <li>Vorlage auswählen (oder leer starten)</li>
-        <li>Link generieren und teilen</li>
+        <li><strong>Vorlage</strong> wählen — Typ-Avatar + Frage-Anzahl + Standard-Badge sichtbar</li>
+        <li>Bei Projekt-Vorlage: optional <strong>Kunde verknüpfen</strong> (Kontaktdaten werden vorausgefüllt)</li>
+        <li>Bei Neukunden/Universal-Vorlage oder ohne verknüpften Kunden: optional <strong>Empfänger-Etikett</strong> + E-Mail (siehe nächster Abschnitt)</li>
+        <li>Link wird erstellt und kopiert ins Clipboard, du verschickst ihn manuell</li>
       </Ol>
 
       <Divider />
-      <H2 id="ob-vorlagen">Vorlagen verwalten</H2>
-      <P>Vorlagen speichern Fragenkonfigurationen, die bei neuen Onboarding-Links automatisch angewendet werden.</P>
-      <P>Unter <strong>Einstellungen → Onboarding-Vorlagen</strong> (oder direkt im Onboarding-Bereich) können Sie Vorlagen erstellen, bearbeiten und löschen.</P>
-
-      <Divider />
-      <H2 id="ob-fragen">Fragen-Editor</H2>
-      <P>Im Vorlagen-Editor erstellen Sie individuelle Fragen für Ihren Onboarding-Prozess. Folgende Fragetypen stehen zur Verfügung:</P>
+      <H2 id="ob-empfaenger">Empfänger-Etikett</H2>
+      <P>Bei Neukunden-Onboardings gibt&apos;s noch keinen Kunden in der DB — du wüsstest in der Übersicht nicht, an wen du den Link geschickt hast. Lösung:</P>
       <Ul>
-        <li><strong>Text (kurz)</strong> – Einzeiliges Textfeld</li>
-        <li><strong>Text (lang)</strong> – Mehrzeiliges Textarea</li>
-        <li><strong>Ja/Nein</strong> – Einfache Checkbox</li>
-        <li><strong>Auswahl</strong> – Dropdown mit vordefinierten Optionen</li>
-        <li><strong>Datum</strong> – Datumsauswahl</li>
-        <li><strong>Zahl</strong> – Numerische Eingabe</li>
-      </Ul>
-      <P>Per Drag & Drop lassen sich die Fragen in der gewünschten Reihenfolge sortieren.</P>
-
-      <Divider />
-      <H2 id="ob-anfragen">Anfragen bearbeiten</H2>
-      <P>Ausgefüllte Onboarding-Formulare erscheinen in der <strong>Onboarding → Eingang</strong>-Liste. Der Status einer Anfrage:</P>
-      <Ul>
-        <li><strong>Neu</strong> – Noch nicht gesichtet</li>
-        <li><strong>In Bearbeitung</strong> – Bereits geöffnet und bearbeitet</li>
-        <li><strong>Abgeschlossen</strong> – Prozess abgeschlossen</li>
+        <li>Optionales <strong>&bdquo;Für wen?&ldquo;-Etikett</strong> beim Erstellen (z. B. &bdquo;Frau Müller (Instagram-Anfrage)&ldquo;)</li>
+        <li>Optionale Empfänger-E-Mail (für späteren Mail-Versand)</li>
+        <li>Etikett ist <strong>nur für deine interne Übersicht</strong> — der Kunde sieht es im Formular nicht und es verfälscht den Status nicht</li>
+        <li>Nachträglich bearbeitbar: im Detail-Panel der Anfrage gibt&apos;s einen Pencil-Button bei der Adressat-Zeile</li>
       </Ul>
 
       <Divider />
-      <H2 id="ob-kunde">Als Kunde anlegen</H2>
-      <P>Aus einer Onboarding-Anfrage heraus können Sie mit einem Klick direkt einen neuen Kunden (und optional gleich ein Projekt) anlegen. Die Antworten aus dem Formular werden automatisch in die Felder übertragen.</P>
-      <Ol>
-        <li>Anfrage öffnen</li>
-        <li>Button <strong>Als Kunde anlegen</strong> klicken</li>
-        <li>Vorausgefüllte Daten prüfen und ggf. ergänzen</li>
-        <li>Speichern</li>
-      </Ol>
+      <H2 id="ob-vorlagen">Vorlagen-Editor</H2>
+      <P>Sidebar → <strong>Onboarding → Vorlagen</strong>. Pro Vorlage:</P>
+      <Ul>
+        <li>Name, Beschreibung, Typ (Neukunde / Projekt / Universal)</li>
+        <li>Einleitungs- und Abschluss-Text, Akzentfarbe (für die Kundenansicht)</li>
+        <li>E-Mail-Betreff + Text (für den Versand-Helper)</li>
+        <li>Deadline-Tage (Auto-Ablauf)</li>
+        <li><strong>Als Standard markieren</strong> — wird bei neuen Links vorausgewählt</li>
+      </Ul>
+      <P><strong>Fragen-Editor</strong>: Sektionen mit Gruppen, je 12+ Feldtypen — Text / Textarea / E-Mail / Telefon / URL / Ja-Nein / Bewertung / Skala / Auswahl / Mehrfachauswahl / Datum / Datum-Rechner / Slider / Budget-Verteilung / Upload / Inventar / Prioritäten / Checkliste / Rangfolge / Entscheider-Matrix. Mit <strong>Conditional Logic</strong> (zeige Frage X nur wenn Frage Y = Wert Z).</P>
+      <P>Vorschau-Modal zeigt das Formular wie der Kunde es sieht. Drei Beispiel-Vorlagen beim Erstellen wählbar (Gewerbe / Privat / Hotel).</P>
+
+      <Divider />
+      <H2 id="ob-status">Status-Flow</H2>
+      <P>Sechs sichtbare Stati in der Übersicht:</P>
+      <Ul>
+        <li><strong>Wartet auf Eintrag</strong> (grau) — Link erstellt, kein verknüpfter Kunde, kein Etikett</li>
+        <li><strong>Wartet auf Kunde</strong> (amber) — Link gesendet, Kunde verknüpft oder Etikett gesetzt</li>
+        <li><strong>In Bearbeitung</strong> (indigo) — Kunde hat angefangen, Auto-Save aktiv (Fortschritts-%)</li>
+        <li><strong>Eingereicht</strong> (grün) — Formular abgeschickt, du kannst übernehmen</li>
+        <li><strong>Abgeschlossen</strong> (blau) — du hast Kunde/Projekt aus der Anfrage angelegt</li>
+        <li><strong>Abgelehnt</strong> (rot) — manuell verworfen</li>
+      </Ul>
+      <P>Das Auto-Save speichert Antworten serverseitig nach jedem Section-Wechsel — der Kunde kann den Link schließen und später weitermachen.</P>
+
+      <Divider />
+      <H2 id="ob-uebernehmen">Als Kunde / Projekt anlegen</H2>
+      <P>Bei eingereichter Anfrage erscheint im Detail-Panel:</P>
+      <Ul>
+        <li><strong>Kunde + Projekt anlegen</strong> (wenn Projekt-Name in der Anfrage) — legt beide an, ggf. Räume aus den Antworten</li>
+        <li><strong>Als Kunde anlegen</strong> (sonst) — nur Kunde, kein Projekt</li>
+      </Ul>
+      <P>Kontakt- und Projektdaten werden aus den Antworten vorausgefüllt. Nach dem Anlegen springt die UI direkt in den neuen Datensatz.</P>
     </div>
   )
 }
@@ -753,48 +762,37 @@ function KonfiguratorKapitel() {
   return (
     <div>
       <H2 id="konf-session">Session erstellen</H2>
-      <P>Der Kunden-Konfigurator ist ein interaktiver Link, über den der Kunde selbst Produkte seines Projekts auswählen, ablehnen oder Alternativen anfragen kann.</P>
+      <P>Der Konfigurator ist ein <strong>interaktiver Link mit Budget-Tracking</strong> — der Kunde entscheidet selbstständig pro Produkt, du siehst live den Verbrauch.</P>
       <Ol>
-        <li>Projekt öffnen → Karte <strong>Kunden-Konfigurator</strong></li>
-        <li>Auf <strong>Neu</strong> klicken</li>
-        <li>Optionen konfigurieren (Budget, Preise, Ablaufdatum)</li>
-        <li><strong>Link erstellen</strong> klicken</li>
-        <li>Generierten Link teilen</li>
+        <li>Projekt-Detail-Seite → <strong>Kunden-Konfigurator</strong>-Karte</li>
+        <li><strong>Neue Session</strong> → Optionen einstellen</li>
+        <li>Generierten Link kopieren + an Kunde senden</li>
       </Ol>
-      <InfoBox type="info" title="Session vs. Freigabe-Link">
-        Der Konfigurator ist flexibler als der Freigabe-Link: Er unterstützt Budget-Tracking, versteckte Preise und aktive Beratung durch die Auswahlspalten.
-      </InfoBox>
 
       <Divider />
-      <H2 id="konf-optionen">Optionen</H2>
-      <P>Beim Erstellen einer Konfigurator-Session konfigurieren Sie:</P>
+      <H2 id="konf-aktionen">Kunden-Aktionen (4)</H2>
+      <P>Pro Produkt kann der Kunde:</P>
       <Ul>
-        <li><strong>Budget-Limit</strong> – Maximalbetrag, der dem Kunden angezeigt wird. Der Fortschrittsbalken zeigt, wieviel bereits verplant ist.</li>
-        <li><strong>Preise anzeigen</strong> – Steuert ob Verkaufspreise sichtbar sind</li>
-        <li><strong>Alternative erlauben</strong> – Erlaubt dem Kunden, &bdquo;Alternative gewünscht&ldquo; zu wählen</li>
-        <li><strong>Ablaufdatum</strong> – Link wird danach ungültig</li>
+        <li><strong>Übernehmen</strong> (grün) — wird ins Budget gezählt</li>
+        <li><strong>Ablehnen</strong> (rot) — fliegt raus</li>
+        <li><strong>Alternative</strong> (amber) — du sollst was anderes vorschlagen</li>
+        <li><strong>Unentschieden</strong> (grau) — später entscheiden</li>
       </Ul>
+      <P>UI ist mobil-first mit großen Touch-Buttons und Produktbild-Karten.</P>
 
       <Divider />
-      <H2 id="konf-kundenansicht">Kundenansicht</H2>
-      <P>Die Konfigurator-Seite ist mobiloptimiert. Produkte werden als Karten mit Bild dargestellt. Pro Produkt hat der Kunde vier Aktionen:</P>
-      <Ul>
-        <li><strong>Auswählen</strong> (grün) – Produkt wird ins Budget gezählt</li>
-        <li><strong>Ablehnen</strong> (rot) – Produkt nicht gewünscht</li>
-        <li><strong>Alternative</strong> (orange) – Wunsch nach Alternativoption</li>
-        <li><strong>Offen</strong> (grau) – Entscheidung noch nicht getroffen</li>
-      </Ul>
-      <P>Am Ende schließt der Kunde die Session über <strong>Auswahl abschicken</strong> ab. Dabei kann er noch eine Gesamtnotiz hinterlassen.</P>
+      <H2 id="konf-budget">Budget-Tracking</H2>
+      <P>Beim Erstellen setzt du ein <strong>Budget-Limit</strong>. Der Kunde sieht oben einen Fortschrittsbalken: &bdquo;X € von Y € verplant&ldquo;. Geht über 100 % wird&apos;s rot. Du kannst optional die VP-Preise verstecken (dann sieht der Kunde nur den Budget-Verbrauch).</P>
 
       <Divider />
-      <H2 id="konf-ergebnisse">Ergebnisse auswerten</H2>
-      <P>Nach Abschluss der Session erscheint in der Konfigurator-Karte des Projekts ein <strong>Ergebnis ansehen</strong>-Button. Das Ergebnis-Modal zeigt:</P>
+      <H2 id="konf-uebernahme">Ergebnis übernehmen</H2>
+      <P>Nach Abschluss der Session zeigt das Ergebnis-Modal:</P>
       <Ul>
-        <li>Zusammenfassung aller Entscheidungen</li>
-        <li>Gesamtsumme der ausgewählten Produkte</li>
-        <li>Notizen des Kunden</li>
+        <li>Alle Entscheidungen pro Produkt</li>
+        <li>Gesamtsumme der übernommenen Produkte</li>
+        <li>Kunden-Notiz (falls hinterlassen)</li>
       </Ul>
-      <P>Über <strong>Auswahl übernehmen</strong> werden die Kundenentscheidungen automatisch als Freigabe-Status in die Produkttabelle übertragen.</P>
+      <P>Mit <strong>&bdquo;Auswahl übernehmen&ldquo;</strong> werden die Entscheidungen automatisch als Freigabe-Status in die Raum-Produkte übertragen. Alternativ: <strong>&bdquo;Aus Auswahl Angebot erstellen&ldquo;</strong> — generiert direkt ein Angebot mit den übernommenen Produkten als Positionen.</P>
     </div>
   )
 }
@@ -803,46 +801,52 @@ function TimelineKapitel() {
   return (
     <div>
       <H2 id="tl-events">Events erstellen</H2>
-      <P>Die Timeline-Funktion ermöglicht es, Projekttermine, Lieferungen, Phasen und Meilensteine visuell zu planen.</P>
-      <Ol>
-        <li>Projekt öffnen → Button <strong>Timeline</strong> im Projekt-Header</li>
-        <li>Auf <strong>+ Event</strong> klicken</li>
-        <li>Typ, Titel, Datum und Status festlegen</li>
-        <li>Speichern</li>
-      </Ol>
-      <P><strong>Event-Typen:</strong></P>
+      <P>Projekt-Detail → Toolbar → <strong>Timeline</strong>. Pro Event:</P>
       <Ul>
-        <li><strong>Meilenstein</strong> – Einzelner Zeitpunkt (Raute-Symbol auf der Gantt-Achse)</li>
-        <li><strong>Lieferung</strong> – Erwartete Warenlieferung</li>
-        <li><strong>Termin</strong> – Meeting, Abnahme, Kundengespräch</li>
-        <li><strong>Phase</strong> – Zeitspanne mit Start- und Enddatum (Balken)</li>
+        <li><strong>Meilenstein</strong> — punktuell (Raute ◆)</li>
+        <li><strong>Lieferung</strong> — erwartete Warenlieferung (LKW-Icon)</li>
+        <li><strong>Termin</strong> — Meeting / Abnahme / Kundengespräch</li>
+        <li><strong>Phase</strong> — Zeitspanne mit Start + Ende (Balken)</li>
+      </Ul>
+      <P>Pro Event optional: Beschreibung, Status (Geplant/Aktiv/Abgeschlossen), Erinnerung-Tage, <strong>Raum-Zuordnung</strong>, <strong>Abhängigkeiten</strong> (von welchem anderen Event hängt es ab).</P>
+
+      <Divider />
+      <H2 id="tl-autosync">Auto-Sync</H2>
+      <P>Bestimmte Events werden automatisch erstellt und synchron gehalten — du musst sie nicht manuell pflegen:</P>
+      <Ul>
+        <li><strong>Produkt-Liefertermin</strong> → Lieferungs-Event (kunde-sichtbar)</li>
+        <li><strong>Produkt-Bestellt-Datum</strong> → internes Lieferungs-Event (nicht sichtbar)</li>
+        <li><strong>Projekt-Deadline</strong> → Meilenstein-Event (kunde-sichtbar)</li>
+        <li><strong>Angebot gesendet/angenommen</strong> → Termin-Event</li>
+        <li><strong>Vertrag zur Unterschrift</strong> → Phase mit Gültigkeits-Range</li>
+      </Ul>
+      <P>Auto-Events haben eine gestrichelte Kontur und ein ⚡-Icon. Du kannst sie nicht manuell verschieben — Änderung im Quell-Datensatz führt automatisch zum Update.</P>
+
+      <Divider />
+      <H2 id="tl-gantt">Gantt + Abhängigkeiten</H2>
+      <P>Die Gantt-Ansicht zeigt:</P>
+      <Ul>
+        <li>Horizontale Zeitachse mit Tages-Snap (32 px = 1 Tag)</li>
+        <li>Roter Today-Marker, automatisches Scrollen dorthin</li>
+        <li>Manuelle Events per <strong>Drag &amp; Drop</strong> verschiebbar (mit Tages-Snap, end_datum behält die Dauer)</li>
+        <li><strong>Abhängigkeiten als Bézier-Pfeile</strong>: grün normal, rot gestrichelt mit Warn-Pfeilspitze bei Datumskonflikt</li>
+        <li><strong>Kaskaden-Toggle</strong> &bdquo;Abhängige mitverschieben&ldquo; — transitives Mitziehen aller abhängigen Events</li>
       </Ul>
 
       <Divider />
-      <H2 id="tl-gantt">Gantt-Ansicht</H2>
-      <P>Die Gantt-Ansicht zeigt alle Events als horizontale Zeitachse. Der aktuelle Tag wird mit einer roten Linie markiert.</P>
-      <Ul>
-        <li>Die Ansicht scrollt automatisch zum heutigen Tag</li>
-        <li>Farbige Balken zeigen Phasen und Termine</li>
-        <li>Überfällige Events werden rot hervorgehoben</li>
-        <li>Die obere Leiste zeigt Monats-Labels zur Orientierung</li>
-      </Ul>
-      <InfoBox type="tip" title="Liste vs. Gantt">
-        Wechseln Sie mit dem Toggle oben rechts zwischen Gantt-Diagramm und Liste. Die Liste gruppiert Events nach Monat und ist für mobile Geräte optimiert.
-      </InfoBox>
+      <H2 id="tl-raumfilter">Raum-Filter</H2>
+      <P>Chip-Row oben: <strong>Alle · Projekt-Ebene · {'{'}Räume{'}'}</strong>. URL-Param <code>?raum=&lt;id&gt;</code> erlaubt Deep-Links direkt von der Raum-Detail-Seite. Auf der Raum-Detail-Seite kannst du auch direkt Events anlegen (mit raum_id vorausgefüllt).</P>
 
       <Divider />
-      <H2 id="tl-meilensteine">Meilensteine</H2>
-      <P>Meilensteine sind einzelne, punktuelle Ereignisse ohne Zeitspanne. In der Gantt-Ansicht erscheinen sie als <strong>lilafarbene Raute ◆</strong> an der entsprechenden Datumsposition.</P>
-      <P>Typische Meilensteine: Auftragserteilung, Baugenehmigung, Abnahme, Schlüsselübergabe.</P>
-
-      <Divider />
-      <H2 id="tl-liefertermine">Liefertermine</H2>
-      <P>Neben Timeline-Events können einzelne Produkte ein eigenes <strong>Lieferdatum</strong> haben. Dieses wird in der Produkttabelle gesetzt und erscheint zusätzlich auf der Timeline.</P>
+      <H2 id="tl-kundensicht">Kunde-sichtbar</H2>
+      <P>Pro Event ein Toggle <strong>&bdquo;Für Kunde im Portal sichtbar&ldquo;</strong>. Default je Quelle:</P>
       <Ul>
-        <li>Liefertermin setzen: Produkt bearbeiten → Feld <strong>Liefertermin</strong></li>
-        <li><strong>Bestätigt</strong>-Checkbox: zeigt ob das Datum verbindlich ist</li>
+        <li>Produkt-Liefertermine → sichtbar</li>
+        <li>Manuelle Meilensteine + Termine → sichtbar</li>
+        <li>Bestell-Status-Updates → intern</li>
+        <li>Angebote → intern</li>
       </Ul>
+      <P>Das Kundenportal zeigt nur Events mit <code>kunde_sichtbar = true</code>.</P>
     </div>
   )
 }
@@ -961,8 +965,75 @@ function PortalKapitel() {
     </div>
   )
 }
-function AngeboteKapitel() { return <P>(folgt)</P> }
-function VertraegeKapitel() { return <P>(folgt)</P> }
+function AngeboteKapitel() {
+  return (
+    <div>
+      <H2 id="ang-erstellen">Angebot erstellen</H2>
+      <P>Projekt-Detail → Toolbar → <strong>Angebote</strong>. Pro Angebot:</P>
+      <Ul>
+        <li>Auto-Nummer im Format <strong>AG-YYYY-NNN</strong> (pro Org fortlaufend)</li>
+        <li>Titel, Einleitungstext, Zahlungsbedingungen, AGB, Gültig-bis-Datum</li>
+        <li>Positions-Tabelle: Pos / Bezeichnung / Menge / Einheit / Einzelpreis (netto) / Gesamt</li>
+        <li>Live-Summen: Netto · MwSt · Brutto, optional Rabatt</li>
+        <li>Interne Notizen (nicht im PDF)</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="ang-aus-raeumen">Aus Raum-Produkten generieren</H2>
+      <P>Statt Positionen einzeln einzutippen kannst du sie automatisch aus den Raum-Produkten generieren lassen — eine Zeile pro Produkt-Einsatz mit Menge + effektivem VP. Anschließend kannst du Positionen ergänzen, löschen oder umsortieren.</P>
+
+      <Divider />
+      <H2 id="ang-status">Status-Flow</H2>
+      <Ul>
+        <li><strong>Entwurf</strong> — wird gerade bearbeitet</li>
+        <li><strong>Gesendet</strong> — an Kunde verschickt (auto Mail-Trigger optional)</li>
+        <li><strong>Angesehen</strong> — Tracking via Token (optional)</li>
+        <li><strong>Angenommen</strong> · <strong>Abgelehnt</strong> · <strong>Überarbeitung</strong> — Kundenrückmeldung</li>
+      </Ul>
+      <P>Statuswechsel im Dropdown rechts. Bei &bdquo;Gesendet&ldquo; wird automatisch ein Timeline-Event erstellt (Auto-Sync).</P>
+
+      <Divider />
+      <H2 id="ang-pdf">PDF-Export</H2>
+      <P>Download-Button in der Liste oder Detail. PDF wird server-seitig mit jsPDF + autoTable generiert: Firmen-Header (Logo + Branding-Farbe), ANGEBOT-Titel mit Nummer, Kunden- + Datum-Block, Positions-Tabelle, Summen, AGB klein, Footer mit Seitenzahl.</P>
+
+      <Divider />
+      <H2 id="ang-vertrag">→ Vertrag erstellen</H2>
+      <P>Bei einem angenommenen Angebot erscheint ein <strong>FileSignature-Button</strong> &bdquo;Vertrag erstellen&ldquo;. Eine Vertragsvorlage wird ausgewählt; Platzhalter werden mit Daten aus Angebot + Projekt + Kunde gefüllt. Der entstandene Vertrag verlinkt auf das Angebot via <code>angebot_id</code>.</P>
+    </div>
+  )
+}
+
+function VertraegeKapitel() {
+  return (
+    <div>
+      <H2 id="ver-vorlagen">Vertragsvorlagen</H2>
+      <P>Sidebar → <strong>Einstellungen → Vorlagen</strong>. Pro Vorlage HTML-Inhalt mit Platzhaltern wie <code>{'{{'} firmenname {'}}'}</code>, <code>{'{{'} kunde_name {'}}'}</code>, <code>{'{{'} projekt_name {'}}'}</code>, <code>{'{{'} budget_gesamt {'}}'}</code>, <code>{'{{'} datum_heute {'}}'}</code>, <code>{'{{'} deadline {'}}'}</code> uvm. (12 verfügbar).</P>
+      <P>Beim ersten Login werden 3 Standard-Vorlagen geseedet: <strong>Interior Design Vertrag Standard</strong>, <strong>Angebot Standard</strong>, <strong>Auftragsbestätigung</strong>. Im Empty-State der Verwaltung gibt&apos;s einen &bdquo;Standard-Vorlagen laden&ldquo;-Button.</P>
+
+      <Divider />
+      <H2 id="ver-erstellen">Vertrag erstellen</H2>
+      <P>Projekt-Detail → Toolbar → <strong>Verträge</strong>. Vorlage wählen + Daten ergänzen → Platzhalter werden ersetzt. Status-Flow: Entwurf → Gesendet → Zur Unterschrift → Aktiv → Abgeschlossen / Gekündigt.</P>
+
+      <Divider />
+      <H2 id="ver-signatur">Digitale Signatur</H2>
+      <Ol>
+        <li>Im Vertrag-Detail → <strong>Signatur-Link erstellen</strong> (Token, 30 Tage gültig)</li>
+        <li>Link versenden — Kunde öffnet <code>/vertrag/&lt;token&gt;</code>, sieht Vertragstext</li>
+        <li>Touch- oder Mouse-Canvas für die Unterschrift</li>
+        <li>Submit → PNG der Unterschrift wird gespeichert + Bestätigungsseite</li>
+        <li>Du kannst danach selbst (Firma) auch unterschreiben — eigenes Signatur-Modal</li>
+      </Ol>
+
+      <Divider />
+      <H2 id="ver-anhaenge">Anhänge &amp; Meilensteine</H2>
+      <P>Pro Vertrag: PDF-Anhänge hochladen (von dir und vom Kunden), <strong>Meilensteine</strong> (offen / in Arbeit / erledigt / abgerechnet) für Zahlungsstrecken oder Bauphasen, <strong>Audit-Log</strong> aller Vertragsereignisse.</P>
+
+      <Divider />
+      <H2 id="ver-pdf">PDF-Export</H2>
+      <P>Wie beim Angebot: server-seitig generiert, mit Firmen-Header, Vertragsinhalt als HTML→Blöcke (h1/h2/h3/p/li/hr), Unterschriftsbereich 2-spaltig (Auftraggeber / Auftragnehmer mit Linie + Datum + Unterschrift), Footer mit Seitenzahl.</P>
+    </div>
+  )
+}
 function RaumplanerKapitel() { return <P>(folgt)</P> }
 
 function KategorienKapitel() {
