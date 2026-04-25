@@ -5,6 +5,18 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Partner-Detailseite: einheitliches Look & Feel mit Kunden / Projekten / Räumen
+- Header **deutlich kleiner und ruhiger**: kein font-syne text-2xl-bold mehr, sondern `text-xl semibold` analog zu Kunde- und Raum-Detailseiten.
+- **Breadcrumb mit `›`-Chevron** statt simplem „← Partner"-Link — selbe Navigation wie auf der Raum-Seite.
+- **Sterne-Bewertung kleiner** und in den Title-Zeile integriert, statt prominenter Block.
+- Website + Provisionsmodell wandern in eine **dezente Meta-Zeile unter dem Titel** — wie die Standort/Budget/Projektart-Zeile auf Projekten.
+- **KPI-Band kompakt im Kunde-Style**: Icon links, Label/Wert/Sublabel rechts, weniger Padding (`px-4 py-3` statt `p-5`), Hover-Highlight wie bei Kunden — passend statt aufgeblasen.
+
+### Projekt-Budget-Felder mit Tausenderpunkt
+- **Eingabe `25000`** → Anzeige sofort `25.000`. Gilt für **Gesamtbudget**, **Produkt-Budget**, **Service-Pauschale** und **Stundensatz** im Projekt-Formular.
+- Cents bewusst weggelassen — Projekt-Budgets sind in der Praxis runde Beträge, und ein Live-Format mit Komma + Punkt zusammen ist fehleranfällig (Cursor-Sprünge, halbe Eingaben). Wer wirklich Cents will, hat die Einzelpreis-Felder bei Produkten.
+- Eingabe nimmt nur Ziffern — Tippfehler wie Komma oder Buchstabe werden ignoriert. Mobile bekommt das numerische Keypad (`inputMode="numeric"`).
+
 ### Kunden: Website-Feld + Auto-Favicon
 - **Neues Website-Feld** im Kunden-Formular — gleicher Platz wie bei Partnern, Hinweis darunter erklärt das Auto-Logo-Verhalten.
 - **Auto-Favicon**: Sobald du beim Kunden eine Website hinterlegst und (noch) kein eigenes Logo hochgeladen ist, wird das Favicon der Domain automatisch als Logo gesetzt — funktioniert beim Anlegen UND beim späteren Bearbeiten. Eigene Logo-Uploads werden niemals überschrieben.

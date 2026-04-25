@@ -195,45 +195,49 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
   // ── UI ───────────────────────────────────────────────────────
   return (
     <div className="flex-1 overflow-y-auto px-6 py-6 animate-fadeIn">
-      {/* Header */}
+      {/* Breadcrumb + Header (analog zu Kunde / Raum: kompakt, kein font-syne) */}
       <div className="flex items-start justify-between mb-6">
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-4">
           <LogoUpload typ="partner" entityId={partner.id} initialLogoUrl={partner.logo_url} name={partner.name} />
-          <div>
-            <Link href="/dashboard/partner" className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors mb-1 inline-block">
-              ← Partner
-            </Link>
-            <h1 className="font-syne text-2xl font-bold text-gray-900 leading-tight">{partner.name}</h1>
-            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+          <div className="min-w-0">
+            <nav className="flex items-center gap-1.5 text-xs text-gray-400 mb-1">
+              <Link href="/dashboard/partner" className="hover:text-wellbeing-green transition-colors">Partner</Link>
+              <span>›</span>
+              <span className="text-gray-600 truncate">{partner.name}</span>
+            </nav>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl font-semibold text-gray-900 leading-tight">{partner.name}</h1>
               {partner.partner_typ && (
-                <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 font-medium">
+                <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full uppercase tracking-wide">
                   {partnerTypLabel[partner.partner_typ] ?? partner.partner_typ}
                 </span>
               )}
+              {bewertung != null && bewertung > 0 && (
+                <div className="flex items-center gap-0.5" title={`${bewertung} von 5`}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Star
+                      key={s}
+                      className={`w-3 h-3 ${s <= bewertung ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-x-4 gap-y-1 mt-1 flex-wrap text-[12px] text-gray-500">
               {partner.website && (
                 <a href={partner.website} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-sm text-gray-400 hover:text-wellbeing-green transition-colors">
-                  <Globe className="w-3.5 h-3.5" />
+                  className="flex items-center gap-1 hover:text-wellbeing-green transition-colors">
+                  <Globe className="w-3 h-3" />
                   {partner.website.replace(/^https?:\/\/(www\.)?/, '')}
-                  <ExternalLink className="w-3 h-3" />
+                  <ExternalLink className="w-2.5 h-2.5" />
                 </a>
               )}
               {partner.provisionsmodell && (
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${modellBadge[partner.provisionsmodell] ?? 'bg-gray-100 text-gray-600'}`}>
+                <span className={`inline-flex items-center text-[11px] px-1.5 py-0.5 rounded font-medium ${modellBadge[partner.provisionsmodell] ?? 'bg-gray-100 text-gray-600'}`}>
                   {partner.provisionsmodell}
                   {partner.provisions_wert != null && partner.provisionsmodell === 'Prozent' && ` · ${partner.provisions_wert} %`}
                   {partner.provisions_wert != null && partner.provisionsmodell === 'Fix' && ` · ${eur(partner.provisions_wert)}`}
                 </span>
-              )}
-              {bewertung != null && bewertung > 0 && (
-                <div className="flex items-center gap-0.5">
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <Star
-                      key={s}
-                      className={`w-3.5 h-3.5 ${s <= bewertung ? 'text-amber-400 fill-amber-400' : 'text-gray-200'}`}
-                    />
-                  ))}
-                </div>
               )}
             </div>
           </div>
@@ -247,28 +251,28 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
         </div>
       </div>
 
-      {/* KPI-Kacheln (3 nützliche statt Provisionsmodell+Satz dupliziert) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      {/* KPI-Band (kompakt, analog zu KundeStatsBand) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
         <KpiKarte
           icon={<Banknote className="w-4 h-4" />}
           tone="emerald"
           label="Bestellter Umsatz"
-          value={bestellterUmsatz > 0 ? eur(bestellterUmsatz) : '–'}
-          hint={'Nur Positionen mit Bestellstatus „bestellt", „geliefert" oder „Rechnung erhalten".'}
+          wert={bestellterUmsatz > 0 ? eur(bestellterUmsatz) : '–'}
+          subLabel="bestellt + geliefert + Rechnung"
         />
         <KpiKarte
           icon={<ShoppingCart className="w-4 h-4" />}
           tone="amber"
           label="Aktive Bestellungen"
-          value={aktiveBestellungen}
-          hint="Anzahl Positionen, die mindestens als bestellt markiert sind."
+          wert={aktiveBestellungen}
+          subLabel="Positionen ≥ bestellt"
         />
         <KpiKarte
           icon={<Truck className="w-4 h-4" />}
           tone="blue"
           label="Offene Lieferungen"
-          value={offeneLieferungen}
-          hint="Bestellt, aber noch nicht geliefert oder Rechnung erhalten."
+          wert={offeneLieferungen}
+          subLabel="bestellt, noch nicht geliefert"
         />
       </div>
 
@@ -438,36 +442,34 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
   )
 }
 
-// ── KPI-Karte ───────────────────────────────────────────────
+// ── KPI-Karte (analog KundeStatsBand) ───────────────────────
 type KpiTone = 'emerald' | 'amber' | 'blue'
-const KPI_TONE: Record<KpiTone, { iconBg: string; iconText: string; valueText: string }> = {
-  emerald: { iconBg: 'bg-emerald-50', iconText: 'text-emerald-600', valueText: 'text-wellbeing-green' },
-  amber:   { iconBg: 'bg-amber-50',   iconText: 'text-amber-600',   valueText: 'text-amber-700' },
-  blue:    { iconBg: 'bg-blue-50',    iconText: 'text-blue-600',    valueText: 'text-blue-700' },
+const KPI_TONE: Record<KpiTone, { iconBg: string; iconText: string }> = {
+  emerald: { iconBg: 'bg-emerald-50', iconText: 'text-emerald-600' },
+  amber:   { iconBg: 'bg-amber-50',   iconText: 'text-amber-600' },
+  blue:    { iconBg: 'bg-blue-50',    iconText: 'text-blue-600' },
 }
 
 function KpiKarte({
-  icon, label, value, hint, tone = 'emerald',
+  icon, label, wert, subLabel, tone = 'emerald',
 }: {
-  icon:  React.ReactNode
-  label: string
-  value: string | number
-  hint?: string
-  tone?: KpiTone
+  icon:      React.ReactNode
+  label:     string
+  wert:      string | number
+  subLabel?: string
+  tone?:     KpiTone
 }) {
   const t = KPI_TONE[tone]
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-      <div className="flex items-start gap-3 mb-2">
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${t.iconBg} ${t.iconText}`}>
-          {icon}
-        </div>
-        <p className="text-xs text-gray-500 uppercase tracking-widest font-medium leading-tight pt-1">
-          {label}
-        </p>
+    <div className="bg-white border border-gray-200 hover:border-wellbeing-green/40 hover:shadow rounded-xl px-4 py-3 flex items-center gap-3 transition-all">
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${t.iconBg} ${t.iconText}`}>
+        {icon}
       </div>
-      <p className={`text-2xl font-semibold font-mono leading-tight ${t.valueText}`}>{value}</p>
-      {hint && <p className="text-[11px] text-gray-400 mt-1.5 leading-snug">{hint}</p>}
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider leading-none">{label}</p>
+        <p className="text-2xl font-semibold text-gray-900 leading-tight mt-1 tabular-nums">{wert}</p>
+        {subLabel && <p className="text-[11px] text-gray-500 truncate">{subLabel}</p>}
+      </div>
     </div>
   )
 }

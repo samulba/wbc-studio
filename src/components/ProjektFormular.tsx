@@ -3,6 +3,7 @@
 import { useFormState, useFormStatus } from 'react-dom'
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
+import EuroBudgetInput from '@/components/EuroBudgetInput'
 import type { ProjektActionState } from '@/app/actions/projekte'
 import type { Kunde, Projekt } from '@/lib/supabase/types'
 
@@ -132,15 +133,12 @@ export default function ProjektFormular({
           Gesamtbudget (€){' '}
           <span className="text-gray-400 normal-case font-normal">(intern, inkl. Service)</span>
         </label>
-        <input
+        <EuroBudgetInput
           id="gesamtbudget"
           name="gesamtbudget"
-          type="number"
-          min="0"
-          step="0.01"
-          defaultValue={initialData?.gesamtbudget ?? ''}
-          className={inp}
-          placeholder="0.00"
+          defaultValue={initialData?.gesamtbudget ?? null}
+          className={`${inp} font-mono`}
+          placeholder="z. B. 25.000"
         />
       </div>
 
@@ -194,15 +192,12 @@ export default function ProjektFormular({
         {serviceModell === 'pauschale' && (
           <div>
             <label htmlFor="service_pauschale" className={lbl}>Pauschale (€)</label>
-            <input
+            <EuroBudgetInput
               id="service_pauschale"
               name="service_pauschale"
-              type="number"
-              min="0"
-              step="0.01"
-              defaultValue={initialData?.service_pauschale ?? ''}
+              defaultValue={initialData?.service_pauschale ?? null}
               className={`${inp} font-mono`}
-              placeholder="5.000,00"
+              placeholder="z. B. 5.000"
             />
           </div>
         )}
@@ -210,15 +205,12 @@ export default function ProjektFormular({
         {serviceModell === 'stundensatz' && (
           <div>
             <label htmlFor="service_stundensatz" className={lbl}>Stundensatz (€/h)</label>
-            <input
+            <EuroBudgetInput
               id="service_stundensatz"
               name="service_stundensatz"
-              type="number"
-              min="0"
-              step="0.5"
-              defaultValue={initialData?.service_stundensatz ?? ''}
+              defaultValue={initialData?.service_stundensatz ?? null}
               className={`${inp} font-mono`}
-              placeholder="120,00"
+              placeholder="z. B. 120"
             />
           </div>
         )}
@@ -230,15 +222,12 @@ export default function ProjektFormular({
           Produkt-Budget (€){' '}
           <span className="text-wellbeing-green/70 normal-case font-normal">(klientenseitig sichtbar)</span>
         </label>
-        <input
+        <EuroBudgetInput
           id="produkt_budget"
           name="produkt_budget"
-          type="number"
-          min="0"
-          step="0.01"
-          defaultValue={initialData?.produkt_budget ?? ''}
-          className={inp}
-          placeholder="0.00"
+          defaultValue={initialData?.produkt_budget ?? null}
+          className={`${inp} font-mono`}
+          placeholder="z. B. 18.000"
         />
         <p className="text-xs text-gray-400 mt-1">
           Das Budget, das dem Klienten für Einrichtungsprodukte mitgeteilt wird.
