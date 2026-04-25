@@ -170,7 +170,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
           <p className="text-xs text-gray-500 uppercase tracking-widest font-medium mb-1">Bestellter Umsatz (VP netto)</p>
           <p className="text-lg font-semibold text-wellbeing-green font-mono">{gesamtUmsatz > 0 ? eur(gesamtUmsatz) : '–'}</p>
-          <p className="text-[11px] text-gray-400 mt-1">Nur Produkte mit Bestellstatus „bestellt" / „geliefert" / „Rechnung erhalten"</p>
+          <p className="text-[11px] text-gray-400 mt-1">Nur Produkte mit Bestellstatus &bdquo;bestellt&ldquo; / &bdquo;geliefert&ldquo; / &bdquo;Rechnung erhalten&ldquo;</p>
         </div>
       </div>
 
