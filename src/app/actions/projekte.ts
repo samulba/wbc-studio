@@ -4,6 +4,7 @@ import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { auditLog } from '@/lib/audit'
 import type { ProjektStatus } from '@/lib/supabase/types'
 
 export type ProjektActionState = { fehler: string } | null
@@ -103,12 +104,26 @@ export async function projektStatusAendern(
 ): Promise<void> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+
+  const { data: vorher } = await supabase
+    .from('projekte').select('name, status').eq('id', id).eq('organisation_id', orgId).maybeSingle()
+
   await supabase
     .from('projekte')
     .update({ status })
     .eq('id', id)
     .eq('organisation_id', orgId)
     .is('deleted_at', null)
+
+  if (vorher && vorher.status !== status) {
+    await auditLog({
+      aktion:        'projekt_status_geaendert',
+      entitaet_typ:  'projekt',
+      entitaet_id:   id,
+      entitaet_name: vorher.name,
+      details:       { von: vorher.status, zu: status },
+    })
+  }
 
   revalidatePath(`/dashboard/projekte/${id}`)
   revalidatePath('/dashboard/projekte')
@@ -179,11 +194,22 @@ export async function autoProjektStatusVorwaerts(
 export async function projektSoftDelete(id: string): Promise<void> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+
+  const { data: vorher } = await supabase
+    .from('projekte').select('name').eq('id', id).eq('organisation_id', orgId).maybeSingle()
+
   await supabase
     .from('projekte')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
     .eq('organisation_id', orgId)
+
+  await auditLog({
+    aktion:        'projekt_geloescht',
+    entitaet_typ:  'projekt',
+    entitaet_id:   id,
+    entitaet_name: vorher?.name ?? null,
+  })
 
   revalidatePath('/dashboard/projekte')
   redirect('/dashboard/projekte')
@@ -194,12 +220,23 @@ export async function projektSoftDelete(id: string): Promise<void> {
 export async function projektArchivieren(id: string): Promise<void> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+  const { data: vorher } = await supabase
+    .from('projekte').select('name').eq('id', id).eq('organisation_id', orgId).maybeSingle()
+
   await supabase
     .from('projekte')
     .update({ archiviert: true, archiviert_am: new Date().toISOString() })
     .eq('id', id)
     .eq('organisation_id', orgId)
     .is('deleted_at', null)
+
+  await auditLog({
+    aktion:        'projekt_archiviert',
+    entitaet_typ:  'projekt',
+    entitaet_id:   id,
+    entitaet_name: vorher?.name ?? null,
+  })
+
   revalidatePath('/dashboard/projekte')
   revalidatePath(`/dashboard/projekte/${id}`)
 }

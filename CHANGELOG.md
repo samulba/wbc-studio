@@ -5,6 +5,17 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Aktivitätslog (Audit-Log) mit UI
+- Neuer Admin-Tab **Einstellungen → Aktivität**: chronologische Liste aller wichtigen Vorgänge in deiner Org — wer hat was wann gemacht.
+- **Geloggt werden** aktuell:
+  - Kunde / Projekt / Partner: anlegen, archivieren, löschen
+  - Projekt-Status-Wechsel (mit „von → zu"-Detail)
+  - Team: Mitglied einladen, Rolle ändern, deaktivieren
+- **Live-Updates**: das Log aktualisiert sich automatisch wenn andere Team-Mitglieder Aktionen ausführen (gleicher Realtime-Hook, debounced).
+- **Filter**: Volltextsuche (User-E-Mail / Entitätsname), Aktion-Filter, Entitäts-Filter, server-seitige Pagination (25 pro Seite). RLS sorgt dafür, dass nur Events deiner eigenen Org sichtbar sind.
+- Pro Eintrag: farbiges Aktion-Icon, Entitäts-Typ-Label, betroffener Datensatz-Name, User-E-Mail, relativer Zeitpunkt + exaktes Datum.
+- Migration **094** nötig (Realtime-Publication für `audit_log`).
+
 ### Live-Updates auf allen wichtigen Bereichen (mit Performance-Schutz)
 - Auf den weiteren Pflicht-Bereichen läuft jetzt **Realtime** ohne Performance-Verlust:
   - **Portal-Chat** — Nachrichten erscheinen sofort, kein Polling-Lag mehr (10-Sek-Polling bleibt als Backup falls die WebSocket droppt)

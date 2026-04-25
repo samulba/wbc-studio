@@ -5,7 +5,7 @@ import { useState, useTransition } from 'react'
 import {
   ChevronDown,
   User, Building2, Scale, Palette, SlidersHorizontal, FileCode,
-  CheckSquare, Bell, Users, CreditCard, BookOpen, Sparkles,
+  CheckSquare, Bell, Users, CreditCard, BookOpen, Sparkles, Activity,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -41,6 +41,7 @@ import type { VertragsVorlage } from '@/lib/supabase/types'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import ChangelogTab from '@/components/ChangelogTab'
 import SessionsListe from '@/components/SessionsListe'
+import AuditLogClient from '@/components/AuditLogClient'
 import type { ChangelogEntry } from '@/lib/changelog'
 import type { SessionInfo } from '@/app/actions/sessions'
 
@@ -87,8 +88,9 @@ const TAB_GROUPS: { label: string; items: TabItem[] }[] = [
   {
     label: 'System',
     items: [
-      { key: 'handbuch',  label: 'Handbuch',   icon: BookOpen },
-      { key: 'changelog', label: 'Änderungen', icon: Sparkles },
+      { key: 'aktivitaet', label: 'Aktivität',  icon: Activity, adminOnly: true },
+      { key: 'handbuch',   label: 'Handbuch',   icon: BookOpen },
+      { key: 'changelog',  label: 'Änderungen', icon: Sparkles },
     ],
   },
 ]
@@ -1597,6 +1599,7 @@ export default function EinstellungenTabs({
         {aktuellerTab === 'abrechnung'         && <AbrechnungTab />}
         {aktuellerTab === 'rechtliches'        && <RechtlichesTab organisation={organisation} istAdmin={istAdmin} />}
         {aktuellerTab === 'handbuch'           && <HandbuchTab />}
+        {aktuellerTab === 'aktivitaet' && istAdmin && <AuditLogClient />}
         {aktuellerTab === 'changelog'          && <ChangelogTab eintraege={changelog} />}
 
         {/* Fallback: alte Tab-Keys weiterleiten */}

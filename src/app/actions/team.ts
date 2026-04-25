@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { auditLog } from '@/lib/audit'
 import type { Rolle, TeamMitglied } from '@/lib/supabase/types'
 
 export type TeamActionState = { fehler?: string; erfolg?: string; einladungsLink?: string } | null
@@ -168,7 +169,7 @@ export async function rolleAendern(mitgliedId: string, neueRolle: Rolle): Promis
   // Target nur laden, wenn er in DERSELBEN Org ist → verhindert Cross-Tenant-Edits.
   const { data: target } = await admin
     .from('team_mitglieder')
-    .select('rolle, organisation_id')
+    .select('rolle, email, organisation_id')
     .eq('id', mitgliedId)
     .eq('organisation_id', orgId)
     .maybeSingle()
@@ -187,6 +188,15 @@ export async function rolleAendern(mitgliedId: string, neueRolle: Rolle): Promis
     .update({ rolle: neueRolle })
     .eq('id', mitgliedId)
     .eq('organisation_id', orgId)
+
+  await auditLog({
+    aktion:        'team_rolle_geaendert',
+    entitaet_typ:  'team_mitglied',
+    entitaet_id:   mitgliedId,
+    entitaet_name: target.email,
+    details:       { von: target.rolle, zu: neueRolle },
+  })
+
   revalidatePath('/dashboard/einstellungen')
 }
 
@@ -203,7 +213,7 @@ export async function mitgliedEntfernen(mitgliedId: string): Promise<void> {
   const admin = createAdminClient()
   const { data: target } = await admin
     .from('team_mitglieder')
-    .select('user_id, rolle, organisation_id')
+    .select('user_id, rolle, email, organisation_id')
     .eq('id', mitgliedId)
     .eq('organisation_id', orgId)
     .maybeSingle()
@@ -224,6 +234,14 @@ export async function mitgliedEntfernen(mitgliedId: string): Promise<void> {
     .update({ status: 'deaktiviert' })
     .eq('id', mitgliedId)
     .eq('organisation_id', orgId)
+
+  await auditLog({
+    aktion:        'team_deaktiviert',
+    entitaet_typ:  'team_mitglied',
+    entitaet_id:   mitgliedId,
+    entitaet_name: target.email,
+  })
+
   revalidatePath('/dashboard/einstellungen')
 }
 

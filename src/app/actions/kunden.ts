@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation'
 import { meineRolleAbrufen } from '@/app/actions/team'
 import { istAdmin } from '@/lib/permissions'
 import { ableitenFaviconUrl, applyFaviconIfNeeded } from '@/lib/favicon'
+import { auditLog } from '@/lib/audit'
 import type { KommunikationTyp, KundeKontakt, ProjektStatus } from '@/lib/supabase/types'
 
 export type KundeActionState = { fehler: string } | null
@@ -35,16 +36,24 @@ export async function kundeAnlegen(
   // Hinweis: ansprechpartner/email/telefon werden ab Migration 091 nicht mehr
   // direkt ueber das Formular gepflegt, sondern vom Hauptkontakt im Kontakte-
   // Block via syncKundeHauptkontakt() gespiegelt.
-  const { error } = await supabase.from('kunden').insert({
-    name: formData.get('name') as string,
+  const kundeName = formData.get('name') as string
+  const { data: angelegt, error } = await supabase.from('kunden').insert({
+    name: kundeName,
     adresse: (formData.get('adresse') as string) || null,
     website: websiteRaw,
     logo_url: autoFavicon,
     notizen: (formData.get('notizen') as string) || null,
     organisation_id: orgId,
-  })
+  }).select('id').single()
 
-  if (error) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
+  if (error || !angelegt) return { fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
+
+  await auditLog({
+    aktion:        'kunde_angelegt',
+    entitaet_typ:  'kunde',
+    entitaet_id:   angelegt.id,
+    entitaet_name: kundeName,
+  })
 
   revalidatePath('/dashboard/kunden')
   redirect('/dashboard/kunden')
@@ -176,6 +185,9 @@ export async function kundeSoftDelete(
     }
   }
 
+  const { data: vorher } = await supabase
+    .from('kunden').select('name').eq('id', id).eq('organisation_id', orgId).maybeSingle()
+
   const { error } = await supabase
     .from('kunden')
     .update({ deleted_at: new Date().toISOString() })
@@ -184,6 +196,13 @@ export async function kundeSoftDelete(
     .is('deleted_at', null)
 
   if (error) return { fehler: 'Fehler beim Löschen.' }
+
+  await auditLog({
+    aktion:        'kunde_geloescht',
+    entitaet_typ:  'kunde',
+    entitaet_id:   id,
+    entitaet_name: vorher?.name ?? null,
+  })
 
   revalidatePath('/dashboard/kunden')
   return {}
