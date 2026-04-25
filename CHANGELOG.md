@@ -5,6 +5,17 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Detail-Seiten: einheitliche Tab-Navigation
+- **Partner-Detail** — Tab-Style von Pill-Buttons in Card auf Underline-Tabs umgestellt, identisch zum Projekt-Detail.
+- **Kunden-Detail** war bisher eine endlose Single-Page mit allem auf einmal. Jetzt **6 Tabs**: Übersicht / Kontakte / Projekte / Timeline / Kommunikation / Notizen — gleicher Underline-Style. Tab-State in der URL (`?tab=…`) für Deep-Links. Übersicht zeigt Stats-Band + Firma-Karte + Portal-Block; alle anderen Tabs den jeweils fokussierten Inhalt mit Counter-Badge.
+- Damit haben alle drei Top-Level-Detailseiten (Projekt / Partner / Kunde) jetzt das gleiche Tab-Pattern.
+
+### Einstellungen → Team: Avatar + letzte Aktivität für alle Mitglieder
+- Bisher zeigten andere Teammitglieder einen farbigen Initialen-Kreis und „Zuletzt aktiv: –", egal ob sie ein Profilbild hatten oder nicht.
+- Jetzt: **echte Profilbilder** werden geladen (aus `team_mitglieder.avatar_url`), Initialen-Avatar nur als Fallback.
+- **Letzte Anmeldung** wird für alle Mitglieder angezeigt — `last_sign_in_at` aus Supabase Auth wird via Admin-API für alle Team-User dazugejoint.
+- Falls Vor-/Nachname gesetzt: wird groß angezeigt, E-Mail darunter klein. Sonst nur E-Mail.
+
 ### Handbuch: Komplett aktualisiert + Wide-Screen-Layout (Teil 2 fertig)
 - Inhalte für **alle 21 Kapitel** auf den aktuellen Stand:
   - **Räume** (NEU): anlegen, Budget, Produkt-Zuweisung, Grundriss-Vorschau, Drag-and-Drop

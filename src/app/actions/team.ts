@@ -66,7 +66,31 @@ export async function teamMitgliederAbrufen(): Promise<TeamMitglied[]> {
     .select('*')
     .eq('organisation_id', orgId)
     .order('created_at')
-  return (data ?? []) as TeamMitglied[]
+
+  const mitglieder = (data ?? []) as TeamMitglied[]
+  if (mitglieder.length === 0) return mitglieder
+
+  // last_sign_in_at aus auth.users via Admin-API anreichern, damit der
+  // Team-Tab die letzte Aktivität fuer alle Mitglieder zeigen kann.
+  try {
+    const userIds = mitglieder.map((m) => m.user_id).filter((u): u is string => !!u)
+    if (userIds.length > 0) {
+      // listUsers gibt alle User der Auth-Instanz zurueck (paginiert).
+      // Fuer typische Team-Groessen reicht eine Page von 1000.
+      const { data: usersList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+      const lastSignInMap = new Map<string, string | null>()
+      for (const u of usersList?.users ?? []) {
+        lastSignInMap.set(u.id, u.last_sign_in_at ?? null)
+      }
+      for (const m of mitglieder) {
+        if (m.user_id) m.last_sign_in_at = lastSignInMap.get(m.user_id) ?? null
+      }
+    }
+  } catch (e) {
+    console.error('[teamMitgliederAbrufen] last_sign_in_at fetch failed:', e)
+  }
+
+  return mitglieder
 }
 
 // ── Einladung senden ──────────────────────────────────────────

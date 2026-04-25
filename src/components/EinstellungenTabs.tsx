@@ -731,18 +731,32 @@ function TeamTab({
                 key={m.id}
                 className={`flex items-center gap-4 px-5 py-4 hover:bg-gray-50/40 transition-colors ${istCurrentUser ? 'bg-wellbeing-green/[0.02]' : ''}`}
               >
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${avatarFarbe(m.email)}`}>
-                  {avatarKuerzel(m.email)}
-                </div>
+                {m.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={m.avatar_url}
+                    alt={m.email}
+                    className="w-9 h-9 rounded-full object-cover shrink-0 border border-gray-200"
+                  />
+                ) : (
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${avatarFarbe(m.email)}`}>
+                    {avatarKuerzel(m.email)}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm font-medium text-gray-900 truncate">{m.email}</p>
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {[m.vorname, m.nachname].filter(Boolean).join(' ') || m.email}
+                    </p>
                     {istCurrentUser && (
                       <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-wellbeing-green/10 text-wellbeing-green shrink-0">Du</span>
                     )}
                   </div>
+                  {(m.vorname || m.nachname) && (
+                    <p className="text-[11px] text-gray-400 truncate">{m.email}</p>
+                  )}
                   <p className="text-xs text-gray-400 mt-0.5">
-                    Zuletzt aktiv: {istCurrentUser ? zeitstempelAnzeige(lastSignIn) : '–'}
+                    Zuletzt aktiv: {zeitstempelAnzeige(istCurrentUser ? lastSignIn : (m.last_sign_in_at ?? null))}
                   </p>
                 </div>
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${rollenInfo.badgeCls}`}>

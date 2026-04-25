@@ -468,6 +468,12 @@ export interface TeamMitglied {
   rolle: Rolle
   status: TeamStatus
   einladungs_token: string | null
+  // Migrations 061 + 062
+  avatar_url?:  string | null
+  vorname?:     string | null
+  nachname?:    string | null
+  // Aus auth.users dazugejoint im teamMitgliederAbrufen
+  last_sign_in_at?: string | null
   created_at: string
   updated_at: string
 }
