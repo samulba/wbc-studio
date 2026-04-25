@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Kunden: Website-Feld + Auto-Favicon
+- **Neues Website-Feld** im Kunden-Formular — gleicher Platz wie bei Partnern, Hinweis darunter erklärt das Auto-Logo-Verhalten.
+- **Auto-Favicon**: Sobald du beim Kunden eine Website hinterlegst und (noch) kein eigenes Logo hochgeladen ist, wird das Favicon der Domain automatisch als Logo gesetzt — funktioniert beim Anlegen UND beim späteren Bearbeiten. Eigene Logo-Uploads werden niemals überschrieben.
+- Geteilte Logik: gleiche Helper-Funktionen (`ableitenFaviconUrl`, `applyFaviconIfNeeded`) wie bei Partnern, jetzt in `src/lib/favicon.ts` zentralisiert.
+- Migration **090** nötig (`ALTER TABLE kunden ADD COLUMN website TEXT`).
+
 ### Produkt-Auto-Fill: AI-Fallback + Screenshot-Upload (Phase B)
 - **Universeller AI-Fallback**: Wenn der klassische Scraper auf einer Seite zu wenig findet (weniger als 3 von Titel/Beschreibung/Preis/Art-Nr./Bilder/Maße), eskaliert das System automatisch zu **Claude Haiku 4.5**. Das Modell liest den bereinigten Seitentext und extrahiert die fehlenden Felder strukturiert. Funktioniert auf praktisch jeder Seite — auch bei custom-HTML ohne JSON-LD/Microdata.
 - **Screenshot-Upload als Alternative**: Neuer Knopf „Screenshot" neben „Auto-Fill" im Produktformular. Drag-and-Drop oder Klick → Bild hochladen (PNG/JPG/WebP/GIF, max. 5 MB) → **Claude Sonnet 4.6 Vision** liest die sichtbaren Daten aus. Ideal für Seiten hinter Cloudflare/Login oder JavaScript-only-Shops, die der Server-Scraper nicht erreicht.

@@ -91,6 +91,22 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
         </div>
       </div>
 
+      {/* Website */}
+      <div>
+        <label htmlFor="website" className={lbl}>Website</label>
+        <input
+          id="website"
+          name="website"
+          type="url"
+          defaultValue={initialData?.website ?? ''}
+          className={inp}
+          placeholder="https://musterfirma.de"
+        />
+        <p className="mt-1 text-[11px] text-gray-400">
+          Wenn ein Logo noch fehlt, wird automatisch das Favicon der Domain übernommen.
+        </p>
+      </div>
+
       {/* Adresse */}
       <div>
         <label htmlFor="adresse" className={lbl}>Adresse</label>

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { meineRolleAbrufen } from '@/app/actions/team'
 import { istAdmin } from '@/lib/permissions'
+import { ableitenFaviconUrl, applyFaviconIfNeeded } from '@/lib/favicon'
 import type { KommunikationTyp, ProjektStatus } from '@/lib/supabase/types'
 
 export type KundeActionState = { fehler: string } | null
@@ -28,12 +29,17 @@ export async function kundeAnlegen(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
+  const websiteRaw = (formData.get('website') as string) || null
+  const autoFavicon = ableitenFaviconUrl(websiteRaw)
+
   const { error } = await supabase.from('kunden').insert({
     name: formData.get('name') as string,
     ansprechpartner: (formData.get('ansprechpartner') as string) || null,
     email: (formData.get('email') as string) || null,
     telefon: (formData.get('telefon') as string) || null,
     adresse: (formData.get('adresse') as string) || null,
+    website: websiteRaw,
+    logo_url: autoFavicon,
     notizen: (formData.get('notizen') as string) || null,
     organisation_id: orgId,
   })
@@ -60,6 +66,7 @@ export async function kundeAktualisieren(
       email: (formData.get('email') as string) || null,
       telefon: (formData.get('telefon') as string) || null,
       adresse: (formData.get('adresse') as string) || null,
+      website: (formData.get('website') as string) || null,
       notizen: (formData.get('notizen') as string) || null,
     })
     .eq('id', id)
@@ -67,6 +74,9 @@ export async function kundeAktualisieren(
     .is('deleted_at', null)
 
   if (error) return { fehler: 'Fehler beim Aktualisieren. Bitte erneut versuchen.' }
+
+  // Auto-Favicon: wenn Website geaendert wurde und kein eigenes Logo gesetzt ist
+  await applyFaviconIfNeeded(supabase, 'kunden', id, orgId)
 
   revalidatePath('/dashboard/kunden')
   revalidatePath(`/dashboard/kunden/${id}`)

@@ -79,6 +79,7 @@ export interface Kunde {
   email: string | null
   telefon: string | null
   adresse: string | null
+  website: string | null
   notizen: string | null
   status: KundeStatus
   logo_url: string | null
