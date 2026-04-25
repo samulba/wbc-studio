@@ -73,44 +73,21 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
         </div>
       </div>
 
-      {/* Ansprechpartner + E-Mail */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <div>
-          <label htmlFor="ansprechpartner" className={lbl}>Ansprechpartner</label>
-          <input
-            id="ansprechpartner" name="ansprechpartner" type="text"
-            defaultValue={initialData?.ansprechpartner ?? ''}
-            className={inp} placeholder="Max Mustermann"
-          />
-        </div>
-        <div>
-          <label htmlFor="email" className={lbl}>E-Mail</label>
-          <input
-            id="email" name="email" type="email"
-            defaultValue={initialData?.email ?? ''}
-            className={inp} placeholder="kontakt@partner.de"
-          />
-        </div>
+      {/* Website */}
+      <div>
+        <label htmlFor="website" className={lbl}>Website</label>
+        <input
+          id="website" name="website" type="url"
+          defaultValue={initialData?.website ?? ''}
+          className={inp} placeholder="https://partner.de"
+        />
       </div>
 
-      {/* Telefon + Website */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <div>
-          <label htmlFor="telefon" className={lbl}>Telefon</label>
-          <input
-            id="telefon" name="telefon" type="tel"
-            defaultValue={initialData?.telefon ?? ''}
-            className={inp} placeholder="+49 123 456789"
-          />
-        </div>
-        <div>
-          <label htmlFor="website" className={lbl}>Website</label>
-          <input
-            id="website" name="website" type="url"
-            defaultValue={initialData?.website ?? ''}
-            className={inp} placeholder="https://partner.de"
-          />
-        </div>
+      {/* Hinweis: Kontaktpersonen pflegt man jetzt im Kontakte-Tab */}
+      <div className="rounded-lg bg-wellbeing-cream/50 border border-wellbeing-green/20 px-3 py-2.5">
+        <p className="text-[12px] text-wellbeing-green-dark">
+          <span className="font-medium">Kontaktpersonen</span> pflegst du nach dem Speichern auf der Detailseite im Tab <span className="font-medium">&bdquo;Kontakte&ldquo;</span> — pro Person mit eigener E-Mail, Telefon und Mobilnummer.
+        </p>
       </div>
 
       {/* Adresse */}

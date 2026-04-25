@@ -5,6 +5,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Partner: mehrere Kontaktpersonen pro Firma (Phase B)
+- **Neuer Tab „Kontakte"** auf der Partner-Detailseite. Statt eines einzigen „Ansprechpartner"-Strings legst du jetzt beliebig viele Kontaktpersonen mit eigenen Daten an: Name, Rolle (Vertrieb / Innendienst / Geschäftsführung …), E-Mail, Telefon, Mobil und persönliche Notizen.
+- **Hauptkontakt-Markierung** mit Stern-Badge — pro Partner gibt es genau einen, er wird in der Übersicht prominent angezeigt und in Listen/PDFs verwendet.
+- **Übersicht-Tab umgebaut**: links eine kompakte Hauptkontakt-Karte mit Avatar + Klick-zu-Mail/Telefon-Links plus eine separate „Firma"-Karte (Website / USt / IBAN / Adresse / Zahlungsziel). Klare Trennung zwischen Person und Firma.
+- **Partner-Formular aufgeräumt**: die alten Felder „Ansprechpartner", „E-Mail" und „Telefon" sind aus dem Formular verschwunden — Kontaktdaten gehören jetzt zur Person, nicht zum Datensatz „Firma". Kleiner grüner Hinweis im Formular weist darauf hin.
+- **Backwards-kompatibel**: bestehende Partner-Listen, PDF-Exports und alle anderen Stellen, die `partner.ansprechpartner`/`email`/`telefon` lesen, funktionieren weiter — diese Felder werden automatisch mit dem aktuellen Hauptkontakt synchronisiert.
+- **Migration 087 nötig** (`partner_kontakte` + RLS + Backfill bestehender Daten als Hauptkontakt). Idempotent — sicher mehrfach ausführbar.
+
 ### Partner-Bereich aufgeräumt (Phase A)
 - **Sub-Tabs auf der Partner-Detailseite**: Übersicht · Konditionen · Verträge · Produkte. URL merkt sich den aktiven Tab (`?tab=konditionen` o. ä.). Damit ist die Seite nicht mehr eine endlose Spaltenwand — jeder Bereich bekommt seinen eigenen Platz.
 - **Produkte komplett neu — zwei Ansichten:**

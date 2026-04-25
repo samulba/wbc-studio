@@ -1,13 +1,14 @@
 'use client'
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { Info, Receipt, FileSignature, Package } from 'lucide-react'
+import { Info, Users, Receipt, FileSignature, Package } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-export type PartnerTabId = 'uebersicht' | 'konditionen' | 'vertraege' | 'produkte'
+export type PartnerTabId = 'uebersicht' | 'kontakte' | 'konditionen' | 'vertraege' | 'produkte'
 
 const TABS: { id: PartnerTabId; label: string; icon: typeof Info }[] = [
   { id: 'uebersicht',  label: 'Übersicht',  icon: Info },
+  { id: 'kontakte',    label: 'Kontakte',   icon: Users },
   { id: 'konditionen', label: 'Konditionen', icon: Receipt },
   { id: 'vertraege',   label: 'Verträge',    icon: FileSignature },
   { id: 'produkte',    label: 'Produkte',    icon: Package },
@@ -15,17 +16,21 @@ const TABS: { id: PartnerTabId; label: string; icon: typeof Info }[] = [
 
 export default function PartnerDetailTabs({
   uebersicht,
+  kontakte,
   konditionen,
   vertraege,
   produkte,
+  badgeKontakte,
   badgeKonditionen,
   badgeVertraege,
   badgeProdukte,
 }: {
   uebersicht:  ReactNode
+  kontakte:    ReactNode
   konditionen: ReactNode
   vertraege:   ReactNode
   produkte:    ReactNode
+  badgeKontakte?:    number
   badgeKonditionen?: number
   badgeVertraege?:   number
   badgeProdukte?:    number
@@ -45,6 +50,7 @@ export default function PartnerDetailTabs({
   }
 
   function badgeFor(id: PartnerTabId): number | undefined {
+    if (id === 'kontakte')    return badgeKontakte
     if (id === 'konditionen') return badgeKonditionen
     if (id === 'vertraege')   return badgeVertraege
     if (id === 'produkte')    return badgeProdukte
@@ -87,6 +93,7 @@ export default function PartnerDetailTabs({
 
       {/* Tab-Inhalt – kein hidden, damit Browser die Scroll-Position pro Tab vergisst */}
       {tabIst('uebersicht')  && <div>{uebersicht}</div>}
+      {tabIst('kontakte')    && <div>{kontakte}</div>}
       {tabIst('konditionen') && <div>{konditionen}</div>}
       {tabIst('vertraege')   && <div>{vertraege}</div>}
       {tabIst('produkte')    && <div>{produkte}</div>}

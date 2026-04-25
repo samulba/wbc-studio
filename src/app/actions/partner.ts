@@ -3,7 +3,7 @@
 import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import type { PartnerKondition, PartnerKonditionTyp, Json } from '@/lib/supabase/types'
+import type { PartnerKondition, PartnerKonditionTyp, PartnerKontakt, Json } from '@/lib/supabase/types'
 
 export type AltNotizResult = { fehler?: string; erfolg?: boolean }
 
@@ -23,11 +23,11 @@ export async function partnerAnlegen(
   const bewertungRaw = formData.get('bewertung') as string
   const zahlungszielRaw = formData.get('zahlungsziel_tage') as string
 
+  // Hinweis: ansprechpartner/email/telefon werden ab Phase B nicht mehr direkt
+  // ueber das Formular gepflegt, sondern vom Hauptkontakt im Kontakte-Tab via
+  // syncPartnerHauptkontakt() gespiegelt.
   const { error } = await supabase.from('partner').insert({
     name: formData.get('name') as string,
-    ansprechpartner: (formData.get('ansprechpartner') as string) || null,
-    email: (formData.get('email') as string) || null,
-    telefon: (formData.get('telefon') as string) || null,
     website: (formData.get('website') as string) || null,
     adresse: (formData.get('adresse') as string) || null,
     provisionsmodell,
@@ -67,9 +67,7 @@ export async function partnerAktualisieren(
     .from('partner')
     .update({
       name: formData.get('name') as string,
-      ansprechpartner: (formData.get('ansprechpartner') as string) || null,
-      email: (formData.get('email') as string) || null,
-      telefon: (formData.get('telefon') as string) || null,
+      // ansprechpartner/email/telefon kommen ueber syncPartnerHauptkontakt
       website: (formData.get('website') as string) || null,
       adresse: (formData.get('adresse') as string) || null,
       provisionsmodell,
@@ -231,4 +229,191 @@ export async function konditionLoeschen(
 
   revalidatePath(`/dashboard/partner/${partnerId}`)
   return {}
+}
+
+// ── Partner-Kontaktpersonen (Migration 087) ───────────────────
+
+export interface KontaktDaten {
+  name:             string
+  rolle:            string | null
+  email:            string | null
+  telefon:          string | null
+  mobil:            string | null
+  notizen:          string | null
+  ist_hauptkontakt: boolean
+  reihenfolge?:     number
+}
+
+export type KontaktResult = { fehler?: string; erfolg?: boolean }
+
+/**
+ * Spiegelt den aktuellen Hauptkontakt in die Legacy-Spalten
+ * partner.ansprechpartner / email / telefon zurück, damit Listen-
+ * Ansichten und PDFs ohne JOIN funktionieren. Wenn kein Hauptkontakt
+ * markiert ist, fällt sie auf den ältesten Kontakt (kleinste Reihenfolge)
+ * zurück. Wenn keine Kontakte mehr existieren, werden die Felder genullt.
+ */
+async function syncPartnerHauptkontakt(partnerId: string, orgId: string): Promise<void> {
+  const supabase = await createClient()
+  const { data: kontakte } = await supabase
+    .from('partner_kontakte')
+    .select('name, email, telefon, ist_hauptkontakt, reihenfolge, created_at')
+    .eq('partner_id', partnerId)
+    .eq('organisation_id', orgId)
+    .order('ist_hauptkontakt', { ascending: false })
+    .order('reihenfolge', { ascending: true })
+    .order('created_at', { ascending: true })
+    .limit(1)
+
+  const primaer = (kontakte ?? [])[0] as { name: string; email: string | null; telefon: string | null } | undefined
+
+  await supabase
+    .from('partner')
+    .update({
+      ansprechpartner: primaer?.name ?? null,
+      email:           primaer?.email ?? null,
+      telefon:         primaer?.telefon ?? null,
+    })
+    .eq('id', partnerId)
+    .eq('organisation_id', orgId)
+}
+
+export async function getPartnerKontakte(partnerId: string): Promise<PartnerKontakt[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('partner_kontakte')
+    .select('*')
+    .eq('partner_id', partnerId)
+    .order('ist_hauptkontakt', { ascending: false })
+    .order('reihenfolge',      { ascending: true })
+    .order('created_at',       { ascending: true })
+  return (data ?? []) as PartnerKontakt[]
+}
+
+export async function kontaktAnlegen(
+  partnerId: string,
+  daten: KontaktDaten,
+): Promise<KontaktResult> {
+  if (!daten.name?.trim()) return { fehler: 'Name ist erforderlich.' }
+
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  // Wenn Hauptkontakt: vorher alle anderen entmarkieren
+  if (daten.ist_hauptkontakt) {
+    await supabase
+      .from('partner_kontakte')
+      .update({ ist_hauptkontakt: false })
+      .eq('partner_id', partnerId)
+      .eq('organisation_id', orgId)
+  }
+
+  const { error } = await supabase.from('partner_kontakte').insert({
+    organisation_id: orgId,
+    partner_id:      partnerId,
+    name:            daten.name.trim(),
+    rolle:           daten.rolle?.trim() || null,
+    email:           daten.email?.trim() || null,
+    telefon:         daten.telefon?.trim() || null,
+    mobil:           daten.mobil?.trim() || null,
+    notizen:         daten.notizen?.trim() || null,
+    ist_hauptkontakt: !!daten.ist_hauptkontakt,
+    reihenfolge:     daten.reihenfolge ?? 0,
+  })
+  if (error) return { fehler: 'Fehler beim Speichern.' }
+
+  await syncPartnerHauptkontakt(partnerId, orgId)
+  revalidatePath(`/dashboard/partner/${partnerId}`)
+  revalidatePath(`/dashboard/partner`)
+  return { erfolg: true }
+}
+
+export async function kontaktAktualisieren(
+  id: string,
+  partnerId: string,
+  daten: KontaktDaten,
+): Promise<KontaktResult> {
+  if (!daten.name?.trim()) return { fehler: 'Name ist erforderlich.' }
+
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  if (daten.ist_hauptkontakt) {
+    await supabase
+      .from('partner_kontakte')
+      .update({ ist_hauptkontakt: false })
+      .eq('partner_id', partnerId)
+      .eq('organisation_id', orgId)
+      .neq('id', id)
+  }
+
+  const { error } = await supabase
+    .from('partner_kontakte')
+    .update({
+      name:             daten.name.trim(),
+      rolle:            daten.rolle?.trim() || null,
+      email:            daten.email?.trim() || null,
+      telefon:          daten.telefon?.trim() || null,
+      mobil:            daten.mobil?.trim() || null,
+      notizen:          daten.notizen?.trim() || null,
+      ist_hauptkontakt: !!daten.ist_hauptkontakt,
+      ...(daten.reihenfolge != null ? { reihenfolge: daten.reihenfolge } : {}),
+    })
+    .eq('id', id)
+    .eq('partner_id', partnerId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Fehler beim Aktualisieren.' }
+
+  await syncPartnerHauptkontakt(partnerId, orgId)
+  revalidatePath(`/dashboard/partner/${partnerId}`)
+  revalidatePath(`/dashboard/partner`)
+  return { erfolg: true }
+}
+
+export async function kontaktLoeschen(
+  id: string,
+  partnerId: string,
+): Promise<KontaktResult> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { error } = await supabase
+    .from('partner_kontakte')
+    .delete()
+    .eq('id', id)
+    .eq('partner_id', partnerId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Fehler beim Löschen.' }
+
+  await syncPartnerHauptkontakt(partnerId, orgId)
+  revalidatePath(`/dashboard/partner/${partnerId}`)
+  revalidatePath(`/dashboard/partner`)
+  return { erfolg: true }
+}
+
+export async function kontaktAlsHauptkontaktSetzen(
+  id: string,
+  partnerId: string,
+): Promise<KontaktResult> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  await supabase
+    .from('partner_kontakte')
+    .update({ ist_hauptkontakt: false })
+    .eq('partner_id', partnerId)
+    .eq('organisation_id', orgId)
+
+  const { error } = await supabase
+    .from('partner_kontakte')
+    .update({ ist_hauptkontakt: true })
+    .eq('id', id)
+    .eq('partner_id', partnerId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Fehler beim Setzen.' }
+
+  await syncPartnerHauptkontakt(partnerId, orgId)
+  revalidatePath(`/dashboard/partner/${partnerId}`)
+  revalidatePath(`/dashboard/partner`)
+  return { erfolg: true }
 }

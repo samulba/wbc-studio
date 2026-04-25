@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { partnerSoftDelete, getPartnerKonditionen } from '@/app/actions/partner'
+import { partnerSoftDelete, getPartnerKonditionen, getPartnerKontakte } from '@/app/actions/partner'
 import ConfirmDeleteButton from '@/components/ConfirmDeleteButton'
 import NotizBlock, { type Notiz } from '@/components/NotizBlock'
 import LogoUpload from '@/components/LogoUpload'
@@ -9,11 +9,12 @@ import PartnerKonditionenBlock from '@/components/PartnerKonditionenBlock'
 import PartnerVertraegeBlock from '@/components/PartnerVertraegeBlock'
 import PartnerDetailTabs from '@/components/PartnerDetailTabs'
 import PartnerProdukteTab, { type SortimentEintrag, type EinsatzEintrag } from '@/components/PartnerProdukteTab'
+import PartnerKontakteBlock from '@/components/PartnerKontakteBlock'
 import PartnerAltNotizBanner from '@/components/PartnerAltNotizBanner'
 import { vertraegeAbrufen } from '@/app/actions/partner-vertraege'
 import {
-  ExternalLink, Mail, Phone, Globe, Star, MapPin,
-  ShoppingCart, Truck, Banknote,
+  ExternalLink, Mail, Phone, Smartphone, Globe, Star, MapPin, BadgeCheck,
+  ShoppingCart, Truck, Banknote, Users,
 } from 'lucide-react'
 
 const eur = (n: number) =>
@@ -102,12 +103,14 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
     (e) => e.raeume && !e.raeume.deleted_at && e.raeume.projekte && !e.raeume.projekte.deleted_at,
   )
 
-  // Notizen / Konditionen / Verträge parallel
-  const [notizen, konditionen, vertraege] = await Promise.all([
+  // Notizen / Konditionen / Verträge / Kontakte parallel
+  const [notizen, konditionen, vertraege, kontakte] = await Promise.all([
     getPartnerNotizen(params.id),
     getPartnerKonditionen(params.id),
     vertraegeAbrufen(params.id),
+    getPartnerKontakte(params.id),
   ])
+  const hauptkontakt = kontakte.find((k) => k.ist_hauptkontakt) ?? kontakte[0] ?? null
 
   // ── KPI-Aggregate ────────────────────────────────────────────
   // VP-Effektiv pro Einsatz (override → rabatt) * menge — nur für „bestellt+"
@@ -271,88 +274,135 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
 
       {/* Tabs */}
       <PartnerDetailTabs
+        badgeKontakte={kontakte.length}
         badgeKonditionen={konditionen.length}
         badgeVertraege={vertraege.length}
         badgeProdukte={einsatz.length}
         uebersicht={
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Kontakt */}
-            <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Kontakt</h2>
-              <dl className="space-y-3">
-                {partner.ansprechpartner && (
-                  <div>
-                    <dt className="text-xs text-gray-400 mb-0.5">Ansprechpartner</dt>
-                    <dd className="text-sm text-gray-800 font-medium">{partner.ansprechpartner}</dd>
+            {/* Linke Spalte: Hauptkontakt + Firmen-Daten */}
+            <div className="space-y-4">
+              {/* Hauptkontakt-Mini-Karte */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Hauptkontakt</h2>
+                  <Link
+                    href={`/dashboard/partner/${partner.id}?tab=kontakte`}
+                    className="inline-flex items-center gap-1 text-[11px] text-wellbeing-green hover:text-wellbeing-green-dark"
+                  >
+                    <Users className="w-3 h-3" />
+                    Alle Kontakte ({kontakte.length})
+                  </Link>
+                </div>
+                {hauptkontakt ? (
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-wellbeing-green text-white flex items-center justify-center text-sm font-semibold shrink-0">
+                      {hauptkontakt.name
+                        .trim()
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((t) => t[0])
+                        .join('')
+                        .toUpperCase() || '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{hauptkontakt.name}</p>
+                        {hauptkontakt.ist_hauptkontakt && (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-wellbeing-green-dark bg-wellbeing-green/15 px-1.5 py-0.5 rounded-full">
+                            <BadgeCheck className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
+                      {hauptkontakt.rolle && (
+                        <p className="text-[11px] text-gray-500 mt-0.5">{hauptkontakt.rolle}</p>
+                      )}
+                      <div className="mt-2 space-y-1">
+                        {hauptkontakt.email && (
+                          <a href={`mailto:${hauptkontakt.email}`} className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-wellbeing-green">
+                            <Mail className="w-3 h-3 text-gray-400" />{hauptkontakt.email}
+                          </a>
+                        )}
+                        {hauptkontakt.telefon && (
+                          <a href={`tel:${hauptkontakt.telefon}`} className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-wellbeing-green">
+                            <Phone className="w-3 h-3 text-gray-400" />{hauptkontakt.telefon}
+                          </a>
+                        )}
+                        {hauptkontakt.mobil && (
+                          <a href={`tel:${hauptkontakt.mobil}`} className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-wellbeing-green">
+                            <Smartphone className="w-3 h-3 text-gray-400" />{hauptkontakt.mobil}
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-3">
+                    <p className="text-xs text-gray-500 mb-2">Noch keine Kontaktperson hinterlegt.</p>
+                    <Link
+                      href={`/dashboard/partner/${partner.id}?tab=kontakte`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-wellbeing-green hover:bg-wellbeing-green-dark rounded-lg transition-colors"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      Kontakt anlegen
+                    </Link>
                   </div>
                 )}
-                {partner.email && (
-                  <div>
-                    <dt className="text-xs text-gray-400 mb-0.5">E-Mail</dt>
-                    <dd>
-                      <a href={`mailto:${partner.email}`} className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
-                        <Mail className="w-3.5 h-3.5 text-gray-400" />{partner.email}
-                      </a>
-                    </dd>
-                  </div>
-                )}
-                {partner.telefon && (
-                  <div>
-                    <dt className="text-xs text-gray-400 mb-0.5">Telefon</dt>
-                    <dd>
-                      <a href={`tel:${partner.telefon}`} className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
-                        <Phone className="w-3.5 h-3.5 text-gray-400" />{partner.telefon}
-                      </a>
-                    </dd>
-                  </div>
-                )}
-                {partner.website && (
-                  <div>
-                    <dt className="text-xs text-gray-400 mb-0.5">Website</dt>
-                    <dd>
-                      <a href={partner.website} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
-                        <Globe className="w-3.5 h-3.5 text-gray-400" />
-                        {partner.website.replace(/^https?:\/\/(www\.)?/, '')}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </dd>
-                  </div>
-                )}
-                {partner.ust_id && (
-                  <div>
-                    <dt className="text-xs text-gray-400 mb-0.5">USt-IdNr.</dt>
-                    <dd className="text-sm text-gray-700 font-mono">{partner.ust_id}</dd>
-                  </div>
-                )}
-                {partner.iban && (
-                  <div>
-                    <dt className="text-xs text-gray-400 mb-0.5">IBAN</dt>
-                    <dd className="text-sm text-gray-700 font-mono tracking-wide">{partner.iban}</dd>
-                  </div>
-                )}
-                {partner.zahlungsziel_tage != null && (
-                  <div>
-                    <dt className="text-xs text-gray-400 mb-0.5">Zahlungsziel</dt>
-                    <dd className="text-sm text-gray-700">{partner.zahlungsziel_tage} Tage</dd>
-                  </div>
-                )}
-                {partner.adresse && (
-                  <div>
-                    <dt className="text-xs text-gray-400 mb-0.5">Adresse</dt>
-                    <dd className="flex items-start gap-1.5 text-sm text-gray-700 whitespace-pre-line leading-relaxed">
-                      <MapPin className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
-                      <span>{partner.adresse}</span>
-                    </dd>
-                  </div>
-                )}
-                {!partner.ansprechpartner && !partner.email && !partner.telefon && !partner.ust_id && !partner.iban && !partner.adresse && (
-                  <p className="text-sm text-gray-400">Keine Kontaktdaten hinterlegt.</p>
-                )}
-              </dl>
+              </div>
+
+              {/* Firmen-Daten */}
+              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Firma</h2>
+                <dl className="space-y-3">
+                  {partner.website && (
+                    <div>
+                      <dt className="text-xs text-gray-400 mb-0.5">Website</dt>
+                      <dd>
+                        <a href={partner.website} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-sm text-gray-700 hover:text-wellbeing-green transition-colors">
+                          <Globe className="w-3.5 h-3.5 text-gray-400" />
+                          {partner.website.replace(/^https?:\/\/(www\.)?/, '')}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </dd>
+                    </div>
+                  )}
+                  {partner.ust_id && (
+                    <div>
+                      <dt className="text-xs text-gray-400 mb-0.5">USt-IdNr.</dt>
+                      <dd className="text-sm text-gray-700 font-mono">{partner.ust_id}</dd>
+                    </div>
+                  )}
+                  {partner.iban && (
+                    <div>
+                      <dt className="text-xs text-gray-400 mb-0.5">IBAN</dt>
+                      <dd className="text-sm text-gray-700 font-mono tracking-wide">{partner.iban}</dd>
+                    </div>
+                  )}
+                  {partner.zahlungsziel_tage != null && (
+                    <div>
+                      <dt className="text-xs text-gray-400 mb-0.5">Zahlungsziel</dt>
+                      <dd className="text-sm text-gray-700">{partner.zahlungsziel_tage} Tage</dd>
+                    </div>
+                  )}
+                  {partner.adresse && (
+                    <div>
+                      <dt className="text-xs text-gray-400 mb-0.5">Adresse</dt>
+                      <dd className="flex items-start gap-1.5 text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                        <MapPin className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+                        <span>{partner.adresse}</span>
+                      </dd>
+                    </div>
+                  )}
+                  {!partner.website && !partner.ust_id && !partner.iban && !partner.adresse && partner.zahlungsziel_tage == null && (
+                    <p className="text-sm text-gray-400">Keine Firmen-Daten hinterlegt.</p>
+                  )}
+                </dl>
+              </div>
             </div>
 
-            {/* Notizen + Einkaufskonditionen + Alt-Notiz-Banner */}
+            {/* Rechte Spalte: Notizen + Einkaufskonditionen + Alt-Notiz-Banner */}
             <div className="space-y-4">
               {partner.einkaufskonditionen && (
                 <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
@@ -366,6 +416,9 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
               <NotizBlock typ="partner" referenzId={partner.id} initialNotizen={notizen} />
             </div>
           </div>
+        }
+        kontakte={
+          <PartnerKontakteBlock partnerId={partner.id} initialKontakte={kontakte} />
         }
         konditionen={
           <PartnerKonditionenBlock partnerId={partner.id} initialKonditionen={konditionen} />
