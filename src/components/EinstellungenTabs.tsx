@@ -1487,7 +1487,7 @@ function VorlagenTab({ vorlagen }: { vorlagen: VertragsVorlage[] }) {
 
 function HandbuchTab() {
   return (
-    <div className="h-[calc(100vh-220px)] overflow-hidden -mx-6 -mb-6">
+    <div className="h-[calc(100vh-140px)] overflow-hidden -mx-6 -mb-6">
       <HandbuchClient />
     </div>
   )

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
-  Search, X, ChevronRight, ChevronDown,
+  Search, X, ChevronRight, ChevronLeft, ChevronDown,
   LayoutDashboard, Users, FolderOpen, ShoppingCart, CheckSquare,
   Link2, ClipboardList, Target, CalendarDays, UserCircle,
   Tag, UsersRound, Paintbrush, Settings, FileDown, HelpCircle,
@@ -1392,6 +1392,7 @@ export default function HandbuchClient() {
   const [suchOffen,      setSuchOffen]            = useState(false)
   const [suchFokus,      setSuchFokus]            = useState(0)
   const [aktiverAbschnitt, setAktiverAbschnitt]  = useState('')
+  const [rechteSidebar,  setRechteSidebar]       = useState(false) // standardmaessig eingeklappt
   const suchRef  = useRef<HTMLInputElement>(null)
   const hauptRef = useRef<HTMLDivElement>(null)
 
@@ -1651,31 +1652,41 @@ export default function HandbuchClient() {
           </div>
         </main>
 
-        {/* Rechte Sidebar – "Auf dieser Seite" */}
-        <aside className="hidden xl:block w-56 2xl:w-64 shrink-0 border-l border-gray-100 overflow-y-auto py-8 px-5 sticky top-0 self-start">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Auf dieser Seite</p>
-          <nav className="space-y-1">
-            {aktuellesKapitel.abschnitte.map((abs) => (
+        {/* Rechte Sidebar – "Auf dieser Seite", einklappbar */}
+        {rechteSidebar ? (
+          <aside className="hidden xl:flex flex-col w-56 2xl:w-64 shrink-0 border-l border-gray-100 overflow-y-auto py-5 px-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Auf dieser Seite</p>
               <button
-                key={abs.id}
-                onClick={() => {
-                  const el = document.getElementById(abs.id)
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                }}
-                className={`w-full text-left text-xs py-1 px-2 rounded transition-colors leading-snug ${
-                  aktiverAbschnitt === abs.id
-                    ? 'text-wellbeing-green font-medium bg-wellbeing-green/5'
-                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
-                }`}
+                type="button"
+                onClick={() => setRechteSidebar(false)}
+                className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                title="Einklappen"
               >
-                {abs.titel}
+                <X className="w-3.5 h-3.5" />
               </button>
-            ))}
-          </nav>
+            </div>
+            <nav className="space-y-1">
+              {aktuellesKapitel.abschnitte.map((abs) => (
+                <button
+                  key={abs.id}
+                  onClick={() => {
+                    const el = document.getElementById(abs.id)
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }}
+                  className={`w-full text-left text-xs py-1 px-2 rounded transition-colors leading-snug ${
+                    aktiverAbschnitt === abs.id
+                      ? 'text-wellbeing-green font-medium bg-wellbeing-green/5'
+                      : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+                  }`}
+                >
+                  {abs.titel}
+                </button>
+              ))}
+            </nav>
 
-          <div className="mt-8 pt-4 border-t border-gray-100">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Shortcuts</p>
-            <div className="space-y-1.5">
+            <div className="mt-8 pt-4 border-t border-gray-100">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">Shortcuts</p>
               <div className="flex items-center gap-1.5">
                 <Keyboard className="w-3 h-3 text-gray-300 shrink-0" />
                 <span className="text-[11px] text-gray-400">Suche</span>
@@ -1685,8 +1696,23 @@ export default function HandbuchClient() {
                 </span>
               </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setRechteSidebar(true)}
+            className="hidden xl:flex shrink-0 w-9 border-l border-gray-100 hover:bg-gray-50 transition-colors flex-col items-center justify-start pt-5 group"
+            title="Auf dieser Seite einblenden"
+          >
+            <ChevronLeft className="w-4 h-4 text-gray-300 group-hover:text-gray-600 transition-colors" />
+            <span
+              className="mt-3 text-[10px] font-semibold text-gray-300 group-hover:text-gray-500 uppercase tracking-widest transition-colors"
+              style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
+            >
+              Auf dieser Seite
+            </span>
+          </button>
+        )}
 
       </div>
     </div>
