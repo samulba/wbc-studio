@@ -4,6 +4,7 @@ import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { ableitenFaviconUrl, applyFaviconIfNeeded } from '@/lib/favicon'
+import { auditLog } from '@/lib/audit'
 import type { PartnerKondition, PartnerKonditionTyp, PartnerKontakt, Json } from '@/lib/supabase/types'
 
 export type AltNotizResult = { fehler?: string; erfolg?: boolean }
@@ -103,11 +104,22 @@ export async function partnerAktualisieren(
 export async function partnerSoftDelete(id: string): Promise<void> {
   const supabase = await createClient()
   const orgId = await getOrganisationId()
+
+  const { data: vorher } = await supabase
+    .from('partner').select('name').eq('id', id).eq('organisation_id', orgId).maybeSingle()
+
   await supabase
     .from('partner')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
     .eq('organisation_id', orgId)
+
+  await auditLog({
+    aktion:        'partner_geloescht',
+    entitaet_typ:  'partner',
+    entitaet_id:   id,
+    entitaet_name: vorher?.name ?? null,
+  })
 
   revalidatePath('/dashboard/partner')
   redirect('/dashboard/partner')

@@ -5,6 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Aktivitätslog: Backfill + modernere Dropdowns
+- Beim ersten Aufruf war das Log leer, weil noch keine Aktion seit dem Deploy ausgelöst war. Migration **095** legt jetzt für jeden bestehenden Kunden / Projekt / Partner / Angebot / Vertrag einen synthetischen „angelegt"-Audit-Eintrag mit dem ursprünglichen `created_at` an — sofort sichtbare History.
+- **Dropdowns neu gemacht**: ersetzt die nativen `<select>`-Boxen (sahen OS-Default-altmodern aus, Chevron-Icon überlappte mit Text bei langen Optionen) durch eine eigene Komponente `Dropdown.tsx` — mit ESC-Close, Click-Outside, Häkchen bei aktiver Option, Hover-Highlight. Wird ab jetzt überall im Admin nutzbar.
+- Zusätzliche Instrumentierung: **Partner gelöscht** wird jetzt auch ins Log geschrieben.
+
 ### Aktivitätslog (Audit-Log) mit UI
 - Neuer Admin-Tab **Einstellungen → Aktivität**: chronologische Liste aller wichtigen Vorgänge in deiner Org — wer hat was wann gemacht.
 - **Geloggt werden** aktuell:

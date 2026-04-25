@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { getAuditLog, type AuditLogEintrag, type AuditLogFilter } from '@/app/actions/audit'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
+import Dropdown from '@/components/Dropdown'
 
 // ── Aktion → Icon + Label ───────────────────────────────────
 const AKTION_INFO: Record<string, { label: string; Icon: LucideIcon; tone: string }> = {
@@ -116,27 +117,27 @@ export default function AuditLogClient() {
           />
         </div>
 
-        <select
+        <Dropdown
           value={filter.aktion ?? ''}
-          onChange={(e) => setFilter({ ...filter, aktion: e.target.value || undefined, page: 0 })}
-          className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-wellbeing-green"
-        >
-          <option value="">Alle Aktionen</option>
-          {AKTIONEN_FILTER.map((a) => (
-            <option key={a} value={a}>{AKTION_INFO[a]?.label ?? a}</option>
-          ))}
-        </select>
+          onChange={(v) => setFilter({ ...filter, aktion: v || undefined, page: 0 })}
+          placeholder="Alle Aktionen"
+          options={[
+            { value: '', label: 'Alle Aktionen' },
+            ...AKTIONEN_FILTER.map((a) => ({ value: a, label: AKTION_INFO[a]?.label ?? a })),
+          ]}
+          className="w-44"
+        />
 
-        <select
+        <Dropdown
           value={filter.entitaet ?? ''}
-          onChange={(e) => setFilter({ ...filter, entitaet: e.target.value || undefined, page: 0 })}
-          className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-wellbeing-green"
-        >
-          <option value="">Alle Entitäten</option>
-          {ENTITAETEN_FILTER.map((t) => (
-            <option key={t} value={t}>{ENTITAET_LABEL[t]?.label ?? t}</option>
-          ))}
-        </select>
+          onChange={(v) => setFilter({ ...filter, entitaet: v || undefined, page: 0 })}
+          placeholder="Alle Entitäten"
+          options={[
+            { value: '', label: 'Alle Entitäten' },
+            ...ENTITAETEN_FILTER.map((t) => ({ value: t, label: ENTITAET_LABEL[t]?.label ?? t })),
+          ]}
+          className="w-40"
+        />
 
         {(filter.q || filter.aktion || filter.entitaet) && (
           <button
