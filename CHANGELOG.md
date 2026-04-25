@@ -5,7 +5,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
-### Branding: Live-Vorschau bleibt sichtbar + ist deutlich aussagekräftiger
+### Handbuch: Wide-Screen-Layout + neue Struktur (Teil 1)
+- **Größere, ruhigere Typo** im Hauptbereich — `text-[15px]` statt `text-sm`, größere Überschriften, mehr Abstand. Liest sich auf 4K-Monitoren ordentlich statt verquetscht in 600px.
+- **Breitere Spalten**: Inhalt `max-w-3xl` (statt 2xl), auf 2XL-Screens `max-w-4xl`, mit großzügigem Padding (`px-12 / px-16`). Linke Sidebar +4px, rechte Sidebar (Auf dieser Seite) +8px und sticky.
+- **Komplette Neustrukturierung der Kapitel-Navigation**: 16 → 21 Kapitel, neue Kapitel kommen in den nächsten Updates (Räume, Kunden-Portal, Angebote, Verträge, Raumplaner — momentan als „folgt"-Stub). Bestehende Kapitel bekommen neue Abschnitte für die ganzen Features die seitdem dazukamen.
+- **Dashboard- und Kunden-Kapitel** komplett neu geschrieben mit aktuellem Inhalt (KPIs, Stats-Band, Mehrere Ansprechpartner, Auto-Favicon, Kommunikationslog, Archiv-Impact). **Projekte-Kapitel** dito (Status-Flow, Service-Modell, Zeiterfassung, Duplizieren).
 - **Sticky-Vorschau**: Die rechte Spalte „Live-Vorschau" auf der Branding-Seite scrollt jetzt mit — wenn du runterscrollst, bleibt die Vorschau im Blick.
 - **Detailliertere Vorschau**: zeigt jetzt einen kompletten Mini-Portal-Layout (Header mit Logo + User-Avatar + Tab-Badge, Hero mit Slogan/Welcome-Text + CTA-Button, Karten-Sektion mit KPI-Stats, Produkt-Karte mit Freigeben/Ablehnen-Buttons, Farb-Pillen für Primär/Sekundär/Akzent, Footer mit Support-E-Mail). Du siehst sofort wie sich Farben, Schrift, Ecken-Style, Hero-Bild und Gradient zusammenspielen.
 

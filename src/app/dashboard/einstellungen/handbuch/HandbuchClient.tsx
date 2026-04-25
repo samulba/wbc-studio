@@ -7,6 +7,7 @@ import {
   Link2, ClipboardList, Target, CalendarDays, UserCircle,
   Tag, UsersRound, Paintbrush, Settings, FileDown, HelpCircle,
   Lightbulb, AlertTriangle, Info, Keyboard, Command,
+  Home, FileText, FileSignature, Grid3X3, MonitorSmartphone,
 } from 'lucide-react'
 
 // ── Typen ─────────────────────────────────────────────────────
@@ -82,7 +83,7 @@ function Kb({ keys }: { keys: string[] }) {
 
 function H2({ id, children }: { id: string; children: React.ReactNode }) {
   return (
-    <h2 id={id} className="text-lg font-semibold text-gray-900 mt-8 mb-3 scroll-mt-24 flex items-center gap-2 group">
+    <h2 id={id} className="text-xl font-semibold text-gray-900 mt-10 mb-4 scroll-mt-24 flex items-center gap-2 group">
       {children}
       <a href={`#${id}`} className="opacity-0 group-hover:opacity-40 text-gray-400 hover:text-gray-600 transition-opacity">
         <ChevronRight className="w-4 h-4" />
@@ -92,19 +93,19 @@ function H2({ id, children }: { id: string; children: React.ReactNode }) {
 }
 
 function H3({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-sm font-semibold text-gray-800 mt-5 mb-2">{children}</h3>
+  return <h3 className="text-[15px] font-semibold text-gray-800 mt-6 mb-2">{children}</h3>
 }
 
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-gray-600 leading-relaxed mb-3">{children}</p>
+  return <p className="text-[15px] text-gray-600 leading-relaxed mb-3.5">{children}</p>
 }
 
 function Ol({ children }: { children: React.ReactNode }) {
-  return <ol className="list-decimal list-inside space-y-1.5 text-sm text-gray-600 mb-3 ml-1">{children}</ol>
+  return <ol className="list-decimal list-inside space-y-2 text-[15px] text-gray-600 mb-3.5 ml-1">{children}</ol>
 }
 
 function Ul({ children }: { children: React.ReactNode }) {
-  return <ul className="list-disc list-inside space-y-1.5 text-sm text-gray-600 mb-3 ml-1">{children}</ul>
+  return <ul className="list-disc list-inside space-y-2 text-[15px] text-gray-600 mb-3.5 ml-1">{children}</ul>
 }
 
 function Divider() {
@@ -119,9 +120,11 @@ const KAPITEL: Kapitel[] = [
     icon: <LayoutDashboard className="w-4 h-4" />,
     titel: 'Dashboard',
     abschnitte: [
-      { id: 'dashboard-statistiken', titel: 'Statistik-Karten', suchtext: 'statistik karten projekte kunden budget übersicht' },
-      { id: 'dashboard-charts', titel: 'Charts verstehen', suchtext: 'diagramme charts balken linie verlauf statistik' },
-      { id: 'dashboard-budget', titel: 'Budget-Übersicht', suchtext: 'budget übersicht gesamt ausgaben limit' },
+      { id: 'dashboard-kpi',       titel: 'KPI-Karten',       suchtext: 'kpi karten aktive kunden laufende projekte offene angebote monatsumsatz' },
+      { id: 'dashboard-deadlines', titel: 'Deadlines',        suchtext: 'deadlines countdown projekt fällig' },
+      { id: 'dashboard-followups', titel: 'Follow-Ups',       suchtext: 'follow up wiedervorlage kommunikation kunden' },
+      { id: 'dashboard-budget',    titel: 'Budget-Übersicht', suchtext: 'budget übersicht ist kosten gesamt projekt' },
+      { id: 'dashboard-letzte',    titel: 'Letzte Projekte',  suchtext: 'letzte projekte tabelle' },
     ],
   },
   {
@@ -129,9 +132,12 @@ const KAPITEL: Kapitel[] = [
     icon: <Users className="w-4 h-4" />,
     titel: 'Kunden',
     abschnitte: [
-      { id: 'kunden-anlegen', titel: 'Kunde anlegen', suchtext: 'kunde anlegen neu erstellen name email telefon' },
-      { id: 'kunden-details', titel: 'Kunden-Details', suchtext: 'kunden details profil bearbeiten' },
-      { id: 'kunden-logo', titel: 'Logo hochladen', suchtext: 'logo hochladen bild upload kunde' },
+      { id: 'kunden-anlegen',       titel: 'Kunde anlegen',         suchtext: 'kunde anlegen neu erstellen name' },
+      { id: 'kunden-detail',        titel: 'Detail-Seite (360°)',   suchtext: 'detail seite cockpit stats projektliste timeline' },
+      { id: 'kunden-kontakte',      titel: 'Mehrere Ansprechpartner', suchtext: 'ansprechpartner mehrere kontakte hauptkontakt rolle email telefon mobil' },
+      { id: 'kunden-website',       titel: 'Website + Auto-Favicon', suchtext: 'website url logo favicon auto automatisch' },
+      { id: 'kunden-kommunikation', titel: 'Kommunikationslog',     suchtext: 'kommunikation anruf email meeting follow-up notiz' },
+      { id: 'kunden-archiv',        titel: 'Archivieren / Löschen', suchtext: 'archivieren wiederherstellen löschen impact' },
     ],
   },
   {
@@ -139,11 +145,25 @@ const KAPITEL: Kapitel[] = [
     icon: <FolderOpen className="w-4 h-4" />,
     titel: 'Projekte',
     abschnitte: [
-      { id: 'projekte-erstellen', titel: 'Projekt erstellen', suchtext: 'projekt erstellen neu anlegen' },
-      { id: 'projekte-raeume', titel: 'Räume anlegen', suchtext: 'raum anlegen erstellen typ' },
-      { id: 'projekte-produkte', titel: 'Produkte hinzufügen', suchtext: 'produkt hinzufügen raum zuweisen' },
-      { id: 'projekte-archivieren', titel: 'Projekt archivieren', suchtext: 'archivieren inaktiv verstecken' },
-      { id: 'projekte-duplizieren', titel: 'Projekt duplizieren', suchtext: 'duplizieren kopieren clone' },
+      { id: 'projekte-erstellen',  titel: 'Projekt erstellen',          suchtext: 'projekt erstellen neu anlegen kunde' },
+      { id: 'projekte-status',     titel: 'Status-Flow',                suchtext: 'status aktiv warten auf kunde abgeschlossen offen freigegeben' },
+      { id: 'projekte-budget',     titel: 'Budget (gesamt + Produkt)',  suchtext: 'budget gesamtbudget produkt budget tausenderpunkt' },
+      { id: 'projekte-service',    titel: 'Service-Modell',             suchtext: 'service pauschale stundensatz abrechnung honorar' },
+      { id: 'projekte-zeit',       titel: 'Zeiterfassung',              suchtext: 'zeiterfassung stunden eintragen abrechnen' },
+      { id: 'projekte-deadline',   titel: 'Deadline + Verantwortlicher', suchtext: 'deadline countdown verantwortlicher overdue fällig' },
+      { id: 'projekte-actions',    titel: 'Duplizieren / Archivieren', suchtext: 'archivieren duplizieren kopieren wiederherstellen löschen' },
+    ],
+  },
+  {
+    id: 'raeume',
+    icon: <Home className="w-4 h-4" />,
+    titel: 'Räume',
+    abschnitte: [
+      { id: 'raeume-anlegen',     titel: 'Raum anlegen',             suchtext: 'raum anlegen typ kategorie wohnzimmer büro' },
+      { id: 'raeume-budget',      titel: 'Budget pro Raum',          suchtext: 'budget raum fortschritt' },
+      { id: 'raeume-produkte',    titel: 'Produkte zuweisen',        suchtext: 'produkt zuweisen menge override preis rabatt' },
+      { id: 'raeume-grundriss',   titel: 'Grundriss-Vorschau',       suchtext: 'grundriss vorschau raumplaner' },
+      { id: 'raeume-reihenfolge', titel: 'Reihenfolge per Drag&Drop', suchtext: 'sortieren drag drop reihenfolge' },
     ],
   },
   {
@@ -151,11 +171,13 @@ const KAPITEL: Kapitel[] = [
     icon: <ShoppingCart className="w-4 h-4" />,
     titel: 'Produkte',
     abschnitte: [
-      { id: 'produkte-status', titel: 'Produktstatus-Flow', suchtext: 'status flow geplant bestellt geliefert montiert' },
-      { id: 'produkte-freigabe', titel: 'Freigabe-Status', suchtext: 'freigabe status offen akzeptiert abgelehnt' },
-      { id: 'produkte-preise', titel: 'Preisberechnung', suchtext: 'preis berechnung einkaufspreis marge verkaufspreis provision mwst' },
-      { id: 'produkte-autofill', titel: 'Auto-Fill via URL', suchtext: 'autofill url automatisch ausfüllen link' },
-      { id: 'produkte-bibliothek', titel: 'Produktbibliothek', suchtext: 'bibliothek katalog vorlage produkt' },
+      { id: 'produkte-bibliothek',  titel: 'Bibliothek vs. Raum-Einsatz', suchtext: 'bibliothek katalog raum produkte einsatz junction' },
+      { id: 'produkte-autofill',    titel: 'Auto-Fill (URL + AI)',        suchtext: 'autofill url ai claude haiku scraper automatisch' },
+      { id: 'produkte-screenshot',  titel: 'Screenshot-Upload',           suchtext: 'screenshot bild upload vision ai sonnet' },
+      { id: 'produkte-bilder',      titel: 'Mehrere Bilder',              suchtext: 'bilder mehrere galerie carousel auswählen' },
+      { id: 'produkte-preise',      titel: 'Preisberechnung',             suchtext: 'preis einkaufspreis marge verkaufspreis provision mwst' },
+      { id: 'produkte-status',      titel: 'Status pro Raum-Einsatz',     suchtext: 'bestellstatus freigabestatus pro raum geliefert ausstehend' },
+      { id: 'produkte-varianten',   titel: 'Varianten',                   suchtext: 'varianten attribute farbe größe option produkt' },
     ],
   },
   {
@@ -163,9 +185,10 @@ const KAPITEL: Kapitel[] = [
     icon: <CheckSquare className="w-4 h-4" />,
     titel: 'Freigaben',
     abschnitte: [
-      { id: 'freigaben-uebersicht', titel: 'Übersicht', suchtext: 'freigabe übersicht status alle' },
-      { id: 'freigaben-ansichten', titel: 'Ansichten', suchtext: 'donut balken liste ansicht toggle' },
-      { id: 'freigaben-filter', titel: 'Filter', suchtext: 'filter status raum suchen' },
+      { id: 'freigaben-uebersicht', titel: 'Dashboard',         suchtext: 'freigabe übersicht progress bar status' },
+      { id: 'freigaben-bulk',       titel: 'Bulk-Aktionen',     suchtext: 'bulk markieren mehrere freigeben ablehnen zurücksetzen' },
+      { id: 'freigaben-filter',     titel: 'Filter & Suche',    suchtext: 'filter chip suche projekt status' },
+      { id: 'freigaben-ansichten',  titel: 'Ansichten',         suchtext: 'gruppen tabelle balken view toggle' },
     ],
   },
   {
@@ -173,9 +196,22 @@ const KAPITEL: Kapitel[] = [
     icon: <Link2 className="w-4 h-4" />,
     titel: 'Kundenfreigabe',
     abschnitte: [
-      { id: 'kf-link', titel: 'Link erstellen', suchtext: 'freigabelink erstellen token link' },
-      { id: 'kf-pin', titel: 'PIN-Schutz aktivieren', suchtext: 'pin schutz passwort code sicherheit' },
-      { id: 'kf-ansicht', titel: 'Kundenansicht', suchtext: 'kundenansicht produkte freigabe bestätigen ablehnen' },
+      { id: 'kf-link',     titel: 'Link erstellen (Scopes)', suchtext: 'freigabelink erstellen scope projekt raum auswahl token' },
+      { id: 'kf-pin',      titel: 'PIN-Schutz',              suchtext: 'pin schutz code sicherheit kunde' },
+      { id: 'kf-mobile',   titel: 'Mobile Kundenansicht',    suchtext: 'mobile produkt freigabe bestätigen ablehnen donut' },
+      { id: 'kf-audit',    titel: 'Audit-Log',               suchtext: 'audit verlauf wer hat was wann freigegeben' },
+    ],
+  },
+  {
+    id: 'portal',
+    icon: <MonitorSmartphone className="w-4 h-4" />,
+    titel: 'Kunden-Portal',
+    abschnitte: [
+      { id: 'portal-zugang',      titel: 'Zugang einrichten',      suchtext: 'portal zugang einladung email passwort kunde' },
+      { id: 'portal-welcome',     titel: 'Willkommens-Tour',       suchtext: 'welcome tour intro ersttour onboarding' },
+      { id: 'portal-projekt',     titel: 'Projektansicht',         suchtext: 'portal projekt produkte fortschritt timeline' },
+      { id: 'portal-chat',        titel: 'Chat & Dokumente',       suchtext: 'chat nachrichten dokumente upload' },
+      { id: 'portal-team',        titel: 'Team & Einstellungen',   suchtext: 'team mitglieder portal einstellungen profil' },
     ],
   },
   {
@@ -183,11 +219,11 @@ const KAPITEL: Kapitel[] = [
     icon: <ClipboardList className="w-4 h-4" />,
     titel: 'Onboarding',
     abschnitte: [
-      { id: 'ob-link', titel: 'Link erstellen', suchtext: 'onboarding link erstellen anfragen' },
-      { id: 'ob-vorlagen', titel: 'Vorlagen verwalten', suchtext: 'vorlage verwalten template fragen' },
-      { id: 'ob-fragen', titel: 'Fragen-Editor', suchtext: 'fragen editor felder typ text checkbox auswahl' },
-      { id: 'ob-anfragen', titel: 'Anfragen bearbeiten', suchtext: 'anfragen bearbeiten eingang neu' },
-      { id: 'ob-kunde', titel: 'Als Kunde anlegen', suchtext: 'kunde anlegen aus anfrage erstellen' },
+      { id: 'ob-link',      titel: 'Link erstellen',          suchtext: 'onboarding link erstellen typ vorlage' },
+      { id: 'ob-empfaenger', titel: 'Empfänger-Etikett',      suchtext: 'empfänger etikett label name email für wen' },
+      { id: 'ob-vorlagen',  titel: 'Vorlagen-Editor',         suchtext: 'vorlage template editor sektion gruppe feldtyp' },
+      { id: 'ob-status',    titel: 'Status-Flow',             suchtext: 'status offen in bearbeitung eingereicht abgeschlossen abgelehnt fortschritt' },
+      { id: 'ob-uebernehmen', titel: 'Als Kunde / Projekt anlegen', suchtext: 'übernehmen kunde projekt anlegen aus anfrage' },
     ],
   },
   {
@@ -195,10 +231,10 @@ const KAPITEL: Kapitel[] = [
     icon: <Target className="w-4 h-4" />,
     titel: 'Konfigurator',
     abschnitte: [
-      { id: 'konf-session', titel: 'Session erstellen', suchtext: 'session erstellen neu link token' },
-      { id: 'konf-optionen', titel: 'Optionen (Budget, Preise)', suchtext: 'optionen budget limit preise anzeigen alternative' },
-      { id: 'konf-kundenansicht', titel: 'Kundenansicht', suchtext: 'kundenansicht auswählen ablehnen alternative unentschieden' },
-      { id: 'konf-ergebnisse', titel: 'Ergebnisse auswerten', suchtext: 'ergebnis auswerten übernahme produkt status' },
+      { id: 'konf-session',     titel: 'Session erstellen',        suchtext: 'session erstellen link token kunde produkt' },
+      { id: 'konf-aktionen',    titel: 'Kunden-Aktionen (4)',      suchtext: 'übernehmen ablehnen alternative unentschieden' },
+      { id: 'konf-budget',      titel: 'Budget-Tracking',          suchtext: 'budget tracking limit verbleibend' },
+      { id: 'konf-uebernahme',  titel: 'Ergebnis übernehmen',      suchtext: 'übernehmen produkte freigabe angebot erstellen' },
     ],
   },
   {
@@ -206,10 +242,49 @@ const KAPITEL: Kapitel[] = [
     icon: <CalendarDays className="w-4 h-4" />,
     titel: 'Timeline',
     abschnitte: [
-      { id: 'tl-events', titel: 'Events erstellen', suchtext: 'event erstellen termin lieferung phase meilenstein' },
-      { id: 'tl-gantt', titel: 'Gantt-Ansicht', suchtext: 'gantt ansicht balken zeitstrahl monat' },
-      { id: 'tl-meilensteine', titel: 'Meilensteine', suchtext: 'meilenstein milestone diamond raute' },
-      { id: 'tl-liefertermine', titel: 'Liefertermine', suchtext: 'liefertermin produkt bestätigt datum' },
+      { id: 'tl-events',        titel: 'Events erstellen',          suchtext: 'event erstellen termin lieferung phase meilenstein typ' },
+      { id: 'tl-autosync',      titel: 'Auto-Sync',                 suchtext: 'auto sync produkt liefertermin angebot vertrag deadline automatisch' },
+      { id: 'tl-gantt',         titel: 'Gantt + Abhängigkeiten',    suchtext: 'gantt balken bezier abhängigkeiten kaskade verschieben' },
+      { id: 'tl-raumfilter',    titel: 'Raum-Filter',               suchtext: 'raum filter chip projekt ebene' },
+      { id: 'tl-kundensicht',   titel: 'Kunde-sichtbar',            suchtext: 'kunde sichtbar portal toggle event' },
+    ],
+  },
+  {
+    id: 'angebote',
+    icon: <FileText className="w-4 h-4" />,
+    titel: 'Angebote',
+    abschnitte: [
+      { id: 'ang-erstellen',    titel: 'Angebot erstellen',           suchtext: 'angebot erstellen positionen einleitung manuell' },
+      { id: 'ang-aus-raeumen',  titel: 'Aus Raum-Produkten generieren', suchtext: 'angebot aus räumen generieren raum produkte automatisch' },
+      { id: 'ang-status',       titel: 'Status-Flow',                 suchtext: 'angebot status entwurf gesendet angesehen angenommen abgelehnt überarbeitung' },
+      { id: 'ang-pdf',          titel: 'PDF-Export',                  suchtext: 'angebot pdf export download branding' },
+      { id: 'ang-vertrag',      titel: '→ Vertrag erstellen',         suchtext: 'angebot vertrag erstellen umwandeln' },
+    ],
+  },
+  {
+    id: 'vertraege',
+    icon: <FileSignature className="w-4 h-4" />,
+    titel: 'Verträge',
+    abschnitte: [
+      { id: 'ver-vorlagen',   titel: 'Vertragsvorlagen',         suchtext: 'vorlage platzhalter vertrag standard html' },
+      { id: 'ver-erstellen',  titel: 'Vertrag erstellen',        suchtext: 'vertrag erstellen aus vorlage projekt' },
+      { id: 'ver-signatur',   titel: 'Digitale Signatur',        suchtext: 'signatur unterschrift token canvas digital touch' },
+      { id: 'ver-anhaenge',   titel: 'Anhänge & Meilensteine',   suchtext: 'anhänge meilenstein vertrag' },
+      { id: 'ver-pdf',        titel: 'PDF-Export',               suchtext: 'vertrag pdf export download' },
+    ],
+  },
+  {
+    id: 'raumplaner',
+    icon: <Grid3X3 className="w-4 h-4" />,
+    titel: 'Raumplaner',
+    abschnitte: [
+      { id: 'rp-start',         titel: 'Erste Schritte',           suchtext: 'raumplaner editor öffnen canvas wand' },
+      { id: 'rp-tools',         titel: 'Werkzeuge',                suchtext: 'tools wand tür fenster maß möbel radierer formen' },
+      { id: 'rp-moebel',        titel: 'Möbel & Custom',           suchtext: 'möbel symbole custom favoriten kategorie' },
+      { id: 'rp-boden-waende',  titel: 'Boden + Wandfarbe',        suchtext: 'boden textur wand farbe parkett fliesen' },
+      { id: 'rp-etagen',        titel: 'Etagen / Stockwerke',      suchtext: 'etage stockwerk tab' },
+      { id: 'rp-versionen',     titel: 'Versionen',                suchtext: 'version speichern laden vergleich' },
+      { id: 'rp-export',        titel: 'Export & Freigabe',        suchtext: 'export pdf png screenshot freigabe link qr code kunde' },
     ],
   },
   {
@@ -217,9 +292,13 @@ const KAPITEL: Kapitel[] = [
     icon: <UserCircle className="w-4 h-4" />,
     titel: 'Partner',
     abschnitte: [
-      { id: 'partner-anlegen', titel: 'Partner anlegen', suchtext: 'partner anlegen hersteller lieferant' },
-      { id: 'partner-provision', titel: 'Provision', suchtext: 'provision prozent berechnung verkaufspreis' },
-      { id: 'partner-logo', titel: 'Logo', suchtext: 'partner logo bild hochladen' },
+      { id: 'partner-anlegen',     titel: 'Partner anlegen',                  suchtext: 'partner anlegen hersteller lieferant typ' },
+      { id: 'partner-tabs',        titel: 'Sub-Tabs (Übersicht/Kontakte/...)', suchtext: 'tabs übersicht kontakte konditionen verträge produkte' },
+      { id: 'partner-kontakte',    titel: 'Mehrere Kontakte',                 suchtext: 'kontaktpersonen mehrere hauptkontakt rolle' },
+      { id: 'partner-konditionen', titel: 'Konditionen',                      suchtext: 'kondition prozent fix staffelung kategorie skonto' },
+      { id: 'partner-vertraege',   titel: 'Verträge / Dokumente',             suchtext: 'partner verträge upload pdf dokument' },
+      { id: 'partner-produkte',    titel: 'Sortiment + Einsatz',              suchtext: 'sortiment einsatz raum verbau bestellt umsatz' },
+      { id: 'partner-bewertung',   titel: 'Bewertung + Filter',               suchtext: 'bewertung sterne filter sortierung' },
     ],
   },
   {
@@ -289,22 +368,27 @@ const KAPITEL: Kapitel[] = [
 
 function KapitelInhalt({ kapitelId }: { kapitelId: string }) {
   switch (kapitelId) {
-    case 'dashboard': return <DashboardKapitel />
-    case 'kunden': return <KundenKapitel />
-    case 'projekte': return <ProjekteKapitel />
-    case 'produkte': return <ProdukteKapitel />
-    case 'freigaben': return <FreigabenKapitel />
+    case 'dashboard':      return <DashboardKapitel />
+    case 'kunden':         return <KundenKapitel />
+    case 'projekte':       return <ProjekteKapitel />
+    case 'raeume':         return <RaeumeKapitel />
+    case 'produkte':       return <ProdukteKapitel />
+    case 'freigaben':      return <FreigabenKapitel />
     case 'kundenfreigabe': return <KundenfreigabeKapitel />
-    case 'onboarding': return <OnboardingKapitel />
-    case 'konfigurator': return <KonfiguratorKapitel />
-    case 'timeline': return <TimelineKapitel />
-    case 'partner': return <PartnerKapitel />
-    case 'kategorien': return <KategorienKapitel />
-    case 'team': return <TeamKapitel />
-    case 'branding': return <BrandingKapitel />
-    case 'einstellungen': return <EinstellungenKapitel />
-    case 'export': return <ExportKapitel />
-    case 'faq': return <FaqKapitel />
+    case 'portal':         return <PortalKapitel />
+    case 'onboarding':     return <OnboardingKapitel />
+    case 'konfigurator':   return <KonfiguratorKapitel />
+    case 'timeline':       return <TimelineKapitel />
+    case 'angebote':       return <AngeboteKapitel />
+    case 'vertraege':      return <VertraegeKapitel />
+    case 'raumplaner':     return <RaumplanerKapitel />
+    case 'partner':        return <PartnerKapitel />
+    case 'kategorien':     return <KategorienKapitel />
+    case 'team':           return <TeamKapitel />
+    case 'branding':       return <BrandingKapitel />
+    case 'einstellungen':  return <EinstellungenKapitel />
+    case 'export':         return <ExportKapitel />
+    case 'faq':            return <FaqKapitel />
     default: return null
   }
 }
@@ -312,32 +396,41 @@ function KapitelInhalt({ kapitelId }: { kapitelId: string }) {
 function DashboardKapitel() {
   return (
     <div>
-      <H2 id="dashboard-statistiken">Statistik-Karten</H2>
-      <P>Das Dashboard zeigt auf einen Blick die wichtigsten Kennzahlen Ihrer Arbeit. Die vier Karten oben geben einen schnellen Überblick:</P>
+      <H2 id="dashboard-kpi">KPI-Karten</H2>
+      <P>Vier Kennzahlen ganz oben fürs tägliche Reporting:</P>
       <Ul>
-        <li><strong>Aktive Projekte</strong> – Anzahl aller nicht-archivierten Projekte</li>
-        <li><strong>Kunden</strong> – Gesamtzahl der angelegten Kunden</li>
-        <li><strong>Produkte (Monat)</strong> – Im aktuellen Monat hinzugefügte Produkte</li>
-        <li><strong>Offene Freigaben</strong> – Produkte die noch auf Kundenentscheid warten</li>
+        <li><strong>Aktive Kunden</strong> – Kunden ohne Soft-Delete.</li>
+        <li><strong>Laufende Projekte</strong> – alles außer &bdquo;Abgeschlossen&ldquo; und Archiviert (inkl. Status &bdquo;Warten auf Kunde&ldquo;).</li>
+        <li><strong>Offene Angebote</strong> – Status &bdquo;Entwurf&ldquo; oder &bdquo;Gesendet&ldquo;.</li>
+        <li><strong>Monatsumsatz</strong> – Summe aller in diesem Monat angenommenen Angebote (brutto).</li>
       </Ul>
-      <InfoBox type="tip" title="Tipp">
-        Klicken Sie auf eine Statistik-Karte, um direkt zur entsprechenden Übersichtsseite zu springen.
+      <InfoBox type="tip" title="Klickbar">
+        Jede Karte verlinkt direkt zur dazugehörigen Übersicht.
       </InfoBox>
 
       <Divider />
-      <H2 id="dashboard-charts">Charts verstehen</H2>
-      <P>Die Diagramme im Dashboard visualisieren den zeitlichen Verlauf und die Verteilung Ihrer Projekte und Aktivitäten.</P>
-      <H3>Aktivitätsverlauf</H3>
-      <P>Das Liniendiagramm zeigt die Anzahl hinzugefügter Produkte der letzten 30 Tage. Spitzen deuten auf intensive Projektphasen hin.</P>
-      <H3>Status-Verteilung</H3>
-      <P>Das Balkendiagramm gruppiert Produkte nach ihrem aktuellen Bestellstatus und gibt einen Überblick über den Fortschritt aller aktiven Projekte.</P>
+      <H2 id="dashboard-deadlines">Deadlines</H2>
+      <P>Die Karte &bdquo;Nächste Deadlines&ldquo; zeigt alle Projekte mit Deadline in den nächsten 60 Tagen plus alle Timeline-Events der nächsten 30 Tage. Pro Eintrag siehst du:</P>
+      <Ul>
+        <li>Projekt-Name + Kunde</li>
+        <li>Countdown (&bdquo;in 3 Tagen&ldquo;) oder &bdquo;überfällig&ldquo;-Badge bei vergangenen Daten</li>
+        <li>Event-Icon je Typ (Meilenstein / Lieferung / Termin / Phase)</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="dashboard-followups">Follow-Ups</H2>
+      <P>Aus dem Kommunikationslog: alle Einträge mit gesetztem Follow-Up-Datum innerhalb der nächsten 7 Tage, gruppiert pro Kunde. Klick → springt direkt in den Kunden-Kontext.</P>
 
       <Divider />
       <H2 id="dashboard-budget">Budget-Übersicht</H2>
-      <P>Die Budget-Sektion zeigt den Gesamtwert aller aktiven Projekte sowie den prozentualen Anteil bereits freigegebener Produkte.</P>
+      <P>Die Top-5 aktiven Projekte mit gesetztem Budget — Ist-Kosten (effektiver VP × Menge aller Raum-Produkte) gegen Budget mit Fortschrittsbalken. Über 100 % wird rot.</P>
       <InfoBox type="info" title="Berechnung">
-        Alle Werte sind Verkaufspreise netto. Der MwSt.-Satz wird in den Einstellungen konfiguriert.
+        Effektiver VP = override (falls gesetzt) sonst Bibliothekspreis × (1 − Rabatt %). Werte sind netto.
       </InfoBox>
+
+      <Divider />
+      <H2 id="dashboard-letzte">Letzte Projekte</H2>
+      <P>Tabelle mit den 8 zuletzt angelegten Projekten (Name / Kunde / Status / Budget / Deadline-Countdown). Direkt-Link in die Detailseite per Zeilenklick.</P>
     </div>
   )
 }
@@ -346,27 +439,54 @@ function KundenKapitel() {
   return (
     <div>
       <H2 id="kunden-anlegen">Kunde anlegen</H2>
-      <P>Öffnen Sie <strong>Kunden</strong> in der Seitenleiste und klicken Sie auf <strong>+ Neu</strong>. Pflichtfelder sind lediglich der Name. Optional können Sie E-Mail, Telefon, Adresse und Ansprechpartner erfassen.</P>
+      <P>Pflichtfeld ist nur der Firmenname. Adresse, Notizen und Website sind optional. Ansprechpartner werden NICHT mehr im Formular erfasst — die pflegst du nach dem Speichern auf der Detailseite (siehe &bdquo;Mehrere Ansprechpartner&ldquo;).</P>
       <Ol>
-        <li>Seitenleiste → Kunden → <strong>+ Neu</strong></li>
-        <li>Name eingeben (Pflicht)</li>
-        <li>Kontaktdaten ergänzen (optional)</li>
-        <li>Auf <strong>Speichern</strong> klicken</li>
+        <li>Sidebar → <strong>Kunden</strong> → <strong>+ Neuer Kunde</strong></li>
+        <li>Firmenname (Pflicht)</li>
+        <li>Optional: Adresse, Website, Notizen</li>
+        <li><strong>Speichern</strong> → landest auf der Detail-Seite, kannst Ansprechpartner hinzufügen</li>
       </Ol>
-      <InfoBox type="tip" title="Tipp">
-        Legen Sie zunächst den Kunden an, bevor Sie ein Projekt erstellen – das Projekt wird dann dem Kunden zugewiesen.
+
+      <Divider />
+      <H2 id="kunden-detail">Detail-Seite (360°-Cockpit)</H2>
+      <P>Die Kunden-Detail-Seite zeigt alle wichtigen Infos auf einen Blick:</P>
+      <Ul>
+        <li><strong>Stats-Band</strong> oben: Projekte (gesamt + aktiv) · Offene Angebote (mit Summe) · Aktive Verträge · Letzter Kontakt</li>
+        <li><strong>Projektliste</strong> rechts: alle Projekte mit Status-Punkt, Freigabe-Progressbar, Budget-Kurzanzeige, Deadline-Countdown</li>
+        <li><strong>Multi-Projekt-Timeline</strong>: alle Events aller Projekte des Kunden, optional nach Projekt filterbar</li>
+        <li><strong>Kommunikationslog</strong>: chronologische Liste aller Anrufe, E-Mails, Meetings</li>
+        <li><strong>Sidebar</strong>: Firma (Adresse/Website), Ansprechpartner-Block, Notizen, Portal-Zugang</li>
+      </Ul>
+
+      <Divider />
+      <H2 id="kunden-kontakte">Mehrere Ansprechpartner</H2>
+      <P>Statt nur einer Kontaktperson legst du beliebig viele an, jede mit eigenen Daten:</P>
+      <Ul>
+        <li>Name + Rolle (Geschäftsführung / Inhaber:in / Buchhaltung / Assistenz / …)</li>
+        <li>Eigene E-Mail, Telefon, Mobil</li>
+        <li>Persönliche Notizen pro Person</li>
+        <li><strong>Hauptkontakt</strong> mit Stern-Badge — pro Kunde genau einer, wird in Listen + PDFs verwendet</li>
+      </Ul>
+      <InfoBox type="info" title="Backwards-kompatibel">
+        Die alten Felder <code>kunden.ansprechpartner / email / telefon</code> werden automatisch mit dem aktuellen Hauptkontakt synchronisiert — alle alten Listen, Filter und PDFs funktionieren ohne Änderung weiter.
       </InfoBox>
 
       <Divider />
-      <H2 id="kunden-details">Kunden-Details</H2>
-      <P>In der Kundendetailansicht sehen Sie alle zugehörigen Projekte sowie eine Zusammenfassung der Freigabe-Statistiken. Klicken Sie auf <strong>Bearbeiten</strong> (Stift-Icon), um Stammdaten zu ändern.</P>
+      <H2 id="kunden-website">Website + Auto-Favicon</H2>
+      <P>Wenn du eine Website hinterlegst und kein eigenes Logo hochgeladen ist, wird automatisch das Favicon der Domain als Logo gesetzt (via Google Favicon Service). Funktioniert beim Anlegen UND beim späteren Bearbeiten der Website. Eigene Logo-Uploads werden niemals überschrieben.</P>
 
       <Divider />
-      <H2 id="kunden-logo">Logo hochladen</H2>
-      <P>In den Kunden-Details gibt es einen Bereich <strong>Logo</strong>. Klicken Sie auf das Bild-Platzhalter und wählen Sie eine Datei (PNG, JPG, max. 2 MB). Das Logo erscheint in der Kunden-Übersicht und optional auf Freigabe-Links.</P>
-      <InfoBox type="info" title="Formate">
-        Empfohlen: PNG mit transparentem Hintergrund, mindestens 200 × 200 px.
-      </InfoBox>
+      <H2 id="kunden-kommunikation">Kommunikationslog</H2>
+      <P>Auf der Kunden-Detail-Seite kannst du jeden Kontakt protokollieren:</P>
+      <Ul>
+        <li><strong>6 Typen</strong>: E-Mail, Anruf, Meeting, Notiz, Chat, Vor Ort, Sonstiges</li>
+        <li>Richtung (eingehend / ausgehend), Dauer, Betreff, Inhalt</li>
+        <li><strong>Follow-Up-Datum</strong> setzen → erscheint im Dashboard-Widget &bdquo;Offene Follow-Ups&ldquo;</li>
+        <li>Erledigen-Button schließt den Follow-Up ab</li>
+      </Ul>
+
+      <P><strong>Archivieren</strong> — versteckt den Kunden inkl. aller Projekte aus der aktiven Liste, Daten bleiben erhalten. Wiederherstellen jederzeit möglich. Im Header der Detail-Seite erscheint ein gelber Banner.</P>
+      <P><strong>Löschen (Soft-Delete)</strong> — nur Admins. Modal zeigt vorher den Impact: wie viele Projekte / Räume / Produkte / Angebote / Verträge / Notizen / Kommunikation / Portal-User betroffen sind. Bestätigen → alles wird ausgeblendet (deleted_at gesetzt). Auto-Cleanup nach 30 Tagen via Cron möglich.</P>
     </div>
   )
 }
@@ -375,59 +495,60 @@ function ProjekteKapitel() {
   return (
     <div>
       <H2 id="projekte-erstellen">Projekt erstellen</H2>
-      <P>Über die Projekte-Seite oder die Kunden-Detailseite können neue Projekte angelegt werden.</P>
       <Ol>
-        <li>Seitenleiste → Projekte → <strong>+ Neu</strong></li>
-        <li>Projektname und Typ wählen</li>
-        <li>Kunden aus der Dropdown-Liste zuweisen</li>
-        <li>Optionales Startdatum und Budget angeben</li>
-        <li><strong>Erstellen</strong> klicken</li>
+        <li>Sidebar → <strong>Projekte</strong> → <strong>+ Neues Projekt</strong></li>
+        <li>Name + Kunde aus Dropdown wählen</li>
+        <li>Optional: Standort, Projektart, Beschreibung, Deadline</li>
+        <li>Optional: Service-Modell (Pauschale / Stundensatz)</li>
+        <li>Optional: Gesamtbudget + Produkt-Budget (mit Tausenderpunkten)</li>
+        <li><strong>Speichern</strong> → landest auf der Projekt-Detail-Seite</li>
       </Ol>
 
       <Divider />
-      <H2 id="projekte-raeume">Räume anlegen</H2>
-      <P>Innerhalb eines Projekts strukturieren Räume die Produkte thematisch. Öffnen Sie das Projekt und klicken Sie auf <strong>+ Raum</strong>.</P>
-      <P>Beim Erstellen können Sie einen Raumtyp wählen (z. B. Wohnzimmer, Büro, Küche). Das Icon des Raumtyps erscheint in der Raumkarte. Die Reihenfolge der Räume lässt sich per Drag & Drop ändern – greifen Sie dazu am <strong>⠿ Handle</strong> links der Zeile.</P>
-      <InfoBox type="tip" title="Tipp">
-        Benennen Sie Räume präzise (z. B. &bdquo;EG Büro Süd&ldquo;) um bei größeren Projekten die Übersicht zu behalten.
-      </InfoBox>
+      <H2 id="projekte-status">Status-Flow</H2>
+      <P>Drei sichtbare Status-Buttons im Header:</P>
+      <Ul>
+        <li><strong>Aktiv</strong> (grau) — Standard, du arbeitest gerade dran</li>
+        <li><strong>Warten auf Kunde</strong> (blau) — Freigabe-Link versendet, wartest auf Antwort</li>
+        <li><strong>Abgeschlossen</strong> (grün) — fertig, mit Bestätigungs-Modal</li>
+      </Ul>
+      <P>Intern gibt es noch <code>in_bearbeitung</code> als Legacy-Status, wird aber auf &bdquo;Aktiv&ldquo; gemappt. Das Dashboard-Widget &bdquo;Laufende Projekte&ldquo; zählt alles außer &bdquo;Abgeschlossen&ldquo; und Archiviert.</P>
 
       <Divider />
-      <H2 id="projekte-produkte">Produkte hinzufügen</H2>
-      <P>Innerhalb eines Raums können Sie Produkte direkt eingeben oder aus der Bibliothek zuweisen.</P>
-      <H3>Manuell eingeben</H3>
-      <Ol>
-        <li>Raum öffnen → <strong>+ Produkt</strong></li>
-        <li>Produktname, Partner, Preise ausfüllen</li>
-        <li>Speichern</li>
-      </Ol>
-      <H3>Aus Bibliothek zuweisen</H3>
-      <P>Klicken Sie auf <strong>Aus Bibliothek</strong> (Bücher-Icon) in der Produkt-Toolbar. Im Modal wählen Sie Projekt und Raum und bestätigen mit <strong>Zuweisen</strong>.</P>
+      <H2 id="projekte-budget">Budget (gesamt + Produkt)</H2>
+      <P>Zwei separate Budget-Felder mit automatischen <strong>Tausenderpunkten</strong> bei der Eingabe:</P>
+      <Ul>
+        <li><strong>Gesamtbudget</strong> — intern, inkl. Service-Honorar (z. B. 25.000 €)</li>
+        <li><strong>Produkt-Budget</strong> — wird dem Kunden mitgeteilt, ohne Service-Anteil (z. B. 18.000 €)</li>
+      </Ul>
+      <P>Auf der Detail-Seite zeigt der Budget-Ring den Verbrauch (Ist-Kosten aus Raum-Produkten / Produkt-Budget oder Fallback Gesamtbudget). Service-Kosten werden separat aufgelistet.</P>
 
       <Divider />
-      <H2 id="projekte-archivieren">Projekt archivieren</H2>
-      <P>Archivierte Projekte werden aus der Hauptliste ausgeblendet, aber nicht gelöscht. Alle Daten bleiben erhalten.</P>
-      <Ol>
-        <li>Projekt öffnen → Button <strong>Aktionen</strong> (oben rechts)</li>
-        <li><strong>Archivieren</strong> wählen und bestätigen</li>
-      </Ol>
-      <P>Um archivierte Projekte anzuzeigen, aktivieren Sie den Filter <strong>Archiviert</strong> in der Projektliste.</P>
-      <InfoBox type="warning" title="Achtung">
-        Archivierte Projekte können reaktiviert werden – klicken Sie in der Detailansicht auf <strong>Reaktivieren</strong>.
-      </InfoBox>
+      <H2 id="projekte-service">Service-Modell</H2>
+      <P>Wie verrechnest du dein Honorar?</P>
+      <Ul>
+        <li><strong>Keins</strong> — kein Service-Honorar getrennt</li>
+        <li><strong>Pauschale</strong> — fester Betrag (z. B. 5.000 €)</li>
+        <li><strong>Stundensatz</strong> — €/h, wird mit erfasster Zeit multipliziert</li>
+      </Ul>
 
       <Divider />
-      <H2 id="projekte-duplizieren">Projekt duplizieren</H2>
-      <P>Nutzen Sie Duplikation, um ein bestehendes Projekt als Vorlage für ein ähnliches neues zu verwenden.</P>
-      <Ol>
-        <li>Projekt öffnen → <strong>Aktionen</strong> → <strong>Duplizieren</strong></li>
-        <li>Neuen Projektnamen eingeben</li>
-        <li>Wählen ob Räume und Produkte mitkopiert werden sollen</li>
-        <li>Bestätigen</li>
-      </Ol>
-      <InfoBox type="info" title="Was wird kopiert?">
-        Projektname, Typ, Räume und Produkte (ohne Freigabe-Status und Bestellstatus). Kunde wird nicht automatisch übernommen.
-      </InfoBox>
+      <H2 id="projekte-zeit">Zeiterfassung</H2>
+      <P>Bei <strong>Stundensatz-Projekten</strong> erscheint auf der Detail-Seite ein Zeiterfassungs-Block. Inline-Formular: Datum + Stunden + Beschreibung + Toggle &bdquo;abrechenbar&ldquo;. Liste aller Einträge mit Summen-Zeile in € (Stundensatz × Stunden).</P>
+
+      <Divider />
+      <H2 id="projekte-deadline">Deadline + Verantwortlicher</H2>
+      <P>Im Header siehst du den Countdown — &bdquo;noch 5 Tage&ldquo; (grau), &bdquo;in 7 Tagen&ldquo; (amber bei ≤ 7 Tagen), &bdquo;3 Tage überfällig&ldquo; (rot). Der Verantwortliche wird im Team-Tab eingestellt und ist optional sichtbar.</P>
+
+      <Divider />
+      <H2 id="projekte-actions">Duplizieren / Archivieren / Löschen</H2>
+      <P>Im Header rechts gibt es ein ⋮-Dropdown:</P>
+      <Ul>
+        <li><strong>Duplizieren</strong> — kopiert Projekt inkl. Räume; Modal lässt dich auswählen, ob Produkte mitkopiert werden sollen</li>
+        <li><strong>Archivieren</strong> — versteckt aus aktiver Liste, kein Löschen</li>
+        <li><strong>Löschen</strong> (nur Admin) — Soft-Delete mit Bestätigung</li>
+      </Ul>
+
     </div>
   )
 }
@@ -728,6 +849,12 @@ function PartnerKapitel() {
     </div>
   )
 }
+
+function RaeumeKapitel() { return <P>(folgt)</P> }
+function PortalKapitel() { return <P>(folgt)</P> }
+function AngeboteKapitel() { return <P>(folgt)</P> }
+function VertraegeKapitel() { return <P>(folgt)</P> }
+function RaumplanerKapitel() { return <P>(folgt)</P> }
 
 function KategorienKapitel() {
   return (
@@ -1125,7 +1252,7 @@ export default function HandbuchClient() {
       <div className="flex-1 flex overflow-hidden">
 
         {/* Linke Sidebar */}
-        <aside className="w-56 shrink-0 border-r border-gray-100 bg-gray-50/50 overflow-y-auto py-4">
+        <aside className="w-60 xl:w-64 shrink-0 border-r border-gray-100 bg-gray-50/50 overflow-y-auto py-5">
           <nav className="space-y-0.5 px-2">
             {KAPITEL.map((kap) => {
               const istAktiv   = aktivesKapitel === kap.id
@@ -1177,7 +1304,7 @@ export default function HandbuchClient() {
 
         {/* Hauptbereich */}
         <main ref={hauptRef} className="flex-1 overflow-y-auto">
-          <div className="max-w-2xl mx-auto px-8 py-8">
+          <div className="max-w-3xl 2xl:max-w-4xl mx-auto px-8 lg:px-12 xl:px-16 py-10">
             {/* Breadcrumb */}
             <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-6">
               <span>Handbuch</span>
@@ -1186,11 +1313,11 @@ export default function HandbuchClient() {
             </div>
 
             {/* Kapitel-Titel */}
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-100">
-              <div className="w-9 h-9 rounded-xl bg-wellbeing-green/10 flex items-center justify-center text-wellbeing-green">
+            <div className="flex items-center gap-3.5 mb-8 pb-5 border-b border-gray-100">
+              <div className="w-11 h-11 rounded-2xl bg-wellbeing-green/10 flex items-center justify-center text-wellbeing-green">
                 {aktuellesKapitel.icon}
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">{aktuellesKapitel.titel}</h1>
+              <h1 className="text-[28px] xl:text-3xl font-bold text-gray-900 leading-tight">{aktuellesKapitel.titel}</h1>
             </div>
 
             {/* Inhalt */}
@@ -1240,7 +1367,7 @@ export default function HandbuchClient() {
         </main>
 
         {/* Rechte Sidebar – "Auf dieser Seite" */}
-        <aside className="hidden xl:block w-48 shrink-0 border-l border-gray-100 overflow-y-auto py-6 px-4">
+        <aside className="hidden xl:block w-56 2xl:w-64 shrink-0 border-l border-gray-100 overflow-y-auto py-8 px-5 sticky top-0 self-start">
           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Auf dieser Seite</p>
           <nav className="space-y-1">
             {aktuellesKapitel.abschnitte.map((abs) => (
