@@ -9,6 +9,11 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - KPI-Kachel **„Laufende Projekte"** zählt jetzt auch Projekte mit Status „Warten auf Kunde" — ein Projekt das auf eine Kundenfreigabe wartet ist immer noch ein laufendes Projekt, nicht abgeschlossen.
 - Gleiche Logik bei „Nächste Deadlines" und „Budget-Übersicht": alles außer „Abgeschlossen" und Archiviert wird angezeigt.
 
+### Partner: Umsatz nur noch aus tatsächlichen Bestellungen + Adress-Feld
+- **Partner-Detailseite** zeigt jetzt **„Bestellter Umsatz"** statt „Gesamtumsatz" — gezählt werden nur Produkte, die einem Raum/Projekt zugeordnet **und** auf Status „bestellt" / „geliefert" / „Rechnung erhalten" gesetzt wurden. Reine Bibliotheks-Produkte (ohne Bestellung) zählen nicht mehr mit.
+- **Adress-Feld** für Partner: einfaches mehrzeiliges Textfeld im Partner-Formular, wird in der Kontakt-Karte mit Pin-Icon angezeigt.
+- Migration 086 nötig (`ALTER TABLE partner ADD COLUMN adresse TEXT`).
+
 ## 2026-04-24
 
 ### Kunden-Portal: Willkommens-Tour beim ersten Login

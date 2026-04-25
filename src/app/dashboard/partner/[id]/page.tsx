@@ -9,7 +9,7 @@ import PartnerProduktHinzufuegen from '@/components/PartnerProduktHinzufuegen'
 import PartnerKonditionenBlock from '@/components/PartnerKonditionenBlock'
 import PartnerVertraegeBlock from '@/components/PartnerVertraegeBlock'
 import { vertraegeAbrufen } from '@/app/actions/partner-vertraege'
-import { ExternalLink, Mail, Phone, Globe, Star } from 'lucide-react'
+import { ExternalLink, Mail, Phone, Globe, Star, MapPin } from 'lucide-react'
 
 type ProduktMitRaum = {
   id: string; name: string; menge: number; einheit: string
@@ -59,13 +59,21 @@ async function getPartnerNotizen(partnerId: string): Promise<Notiz[]> {
 
 export default async function PartnerDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
-  const [{ data: partner }, { data: produkte }, notizen, konditionen, vertraege] = await Promise.all([
+  const [{ data: partner }, { data: produkte }, { data: bestellteRows }, notizen, konditionen, vertraege] = await Promise.all([
     supabase.from('partner').select('*').eq('id', params.id).is('deleted_at', null).single(),
     supabase
       .from('produkte')
       .select('id, name, menge, einheit, verkaufspreis, produktstatus(status), raeume(id, name, projekte(id, name))')
       .eq('partner_id', params.id).is('deleted_at', null)
       .order('created_at', { ascending: false }),
+    // Gesamtumsatz nur über tatsächlich bestellte raum_produkte – nicht über
+    // alle Bibliothekszuordnungen. Quelle: raum_produkte.bestellstatus (Mig. 076).
+    supabase
+      .from('raum_produkte')
+      .select('menge, verkaufspreis_override, bestellstatus, produkte!inner(verkaufspreis, partner_id, deleted_at)')
+      .eq('produkte.partner_id', params.id)
+      .is('produkte.deleted_at', null)
+      .in('bestellstatus', ['bestellt', 'geliefert', 'rechnung_erhalten']),
     getPartnerNotizen(params.id),
     getPartnerKonditionen(params.id),
     vertraegeAbrufen(params.id),
@@ -74,7 +82,18 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
   if (!partner) notFound()
 
   const loeschenAktion = partnerSoftDelete.bind(null, partner.id)
-  const gesamtUmsatz   = (produkte ?? []).reduce((s, p) => s + (p.verkaufspreis ?? 0) * p.menge, 0)
+  type BestellRow = {
+    menge: number
+    verkaufspreis_override: number | null
+    bestellstatus: string
+    produkte: { verkaufspreis: number | null } | null
+  }
+  const bestellteUmsatz = ((bestellteRows ?? []) as unknown as BestellRow[])
+    .reduce((s, r) => {
+      const ep = r.verkaufspreis_override ?? r.produkte?.verkaufspreis ?? 0
+      return s + ep * (r.menge ?? 0)
+    }, 0)
+  const gesamtUmsatz   = bestellteUmsatz
   const produktListe   = (produkte ?? []) as unknown as ProduktMitRaum[]
   const bewertung      = partner.bewertung as number | null
 
@@ -149,8 +168,9 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
           </p>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs text-gray-500 uppercase tracking-widest font-medium mb-1">Gesamtumsatz (VP netto)</p>
+          <p className="text-xs text-gray-500 uppercase tracking-widest font-medium mb-1">Bestellter Umsatz (VP netto)</p>
           <p className="text-lg font-semibold text-wellbeing-green font-mono">{gesamtUmsatz > 0 ? eur(gesamtUmsatz) : '–'}</p>
+          <p className="text-[11px] text-gray-400 mt-1">Nur Produkte mit Bestellstatus „bestellt" / „geliefert" / „Rechnung erhalten"</p>
         </div>
       </div>
 
@@ -218,7 +238,16 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
                   <dd className="text-sm text-gray-700">{partner.zahlungsziel_tage} Tage</dd>
                 </div>
               )}
-              {!partner.ansprechpartner && !partner.email && !partner.telefon && !partner.ust_id && !partner.iban && (
+              {partner.adresse && (
+                <div>
+                  <dt className="text-xs text-gray-400 mb-0.5">Adresse</dt>
+                  <dd className="flex items-start gap-1.5 text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                    <MapPin className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
+                    <span>{partner.adresse}</span>
+                  </dd>
+                </div>
+              )}
+              {!partner.ansprechpartner && !partner.email && !partner.telefon && !partner.ust_id && !partner.iban && !partner.adresse && (
                 <p className="text-sm text-gray-400">Keine Kontaktdaten hinterlegt.</p>
               )}
             </dl>
@@ -259,7 +288,7 @@ export default async function PartnerDetailPage({ params }: { params: { id: stri
               </h2>
               <div className="flex items-center gap-3">
                 {gesamtUmsatz > 0 && (
-                  <span className="text-xs text-gray-500 font-mono">Gesamt: <span className="text-wellbeing-green font-semibold">{eur(gesamtUmsatz)}</span></span>
+                  <span className="text-xs text-gray-500 font-mono">Bestellt: <span className="text-wellbeing-green font-semibold">{eur(gesamtUmsatz)}</span></span>
                 )}
                 <PartnerProduktHinzufuegen partnerId={partner.id} />
               </div>

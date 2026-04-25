@@ -175,6 +175,7 @@ export interface Partner {
   email: string | null
   telefon: string | null
   website: string | null
+  adresse: string | null
   provisionsmodell: ProvisionsModell | null
   provisions_wert: number | null
   einkaufskonditionen: string | null

@@ -27,6 +27,7 @@ export async function partnerAnlegen(
     email: (formData.get('email') as string) || null,
     telefon: (formData.get('telefon') as string) || null,
     website: (formData.get('website') as string) || null,
+    adresse: (formData.get('adresse') as string) || null,
     provisionsmodell,
     provisions_wert:
       provisionsmodell !== 'Individuell' && provisionsWertRaw
@@ -69,6 +70,7 @@ export async function partnerAktualisieren(
       email: (formData.get('email') as string) || null,
       telefon: (formData.get('telefon') as string) || null,
       website: (formData.get('website') as string) || null,
+      adresse: (formData.get('adresse') as string) || null,
       provisionsmodell,
       provisions_wert:
         provisionsmodell !== 'Individuell' && provisionsWertRaw

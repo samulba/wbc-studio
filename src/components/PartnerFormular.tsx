@@ -113,6 +113,17 @@ export default function PartnerFormular({ aktion, initialData, abbrechen }: Prop
         </div>
       </div>
 
+      {/* Adresse */}
+      <div>
+        <label htmlFor="adresse" className={lbl}>Adresse</label>
+        <textarea
+          id="adresse" name="adresse" rows={3}
+          defaultValue={initialData?.adresse ?? ''}
+          className={`${inp} resize-none`}
+          placeholder="Musterstr. 12&#10;12345 Musterstadt&#10;Deutschland"
+        />
+      </div>
+
       {/* USt-IdNr + IBAN */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
