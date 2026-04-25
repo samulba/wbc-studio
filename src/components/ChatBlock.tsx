@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import Image from 'next/image'
 import {
   MessageCircle, Send, Paperclip, Mic, X, FileText, Download,
@@ -15,6 +15,7 @@ import {
   teamNachrichtSenden,
   chatAnhangSignedUrl,
 } from '@/app/actions/portal'
+import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 
 interface Props {
   projektId:          string
@@ -40,17 +41,29 @@ export default function ChatBlock({
     adminNachrichtenAlsGelesen(projektId).catch(() => {})
   }, [projektId])
 
+  const refetch = useCallback(async () => {
+    if (isFetchingRef.current) return
+    isFetchingRef.current = true
+    try {
+      const fresh = await getNachrichtenFuerProjekt(projektId)
+      setNachrichten(fresh)
+    } catch { /* ignore */ }
+    finally { isFetchingRef.current = false }
+  }, [projektId])
+
+  // Realtime: sofortiger Refetch wenn neue/aktualisierte Nachricht reinkommt.
+  // Gefiltert auf projekt_id, damit nur relevante Events ankommen.
+  useRealtimeRefresh({
+    channelName: `chat-${projektId}`,
+    table:       'client_nachrichten',
+    filter:      `projekt_id=eq.${projektId}`,
+    onChange:    refetch,
+    debounceMs:  300, // Chat darf snappy reagieren
+  })
+
+  // Polling als Backup falls die WebSocket-Verbindung droppt.
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null
-    async function refetch() {
-      if (isFetchingRef.current) return
-      isFetchingRef.current = true
-      try {
-        const fresh = await getNachrichtenFuerProjekt(projektId)
-        setNachrichten(fresh)
-      } catch { /* ignore */ }
-      finally { isFetchingRef.current = false }
-    }
     function start() {
       if (interval !== null) return
       interval = setInterval(refetch, pollingMs)
@@ -66,7 +79,7 @@ export default function ChatBlock({
     if (!document.hidden) start()
     document.addEventListener('visibilitychange', onVis)
     return () => { stop(); document.removeEventListener('visibilitychange', onVis) }
-  }, [projektId, pollingMs])
+  }, [refetch, pollingMs])
 
   // Auto-Scroll: nur wenn User ohnehin nah am unteren Rand ist — sonst unterbrechen wir sein Scrollen.
   useEffect(() => {

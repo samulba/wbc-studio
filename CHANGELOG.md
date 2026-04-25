@@ -5,6 +5,21 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-25
 
+### Live-Updates auf allen wichtigen Bereichen (mit Performance-Schutz)
+- Auf den weiteren Pflicht-Bereichen läuft jetzt **Realtime** ohne Performance-Verlust:
+  - **Portal-Chat** — Nachrichten erscheinen sofort, kein Polling-Lag mehr (10-Sek-Polling bleibt als Backup falls die WebSocket droppt)
+  - **Kommunikationslog** auf Kunden-Detail — Team-Kollegen-Einträge live sichtbar
+  - **Timeline** auf Projekt-Detail — Auto-Sync und manuelle Events von anderen erscheinen direkt
+  - **Bestell-/Freigabe-Status auf Raum-Detail** (`raum_produkte`) — wenn Kunde im Freigabe-Link reagiert, sieht der Admin den neuen Status sofort
+  - **Konfigurator-Sessions** — Admin sieht live wenn Kunde Auswahl trifft / ablehnt
+  - **Onboarding** (war schon da, jetzt auch über den gemeinsamen Hook)
+- **Performance-Schutz** im neuen `useRealtimeRefresh`-Hook:
+  - **Debouncing** (Default 500 ms, Chat 300 ms, Bulk-betroffene Tabellen 600 ms) verhindert Refresh-Storm bei Auto-Save-Floods oder Bulk-Aktionen.
+  - **Pro-Komponente eindeutige Channel-Namen** — keine Subscribe-Collisions
+  - **Server-seitiger Filter** wo möglich (`projekt_id=eq.X`, `kunde_id=eq.Y`, `raum_id=eq.Z`) — reduziert Server→Client-Traffic auf das Nötigste
+  - **Cleanup garantiert** — `removeChannel` beim Unmount, kein WebSocket-Leak
+- Migration **093** nötig (`ALTER PUBLICATION supabase_realtime ADD TABLE …` für 5 Tabellen, idempotent).
+
 ### Onboarding: Live-Updates (kein Refresh mehr nötig)
 - Sobald ein Kunde ein Onboarding-Formular ausfüllt, abschickt oder mit dem Auto-Save den Fortschritt aktualisiert, **erscheint die Änderung sofort in deiner Übersicht** — kein manuelles Reload mehr.
 - Realisiert via **Supabase Realtime**: der Browser subscribed beim Öffnen der Onboarding-Seite einen WebSocket-Channel auf die `onboarding_anfragen`-Tabelle. Bei jedem INSERT/UPDATE/DELETE wird die Page-Daten neu geholt.

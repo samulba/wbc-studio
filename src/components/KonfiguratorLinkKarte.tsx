@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Settings2, Copy, Check, ExternalLink, X, ChevronDown, ChevronUp, CheckCircle2, Clock, ReceiptText } from 'lucide-react'
 import { konfiguratorErstellen, konfiguratorAuswahlZuAngebot } from '@/app/actions/konfigurator'
 import type { KonfiguratorSession } from '@/lib/supabase/types'
+import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
@@ -264,6 +265,16 @@ export default function KonfiguratorLinkKarte({
 }) {
   const [sessions]        = useState(initialSessions)
   const [modalOffen,  setModalOffen]  = useState(false)
+
+  // Live-Updates wenn der Kunde im Konfigurator etwas auswaehlt /
+  // ablehnt / Alternative wuenscht. Kein Filter — Sessions sind ohnehin
+  // org-scoped via RLS, und konfigurator_auswahl hat keinen direkten
+  // projekt_id-Spalten-Filter.
+  useRealtimeRefresh({
+    channelName: `konfigurator-${projektId}`,
+    table:       'konfigurator_auswahl',
+    debounceMs:  500,
+  })
 
   function handleErstellt() {
     setModalOffen(false)

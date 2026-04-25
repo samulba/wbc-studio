@@ -32,6 +32,7 @@ import {
 } from '@/app/actions/raum-produkte'
 import { bestellstatusAendern, produktDatumAktualisieren, type ProduktDatumFeld } from '@/app/actions/produkte'
 import type { RaumProduktMitDetails, BestellStatus } from '@/lib/supabase/types'
+import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import { effektiverVpNetto, basisVpNetto } from '@/lib/preise'
 import HinweisBanner from './HinweisBanner'
 
@@ -680,6 +681,18 @@ export default function SortableProduktTabelle({
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  // Live-Updates: Bestellstatus / Freigabe / Liefertermin werden auch
+  // von Kunden-Freigabelinks und anderen Team-Mitgliedern geändert.
+  // Filter auf raum_id verhindert, dass Updates aus anderen Räumen
+  // unnötig refreshen. Debounce 600 ms damit Bulk-Updates (z. B.
+  // Kunden-Freigabe-Bulk) nicht in einem Sturm landen.
+  useRealtimeRefresh({
+    channelName: `raum-produkte-${raumId}`,
+    table:       'raum_produkte',
+    filter:      `raum_id=eq.${raumId}`,
+    debounceMs:  600,
+  })
   const [fehlerToast, setFehlerToast] = useState<string | null>(null)
   const [erfolgToast, setErfolgToast] = useState<string | null>(null)
 

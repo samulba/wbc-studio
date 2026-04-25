@@ -7,6 +7,7 @@ import { Plus, ChevronRight, Calendar, List, X, Flag, Truck, Clock, Layers, Colu
 import { eventErstellen, eventAktualisieren, eventLoeschen } from '@/app/actions/timeline'
 import type { TimelineEvent, TimelineEventTyp, TimelineEventStatus } from '@/lib/supabase/types'
 import { ConfirmModal } from '@/components/ConfirmModal'
+import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 
 // ── Konstanten ────────────────────────────────────────────────
 const TYP_CONFIG: Record<TimelineEventTyp, { label: string; farbe: string; bgFarbe: string; icon: typeof Flag }> = {
@@ -1044,6 +1045,16 @@ export default function TimelineView({
   const [filterStatus, setFilterStatus] = useState<'alle' | 'offen' | 'ueberfaellig'>('alle')
   const [filterRaum,   setFilterRaum]   = useState<string | 'alle'>(initialRaum ?? 'alle')
   const [kaskaden, setKaskaden] = useState(false)
+
+  // Live-Updates für Timeline-Events: andere Team-Mitglieder können Events
+  // anlegen/verschieben, Auto-Sync von Liefer-/Angebot-/Vertrag-Events.
+  // Filter auf projekt_id, debounce 500 ms damit Drag-Storms nicht hauen.
+  useRealtimeRefresh({
+    channelName: `timeline-${projektId}`,
+    table:       'timeline_events',
+    filter:      `projekt_id=eq.${projektId}`,
+    debounceMs:  500,
+  })
 
   /**
    * Balken im Gantt wurde per Drag verschoben. Wenn kaskaden=true werden

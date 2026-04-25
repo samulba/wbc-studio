@@ -11,6 +11,7 @@ import {
   kommunikationLoeschen,
   followUpErledigen,
 } from '@/app/actions/kommunikation'
+import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 
 // ── Icons & Labels ────────────────────────────────────────────
 
@@ -48,6 +49,14 @@ export default function KommunikationBlock({ kundeId, initialEintraege }: Props)
   const [formOffen, setFormOffen] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
   const [, startTransition] = useTransition()
+
+  // Live-Updates: andere Team-Mitglieder fügen Einträge hinzu / erledigen Follow-Ups.
+  // Filter auf kunde_id, damit nur relevante Events ankommen.
+  useRealtimeRefresh({
+    channelName: `kommunikation-${kundeId}`,
+    table:       'kommunikation',
+    filter:      `kunde_id=eq.${kundeId}`,
+  })
 
   // Formular-State
   const [typ, setTyp] = useState<KommunikationTyp>('notiz')
