@@ -148,9 +148,9 @@ export default function AufgabeDetailModal({
   }
 
   return (
-    <>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
       />
       <div
@@ -158,7 +158,7 @@ export default function AufgabeDetailModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl max-h-[88vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-fadeIn"
+        className="relative w-full max-w-3xl max-h-[88vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-fadeIn"
       >
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100 shrink-0">
@@ -462,7 +462,7 @@ export default function AufgabeDetailModal({
           )}
         </div>
       </div>
-    </>
+    </div>
   )
 }
 
