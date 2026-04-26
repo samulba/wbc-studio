@@ -14,12 +14,14 @@ import {
   ArrowLeft, MousePointer2, Type as TypeIcon, Square, Circle as CircleIcon,
   Image as ImageIcon, Trash2, Undo2, Redo2, Save, Maximize2,
   Search, Package, Palette, Upload, History, Download, X, Plus,
-  RotateCcw,
+  RotateCcw, Share2, Copy, Check, MessageCircle,
 } from 'lucide-react'
+import QRCode from 'react-qr-code'
 import {
   moodboardSpeichern, moodboardBildHochladen,
   moodboardVersionSpeichern, getMoodboardVersionen,
   moodboardVersionLoeschen, moodboardVersionWiederherstellen,
+  moodboardFreigabeAktualisieren,
 } from '@/app/actions/moodboard'
 import type { MoodboardVersion } from '@/lib/supabase/types'
 
@@ -65,6 +67,9 @@ const COLOR_PALETTE = [
 export default function MoodboardEditor({
   moodboardId, raumId, projektId, raumName, boardName,
   initialCanvasJson, produkte,
+  freigabeAktiv: initialFreigabeAktiv,
+  freigabeKommentareAktiv: initialFreigabeKommentareAktiv,
+  freigabeToken,
 }: Props) {
   const canvasElRef    = useRef<HTMLCanvasElement | null>(null)
   const containerRef   = useRef<HTMLDivElement | null>(null)
@@ -91,6 +96,13 @@ export default function MoodboardEditor({
   const [activeObj, setActiveObj] = useState<any>(null)
   const [objVersion, setObjVersion] = useState(0)
   const bumpObjVersion = useCallback(() => setObjVersion((v) => v + 1), [])
+
+  // Freigabe-Modal
+  const [freigabeOffen, setFreigabeOffen] = useState(false)
+  const [freigabeAktiv, setFreigabeAktiv] = useState(initialFreigabeAktiv)
+  const [freigabeKommentare, setFreigabeKommentare] = useState(initialFreigabeKommentareAktiv)
+  const [freigabeSaving, setFreigabeSaving] = useState(false)
+  const [linkKopiert, setLinkKopiert] = useState(false)
 
   // Versionen-Modal
   const [versionenOffen, setVersionenOffen] = useState(false)
@@ -597,6 +609,31 @@ export default function MoodboardEditor({
     setVersionenOffen(false)
   }
 
+  // ── Freigabe ───────────────────────────────────────────────────
+  async function handleFreigabeSpeichern(neuAktiv: boolean, neuKommentare: boolean) {
+    setFreigabeSaving(true)
+    const r = await moodboardFreigabeAktualisieren(moodboardId, neuAktiv, neuKommentare)
+    setFreigabeSaving(false)
+    if (r.fehler) { alert(r.fehler); return }
+    setFreigabeAktiv(neuAktiv)
+    setFreigabeKommentare(neuKommentare)
+  }
+
+  const freigabeUrl = typeof window !== 'undefined' && freigabeToken
+    ? `${window.location.origin}/moodboard/${freigabeToken}`
+    : ''
+
+  async function kopiereFreigabeLink() {
+    if (!freigabeUrl) return
+    try {
+      await navigator.clipboard.writeText(freigabeUrl)
+      setLinkKopiert(true)
+      setTimeout(() => setLinkKopiert(false), 1500)
+    } catch {
+      // Fallback noop
+    }
+  }
+
   // ── PNG-Export ────────────────────────────────────────────────
   function exportPng() {
     const canvas = fabricRef.current
@@ -740,6 +777,13 @@ export default function MoodboardEditor({
         </ToolBtn>
         <ToolBtn onClick={exportPng} title="Als PNG exportieren">
           <Download className="w-4 h-4" />
+        </ToolBtn>
+        <ToolBtn
+          onClick={() => setFreigabeOffen(true)}
+          title="Freigabe für Kunden"
+          active={freigabeAktiv}
+        >
+          <Share2 className="w-4 h-4" />
         </ToolBtn>
 
         {/* Rechts: Zoom */}
@@ -904,6 +948,115 @@ export default function MoodboardEditor({
           />
         )}
       </div>
+
+      {/* Freigabe-Modal */}
+      {freigabeOffen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => setFreigabeOffen(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col text-gray-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <Share2 className="w-4 h-4 text-wellbeing-green" />
+                <h2 className="text-base font-medium">Kunden-Freigabe</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFreigabeOffen(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+                aria-label="Schließen"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Toggle: Freigabe aktiv */}
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={freigabeAktiv}
+                  onChange={(e) => handleFreigabeSpeichern(e.target.checked, freigabeKommentare)}
+                  disabled={freigabeSaving}
+                  className="mt-0.5 w-4 h-4 accent-wellbeing-green"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium">Freigabe aktiv</div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    Wenn aktiv, kann der Kunde das Moodboard über den Link unten ansehen.
+                  </div>
+                </div>
+              </label>
+
+              {/* Toggle: Kommentare aktiv */}
+              <label className={`flex items-start gap-3 cursor-pointer ${!freigabeAktiv ? 'opacity-50' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={freigabeKommentare}
+                  onChange={(e) => handleFreigabeSpeichern(freigabeAktiv, e.target.checked)}
+                  disabled={freigabeSaving || !freigabeAktiv}
+                  className="mt-0.5 w-4 h-4 accent-wellbeing-green"
+                />
+                <div className="flex-1">
+                  <div className="text-sm font-medium flex items-center gap-1.5">
+                    <MessageCircle className="w-3.5 h-3.5" /> Kommentare erlauben
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    Kunden können Pins mit Kommentaren auf das Board setzen (nur lesen, wenn deaktiviert).
+                  </div>
+                </div>
+              </label>
+
+              {/* Link + QR */}
+              {freigabeAktiv && freigabeUrl && (
+                <div className="pt-3 border-t border-gray-200 space-y-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Freigabe-Link</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={freigabeUrl}
+                        readOnly
+                        className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded bg-gray-50 font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={kopiereFreigabeLink}
+                        className="px-3 py-1.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-xs rounded transition-colors flex items-center gap-1"
+                      >
+                        {linkKopiert ? (
+                          <><Check className="w-3 h-3" /> Kopiert</>
+                        ) : (
+                          <><Copy className="w-3 h-3" /> Kopieren</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center pt-1">
+                    <div className="bg-white p-3 rounded-lg border border-gray-200">
+                      <QRCode value={freigabeUrl} size={140} />
+                    </div>
+                  </div>
+
+                  <a
+                    href={freigabeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-center text-xs text-wellbeing-green hover:underline"
+                  >
+                    Vorschau in neuem Tab öffnen ↗
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Versionen-Modal */}
       {versionenOffen && (
