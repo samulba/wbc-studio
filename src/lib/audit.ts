@@ -32,10 +32,18 @@ export type AuditAktion =
   | 'onboarding_link_erstellt' | 'onboarding_eingereicht' | 'onboarding_geloescht'
   // Freigabe (im Admin)
   | 'freigabe_status_geaendert_admin' | 'freigabe_bulk_aktion'
+  // Produkt / Bestellstatus (Migration 100)
+  | 'produkt_bestellstatus_geaendert' | 'produkt_datum_aktualisiert'
+  // Reklamationen (Migration 100)
+  | 'reklamation_angelegt' | 'reklamation_status_geaendert' | 'reklamation_geloest' | 'reklamation_geloescht'
+  // Lieferanten-Bestellungen (Migration 100)
+  | 'bestellung_angelegt' | 'bestellung_aktualisiert' | 'bestellung_versandt'
+  | 'bestellung_geliefert' | 'bestellung_storniert' | 'bestellung_geloescht'
 
 export type AuditEntitaet =
   | 'kunde' | 'projekt' | 'raum' | 'produkt' | 'partner'
   | 'angebot' | 'vertrag' | 'team_mitglied' | 'onboarding' | 'freigabe'
+  | 'reklamation' | 'bestellung'
 
 export async function auditLog(params: {
   aktion:        AuditAktion | string

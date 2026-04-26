@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import type { ProduktStatus, BestellStatus, VariantenDefinition, Json } from '@/lib/supabase/types'
 import { syncAutoEvent } from './timeline'
+import { auditLog } from '@/lib/audit'
 
 export type ProduktActionState = { fehler: string } | null
 
@@ -635,15 +636,17 @@ export async function bestellstatusAendern(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
-  // Aktuelle Datums-Werte aus raum_produkte laden (Auto-Füll-Logik).
+  // Aktuelle Status + Datums-Werte aus raum_produkte laden (Auto-Füll-Logik + Audit).
   const { data: aktuell } = await supabase
     .from('raum_produkte')
-    .select('bestellt_am, lieferung_erhalten_am')
+    .select('bestellstatus, bestellt_am, lieferung_erhalten_am')
     .eq('id', raumProduktId)
     .eq('organisation_id', orgId)
     .maybeSingle()
+  const alterStatus = (aktuell?.bestellstatus ?? 'ausstehend') as BestellStatus
 
   const heute = new Date().toISOString().split('T')[0]
+  const jetzt = new Date().toISOString()
   const update: Record<string, unknown> = { bestellstatus: neuerStatus }
 
   if ((neuerStatus === 'bestellt' || neuerStatus === 'rechnung_erhalten') && !aktuell?.bestellt_am) {
@@ -653,6 +656,10 @@ export async function bestellstatusAendern(
     update.lieferung_erhalten_am = heute
     if (!aktuell?.bestellt_am) update.bestellt_am = heute
   }
+  // Migration 100 — neue Lifecycle-Status: Datums-Felder
+  if (neuerStatus === 'storniert')         update.storniert_am       = jetzt
+  if (neuerStatus === 'mangel_gemeldet')   update.mangel_gemeldet_am = jetzt
+  if (neuerStatus === 'retoure_unterwegs') update.retoure_am         = jetzt
 
   const { error } = await supabase
     .from('raum_produkte')
@@ -665,6 +672,14 @@ export async function bestellstatusAendern(
   }
 
   const syncRes = await syncProduktTimeline(raumProduktId, projektId, raumId)
+
+  // Audit-Log (failsafe)
+  await auditLog({
+    aktion:        'produkt_bestellstatus_geaendert' as string,
+    entitaet_typ:  'produkt' as string,
+    entitaet_id:   raumProduktId,
+    details:       { von: alterStatus, zu: neuerStatus, projekt_id: projektId, raum_id: raumId },
+  })
 
   revalidatePath(`/dashboard/projekte/${projektId}/raeume/${raumId}`)
   return syncRes.error ? { sync_fehler: syncRes.error } : {}
