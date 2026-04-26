@@ -36,6 +36,7 @@ import type { RaumProduktMitDetails, BestellStatus } from '@/lib/supabase/types'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import { effektiverVpNetto, basisVpNetto } from '@/lib/preise'
 import HinweisBanner from './HinweisBanner'
+import ReklamationModal from './ReklamationModal'
 
 const r2 = (n: number) => Math.round(n * 100) / 100
 const eur = (n: number) =>
@@ -166,6 +167,7 @@ function SortableProduktZeile({
   onToggleExpand,
   onBestellstatusChange,
   onDeleteRequest,
+  onReklamationRequest,
   onDatumChange,
   onRabattChange,
 }: {
@@ -176,6 +178,7 @@ function SortableProduktZeile({
   onToggleExpand: () => void
   onBestellstatusChange: (raumProduktId: string, status: BestellStatus) => void
   onDeleteRequest: (id: string, name: string) => void
+  onReklamationRequest: (id: string, name: string) => void
   onDatumChange: (raumProduktId: string, feld: ProduktDatumFeld, wert: string | null) => void
   onRabattChange: (raumProduktId: string, rabatt: number | null) => void
 }) {
@@ -351,6 +354,15 @@ function SortableProduktZeile({
             >
               <Pencil className="w-3.5 h-3.5" />
             </Link>
+            <button
+              type="button"
+              onClick={() => onReklamationRequest(eintrag.id, p.name)}
+              aria-label="Reklamation anlegen"
+              title="Reklamation anlegen"
+              className="p-1.5 text-gray-400 hover:text-orange-500 rounded-md hover:bg-orange-50 transition-colors"
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+            </button>
             <button
               type="button"
               onClick={() => onDeleteRequest(eintrag.id, p.name)}
@@ -687,6 +699,8 @@ export default function SortableProduktTabelle({
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  // Reklamations-Modal-Target
+  const [reklamationTarget, setReklamationTarget] = useState<{ id: string; name: string } | null>(null)
 
   // Live-Updates: Bestellstatus / Freigabe / Liefertermin werden auch
   // von Kunden-Freigabelinks und anderen Team-Mitgliedern geändert.
@@ -870,6 +884,7 @@ export default function SortableProduktTabelle({
                     onToggleExpand={() => toggleExpand(e.id)}
                     onBestellstatusChange={handleBestellstatusChange}
                     onDeleteRequest={(id, name) => setDeleteTarget({ id, name })}
+                    onReklamationRequest={(id, name) => setReklamationTarget({ id, name })}
                     onDatumChange={handleDatumChange}
                     onRabattChange={handleRabattChange}
                   />
@@ -939,6 +954,21 @@ export default function SortableProduktTabelle({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Reklamations-Modal */}
+      {reklamationTarget && (
+        <ReklamationModal
+          raumProduktId={reklamationTarget.id}
+          produktName={reklamationTarget.name}
+          isOpen={true}
+          onClose={() => setReklamationTarget(null)}
+          onErfolg={() => {
+            setErfolgToast('Reklamation angelegt.')
+            setTimeout(() => setErfolgToast(null), 3000)
+            router.refresh()
+          }}
+        />
       )}
     </>
   )
