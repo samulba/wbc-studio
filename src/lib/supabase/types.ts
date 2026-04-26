@@ -1229,3 +1229,77 @@ export interface LieferantenBestellungPosition {
   reihenfolge: number
   created_at: string
 }
+
+// ─── Aufgaben (Migration 102) ──────────────────────────────────
+export type AufgabeStatus     = 'backlog' | 'in_arbeit' | 'review' | 'erledigt'
+export type AufgabePrioritaet = 'niedrig' | 'normal' | 'hoch' | 'dringend'
+export type AufgabeQuelle     =
+  | 'manuell'
+  | 'reklamation'
+  | 'bestellung'
+  | 'meilenstein'
+  | 'onboarding'
+  | 'kunde_anfrage'
+
+export interface AufgabeChecklistItem {
+  id:        string
+  text:      string
+  erledigt:  boolean
+  position:  number
+}
+
+export interface AufgabeAnhang {
+  name:        string
+  url:         string
+  uploaded_at: string
+  mime?:       string | null
+  size?:       number | null
+}
+
+export interface Aufgabe {
+  id:                  string
+  organisation_id:     string
+  titel:               string
+  beschreibung:        string | null
+  status:              AufgabeStatus
+  reihenfolge:         number
+  prioritaet:          AufgabePrioritaet
+  faellig_am:          string | null
+  erledigt_am:         string | null
+  assignee_user_id:    string | null
+  assignee_kunde:      boolean
+  sichtbar_fuer_kunde: boolean
+  tags:                string[]
+  kunde_id:            string | null
+  projekt_id:          string | null
+  raum_id:             string | null
+  raum_produkte_id:    string | null
+  bestellung_id:       string | null
+  quelle:              AufgabeQuelle
+  quelle_id:           string | null
+  checklist:           AufgabeChecklistItem[]
+  anhang_urls:         AufgabeAnhang[]
+  erstellt_von:        string | null
+  erstellt_von_kunde:  boolean
+  created_at:          string
+  updated_at:          string
+}
+
+export interface AufgabeKommentar {
+  id:              string
+  organisation_id: string
+  aufgabe_id:      string
+  autor_user_id:   string | null
+  autor_name:      string | null
+  ist_kunde:       boolean
+  inhalt:          string
+  created_at:      string
+}
+
+export type AufgabeMitDetails = Aufgabe & {
+  projekt?:    { id: string; name: string } | null
+  kunde?:      { id: string; name: string } | null
+  raum?:       { id: string; name: string } | null
+  assignee?:   { id: string; email: string | null; name: string | null } | null
+  kommentare_count?: number
+}
