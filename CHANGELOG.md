@@ -3,6 +3,15 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-04-26
+
+### Moodboards (Phase 1 · Schritt 1: Datenmodell)
+- Grundlage für das neue **Moodboard-Feature** — pro Raum genau ein Moodboard, mit Versionen-Historie und Freigabe-Link für Kunden.
+- Migration **096** legt die Tabellen `moodboards` (UNIQUE-Constraint auf `raum_id`) und `moodboard_versionen` an, dazu einen privaten Storage-Bucket `moodboard-bilder` (50 MB Upload-Limit) und Realtime-Publication für Live-Co-Editing.
+- Server-Actions sind komplett: Auto-Save, Versionen speichern/wiederherstellen/löschen, Bild-Upload mit Signed URL, Freigabe-Toggle (read-only oder mit Kommentar-Pins), Sidebar-Übersicht aller Moodboards aller Projekte.
+- Editor-UI folgt im nächsten Schritt.
+- Migration **096** muss manuell im Supabase SQL-Editor ausgeführt werden.
+
 ## 2026-04-25
 
 ### Aktivitätslog: Backfill + modernere Dropdowns

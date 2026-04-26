@@ -373,6 +373,35 @@ export type ProduktMitDetails = Produkt & {
   produktstatus: { status: ProduktStatus; kommentar: string | null } | null
 }
 
+// ── Moodboard (Migration 096) ──────────────────────────────────
+// Pro Raum genau eins. canvas_json enthält den Fabric.js-State.
+export interface Moodboard {
+  id: string
+  organisation_id: string
+  raum_id: string
+  name: string
+  beschreibung: string | null
+  canvas_json: Record<string, unknown> | null
+  vorschau_bild_url: string | null
+  freigabe_token: string | null
+  freigabe_aktiv: boolean
+  freigabe_kommentare_aktiv: boolean
+  freigabe_erstellt_am: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MoodboardVersion {
+  id: string
+  organisation_id: string
+  moodboard_id: string
+  name: string
+  beschreibung: string | null
+  canvas_json: Record<string, unknown>
+  erstellt_von: string | null
+  created_at: string
+}
+
 // ── Raum-Produkt-Verknüpfung (Migration 038 + 058 Rabatt + 076 Status) ────
 export interface RaumProdukt {
   id: string
