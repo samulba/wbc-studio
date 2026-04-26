@@ -34,9 +34,11 @@ UPDATE raum_produkte
 SET gewaehrleistung_bis = (lieferung_erhalten_am::DATE + INTERVAL '24 months')::DATE
 WHERE lieferung_erhalten_am IS NOT NULL AND gewaehrleistung_bis IS NULL;
 
+-- raum_produkte hat (anders als produkte) keine deleted_at-Spalte —
+-- Eintraege werden hart geloescht. Index nur auf gewaehrleistung_bis.
 CREATE INDEX IF NOT EXISTS idx_raum_produkte_gewaehrleistung_bis
   ON raum_produkte(gewaehrleistung_bis)
-  WHERE gewaehrleistung_bis IS NOT NULL AND deleted_at IS NULL;
+  WHERE gewaehrleistung_bis IS NOT NULL;
 
 
 -- ── 2) Kommunikation pro Produkt ───────────────────────────────
