@@ -5,6 +5,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard UX-Fixes — Pan mit Maus & sichtbares Raster
+- **Pan auf leerem Canvas**: Linksklick + Drag auf einer leeren Stelle pannt jetzt das Board (wie in Miro / Figma / Apple Freeform). Space halten ist nicht mehr nötig — Cursor zeigt Hand-Symbol auf leerem Bereich, Move-Symbol über Objekten.
+- **Sichtbares Raster**: neuer Grid-Button in der Toolbar mit Dropdown — Aus / Klein (20 px) / Mittel (40 px) / Groß (80 px). Punktraster fliegt mit Pan + Zoom mit, blendet sich bei zu starkem Auszoomen automatisch aus (Moiré-Schutz).
+
 ### Moodboard-Sync mit Raumplaner & Workflow-Status
 - **Raumplaner-Übersicht**: pro Raum-Card zeigt jetzt auch den Moodboard-Status — zwei gleichberechtigte Buttons unten (Planer + Moodboard) jeweils mit grünem Status-Dot wenn vorhanden, grau wenn leer. List-View entsprechend mit kleinem Moodboard-Icon-Button vor dem Planer.
 - **Moodboard-Übersicht**: neue Sektion „Räume ohne Moodboard" am Ende — listet alle Räume aller Projekte ohne Board als gestrichelte Cards. Klick öffnet den Editor und legt automatisch ein leeres Board an.

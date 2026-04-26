@@ -19,7 +19,7 @@ import {
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   Lock, Unlock, BoxSelect, Layers, MessageSquare, FileText, Presentation, Minimize2,
-  Clock,
+  Clock, Grid3X3,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -189,6 +189,10 @@ export default function MoodboardEditor({
   const snapEnabledRef = useRef(true)
   useEffect(() => { snapEnabledRef.current = snapEnabled }, [snapEnabled])
 
+  // Sichtbares Grid (0 = aus, sonst Pixel-Groesse)
+  const [gridSize, setGridSize] = useState(0)
+  const [gridDropdownOffen, setGridDropdownOffen] = useState(false)
+
   // ESC verlässt Presentation-Mode
   useEffect(() => {
     if (!presentationMode) return
@@ -323,12 +327,16 @@ export default function MoodboardEditor({
         preserveObjectStacking: true,
         stopContextMenu: true,
         fireRightClick: true,
-        backgroundColor: '#f5f5f0',
+        // Container haelt den BG-Color, Canvas selbst transparent damit Grid sichtbar wird
+        backgroundColor: 'transparent',
       })
       fabricRef.current = canvas
       canvas.selectionColor       = 'rgba(68,92,73,0.08)'
       canvas.selectionBorderColor = '#445c49'
       canvas.selectionLineWidth   = 1.5
+      // Cursor auf leerem Canvas zeigt Hand → User weiss er kann pannen
+      canvas.defaultCursor = 'grab'
+      canvas.hoverCursor   = 'move'
 
       function resize() {
         canvas.setWidth(cont.clientWidth)
@@ -370,8 +378,18 @@ export default function MoodboardEditor({
           return
         }
 
-        // Tool-spezifische Aktionen
+        // NEU: Linksklick auf LEEREN Bereich im Select-Mode → pannen
+        // (Standardverhalten in Miro / Figma / Apple Freeform)
         const t = toolRef.current
+        if (t === 'select' && e.button === 0 && !opt.target) {
+          isPanning = true
+          canvas.selection = false
+          lastX = e.clientX; lastY = e.clientY
+          cont.style.cursor = 'grabbing'
+          return
+        }
+
+        // Tool-spezifische Aktionen (anderer Tool als select)
         if (t === 'rect' || t === 'circle' || t === 'text') {
           const p = canvas.getPointer(e)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -428,7 +446,7 @@ export default function MoodboardEditor({
         if (isPanning) {
           isPanning = false
           canvas.selection = true
-          cont.style.cursor = 'default'
+          cont.style.cursor = 'grab'
         }
       })
 
@@ -1787,6 +1805,44 @@ export default function MoodboardEditor({
             >
               <span className="text-[10px] font-bold leading-none">⌗</span>
             </ToolBtn>
+            {/* Grid-Sichtbarkeit Dropdown */}
+            <div className="relative">
+              <ToolBtn
+                onClick={() => setGridDropdownOffen((v) => !v)}
+                title="Raster anzeigen"
+                active={gridSize > 0}
+              >
+                <Grid3X3 className="w-[18px] h-[18px]" />
+              </ToolBtn>
+              {gridDropdownOffen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setGridDropdownOffen(false)}
+                  />
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 w-32 bg-[#0f1f13] border border-[#1f3a25] rounded-lg shadow-xl overflow-hidden">
+                    {[
+                      { v: 0,  label: 'Aus' },
+                      { v: 20, label: 'Klein' },
+                      { v: 40, label: 'Mittel' },
+                      { v: 80, label: 'Groß' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        onClick={() => { setGridSize(opt.v); setGridDropdownOffen(false) }}
+                        className={`w-full flex items-center justify-between px-3 py-1.5 text-[11px] text-left hover:bg-white/5 transition-colors ${
+                          gridSize === opt.v ? 'text-white bg-white/5' : 'text-[#94c1a4]'
+                        }`}
+                      >
+                        <span>{opt.label}</span>
+                        {opt.v > 0 && <span className="text-[9px] opacity-50">{opt.v}px</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             <ToolBtn
               onClick={() => setLayerPanelOffen((v) => !v)}
               title={layerPanelOffen ? 'Ebenen schließen' : 'Ebenen anzeigen'}
@@ -2072,8 +2128,37 @@ export default function MoodboardEditor({
         </aside>
 
         {/* Canvas-Bereich */}
-        <div className="flex-1 relative overflow-hidden" ref={containerRef}>
-          <canvas ref={canvasElRef} />
+        <div
+          className="flex-1 relative overflow-hidden"
+          ref={containerRef}
+          style={{ background: '#f5f5f0' }}
+        >
+          {/* Grid-Layer (hinter Canvas) — folgt Pan/Zoom via viewportTick */}
+          {gridSize > 0 && fabricRef.current && (() => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+            void viewportTick
+            const vpt = fabricRef.current.viewportTransform
+            const z = vpt[0]
+            const screenSize = gridSize * z
+            // Wenn zu klein → ausblenden (sonst Moiré)
+            if (screenSize < 6) return null
+            const offX = vpt[4] % screenSize
+            const offY = vpt[5] % screenSize
+            return (
+              <div
+                aria-hidden
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  backgroundImage:
+                    'radial-gradient(circle, rgba(0,0,0,0.18) 1px, transparent 1.4px)',
+                  backgroundSize: `${screenSize}px ${screenSize}px`,
+                  backgroundPosition: `${offX}px ${offY}px`,
+                }}
+              />
+            )
+          })()}
+
+          <canvas ref={canvasElRef} className="relative" />
 
           {/* Welcome-Modal (Templates + Schnellstart) */}
           {istLeer && !hintGeschlossen && (
