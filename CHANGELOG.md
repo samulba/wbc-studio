@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Aufgaben-/ToDo-System (Trello-Style Kanban) — IN ARBEIT
+- **Neuer Sidebar-Eintrag „Aufgaben"** (ListChecks-Icon) mit Badge für überfällige offene Aufgaben des aktuellen Users.
+- **Globales Kanban-Board** unter `/dashboard/aufgaben`: 4 feste Spalten (Backlog · In Arbeit · Review · Erledigt) mit Drag&Drop zwischen und innerhalb der Spalten, optimistisches UI, Quick-Add je Spalte (Enter zum Speichern), Filter-Pills (Alle · Mir · Heute · Diese Woche · Überfällig). Cards zeigen Prioritäts-Punkt, Fälligkeits-Datum (rot wenn überfällig), Projekt/Kunden-Verknüpfung, Checklisten-Counter und Auto-Quelle-Indikator.
+- Migration **102** (`aufgaben` + `aufgaben_kommentare` Tabellen, Indizes, RLS, Storage-Bucket „aufgaben-anhaenge", Realtime) muss manuell im Supabase SQL-Editor ausgeführt werden.
+- Detail-Modal, Auto-Sync (Reklamation/Bestellung/Meilenstein/Onboarding), Portal-Integration für Kunden-Aufgaben und weitere Polish-Schritte folgen.
+
 ### Bestell-Workflow KOMPLETT überarbeitet (11 Sub-Commits)
 - **Foundation** (Migration 100): Bestellstatus-Enum erweitert um Storniert · Teilgeliefert · Mangel · Retoure unterwegs · Retoure erhalten. Neue Tabellen `produkt_reklamationen` (mit Foto-Upload, 6 Typen, 5 Status, Lösungs-Tracking, Gutschrift-Betrag) und `lieferanten_bestellungen` + Junction für **Sammelbestellungen** über mehrere Räume hinweg. Neue Storage-Buckets, Bestellnummer-Generator `BS-YYYY-NNN`, Realtime, Audit-Log-Aktionen.
 - **Reklamations-UI im Raum-Detail**: Drei-Punkte-Menü pro Produkt mit Reklamations-Button (orange) → Modal mit Typ-Auswahl, Beschreibung, Multi-Foto-Upload, Optionen für Bestellstatus + Kunden-Sichtbarkeit.
