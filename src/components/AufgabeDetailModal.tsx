@@ -10,7 +10,7 @@ import {
 } from 'lucide-react'
 import {
   aufgabeAktualisieren, aufgabeLoeschen, aufgabeChecklistAktualisieren,
-  aufgabeAnhangHochladen, aufgabeAnhangSigniert,
+  aufgabeAnhangHochladen, aufgabeAnhangSigniert, aufgabeAnhangEntfernen,
   aufgabenKommentareAbrufen, aufgabenKommentarAnlegen,
   type AufgabePickerOptionen,
 } from '@/app/actions/aufgaben'
@@ -284,7 +284,17 @@ export default function AufgabeDetailModal({
                 </h3>
                 <div className="space-y-1.5">
                   {aufgabe.anhang_urls.map((a, i) => (
-                    <AnhangZeile key={i} anhang={a} />
+                    <AnhangZeile
+                      key={i} anhang={a}
+                      onLoeschen={() => {
+                        if (!confirm(`'${a.name}' wirklich loeschen?`)) return
+                        startTransition(async () => {
+                          const res = await aufgabeAnhangEntfernen(aufgabe.id, a.url)
+                          if (res.fehler) setFehler(res.fehler)
+                          else { setFehler(null); router.refresh() }
+                        })
+                      }}
+                    />
                   ))}
                 </div>
                 <input
@@ -506,7 +516,10 @@ function Dropdown({
   )
 }
 
-function AnhangZeile({ anhang }: { anhang: AufgabeAnhang }) {
+function AnhangZeile({ anhang, onLoeschen }: {
+  anhang: AufgabeAnhang
+  onLoeschen: () => void
+}) {
   const [laden, setLaden] = useState(false)
   async function oeffnen() {
     setLaden(true)
@@ -515,16 +528,25 @@ function AnhangZeile({ anhang }: { anhang: AufgabeAnhang }) {
     if (res.url) window.open(res.url, '_blank')
   }
   return (
-    <button
-      onClick={oeffnen}
-      className="w-full flex items-center gap-2 text-sm text-gray-700 hover:text-wellbeing-green hover:bg-gray-50 px-2 py-1.5 rounded text-left"
-    >
-      {laden ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} className="text-gray-400" />}
-      <span className="truncate flex-1">{anhang.name}</span>
-      {anhang.size != null && (
-        <span className="text-xs text-gray-400 shrink-0">{(anhang.size / 1024).toFixed(0)} KB</span>
-      )}
-    </button>
+    <div className="group flex items-center gap-2 text-sm text-gray-700 hover:bg-gray-50 px-2 py-1.5 rounded">
+      <button
+        onClick={oeffnen}
+        className="flex items-center gap-2 flex-1 min-w-0 text-left hover:text-wellbeing-green"
+      >
+        {laden ? <Loader2 size={14} className="animate-spin" /> : <Paperclip size={14} className="text-gray-400" />}
+        <span className="truncate">{anhang.name}</span>
+        {anhang.size != null && (
+          <span className="text-xs text-gray-400 shrink-0">{(anhang.size / 1024).toFixed(0)} KB</span>
+        )}
+      </button>
+      <button
+        onClick={onLoeschen}
+        aria-label="Anhang loeschen"
+        className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 p-1 transition-opacity"
+      >
+        <X size={14} />
+      </button>
+    </div>
   )
 }
 

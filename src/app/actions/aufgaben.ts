@@ -575,6 +575,39 @@ export async function aufgabeAnhangSigniert(
   return { url: data.signedUrl }
 }
 
+/** Anhang aus Storage + aufgabe.anhang_urls entfernen. */
+export async function aufgabeAnhangEntfernen(
+  aufgabeId: string,
+  pfad: string,
+): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  if (!pfad.startsWith(orgId + '/')) return { fehler: 'Ungueltiger Pfad.' }
+
+  const { data: aufgabe } = await supabase
+    .from('aufgaben')
+    .select('anhang_urls')
+    .eq('id', aufgabeId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!aufgabe) return { fehler: 'Aufgabe nicht gefunden.' }
+
+  // Aus Storage loeschen — Fehler hier sind nicht kritisch
+  await supabase.storage.from('aufgaben-anhaenge').remove([pfad]).catch(() => null)
+
+  const aktuell = (aufgabe.anhang_urls as AufgabeAnhang[] | null) ?? []
+  const neu = aktuell.filter((a) => a.url !== pfad)
+  const { error } = await supabase
+    .from('aufgaben')
+    .update({ anhang_urls: neu })
+    .eq('id', aufgabeId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Konnte Anhang nicht entfernen.' }
+
+  revalidatePath('/dashboard/aufgaben')
+  return { erfolg: true }
+}
+
 // ── Kommentare ────────────────────────────────────────────────
 
 export async function aufgabenKommentareAbrufen(
