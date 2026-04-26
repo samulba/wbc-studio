@@ -10,6 +10,7 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - Migration **096** legt die Tabellen `moodboards` (UNIQUE-Constraint auf `raum_id`) und `moodboard_versionen` an, dazu einen privaten Storage-Bucket `moodboard-bilder` (50 MB Upload-Limit) und Realtime-Publication für Live-Co-Editing.
 - Server-Actions sind komplett: Auto-Save, Versionen speichern/wiederherstellen/löschen, Bild-Upload mit Signed URL, Freigabe-Toggle (read-only oder mit Kommentar-Pins), Sidebar-Übersicht aller Moodboards aller Projekte.
 - **Editor (Schritt 2)**: Fabric.js Canvas mit unbegrenztem Workspace, Zoom (Mausrad/Pinch) + Pan (Mittlere Maustaste oder Space+Drag), Toolbar mit Auswahl/Text/Rechteck/Kreis/Bild-Upload/Löschen/Undo+Redo/Speichern, Keyboard-Shortcuts (Entf, Ctrl+Z/Y), Auto-Save alle 3 Sek mit Status-Anzeige, dunkles Wellbeing-Green-UI (analog Raumplaner).
+- **Linke Sidebar (Schritt 3)**: 3 Tabs — **Produkte** (Volltextsuche über Name/Kategorie, Klick auf Produkt platziert das Bild auf dem Board mit Verknüpfung zur Produkt-ID, Fallback Text-Karte wenn kein Bild vorhanden), **Farben** (30 vordefinierte Wellbeing-/Designer-Swatches plus eigener Color-Picker, Klick → Swatch wird als abgerundetes Rechteck mit Schatten platziert), **Bilder** (Upload-Dropzone — JPG/PNG bis 50 MB).
 - **Verlinkung**: neuer „Moodboard"-Button auf der Raum-Detailseite (zwei Stellen: Grundriss-Card-Header und Empty-State-Card).
 - Migration **096** muss manuell im Supabase SQL-Editor ausgeführt werden.
 

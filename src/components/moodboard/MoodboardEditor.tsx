@@ -8,11 +8,12 @@
  * Folgeschritte: Sidebars (Produkte/Farben), Versionen, Freigabe, Export.
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import {
   ArrowLeft, MousePointer2, Type as TypeIcon, Square, Circle as CircleIcon,
   Image as ImageIcon, Trash2, Undo2, Redo2, Save, Maximize2,
+  Search, Package, Palette, Upload,
 } from 'lucide-react'
 import { moodboardSpeichern, moodboardBildHochladen } from '@/app/actions/moodboard'
 
@@ -41,9 +42,23 @@ type Tool = 'select' | 'text' | 'rect' | 'circle'
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 5
 
+// ── Color-Palette (Designer-Standards + Wellbeing-Farben) ──────
+const COLOR_PALETTE = [
+  // Wellbeing
+  '#445c49', '#94c1a4', '#2d3e31', '#f6ede2', '#823509', '#cba178',
+  // Neutrals
+  '#ffffff', '#f5f5f0', '#e5e7eb', '#9ca3af', '#374151', '#000000',
+  // Wood/Earth
+  '#8b6f47', '#a78b66', '#6b4423', '#3e2c1a', '#d4b896', '#bea27e',
+  // Pastels
+  '#fde2e4', '#fad2e1', '#cddafd', '#a3c9a8', '#dcedc1', '#ffd8be',
+  // Bolds
+  '#1e3a5f', '#7d3c98', '#c0392b', '#d35400', '#16a085', '#2c3e50',
+]
+
 export default function MoodboardEditor({
   moodboardId, raumId, projektId, raumName, boardName,
-  initialCanvasJson,
+  initialCanvasJson, produkte,
 }: Props) {
   const canvasElRef    = useRef<HTMLCanvasElement | null>(null)
   const containerRef   = useRef<HTMLDivElement | null>(null)
@@ -64,6 +79,19 @@ export default function MoodboardEditor({
   const [zoom, setZoom] = useState(1)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [uploading, setUploading] = useState(false)
+
+  // Linke Sidebar: aktiver Tab + Suche
+  const [sidebarTab, setSidebarTab] = useState<'produkte' | 'farben' | 'upload'>('produkte')
+  const [produktSuche, setProduktSuche] = useState('')
+  const produkteGefiltert = useMemo(() => {
+    const q = produktSuche.trim().toLowerCase()
+    if (!q) return produkte
+    return produkte.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.kategorie && p.kategorie.toLowerCase().includes(q)),
+    )
+  }, [produkte, produktSuche])
 
   // ── AutoSave (debounced 3s) ───────────────────────────────────
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -335,6 +363,75 @@ export default function MoodboardEditor({
       })
   }
 
+  // ── Color-Swatch / Produkt aufs Board ─────────────────────────
+  function addColorSwatch(hex: string) {
+    const canvas = fabricRef.current
+    const fabric = fabricImportRef.current
+    if (!canvas || !fabric) return
+    const cx = canvas.getWidth() / 2
+    const cy = canvas.getHeight() / 2
+    const rect = new fabric.Rect({
+      left: cx - 60, top: cy - 60,
+      width: 120, height: 120,
+      fill: hex,
+      stroke: '#0000001a', strokeWidth: 1,
+      rx: 8, ry: 8,
+      shadow: new fabric.Shadow({ color: 'rgba(0,0,0,0.10)', blur: 12, offsetX: 0, offsetY: 4 }),
+    })
+    canvas.add(rect)
+    canvas.setActiveObject(rect)
+    canvas.requestRenderAll()
+    pushHistory()
+    scheduleSave()
+  }
+
+  function addProduktAufBoard(p: { id: string; name: string; bild_url: string | null }) {
+    if (p.bild_url) {
+      // Wenn Bild vorhanden: als Image hinzufuegen mit data.produkt_id-Verknuepfung
+      const fabric = fabricImportRef.current
+      const canvas = fabricRef.current
+      if (!fabric || !canvas) return
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fabric.FabricImage.fromURL(p.bild_url, { crossOrigin: 'anonymous' }).then((img: any) => {
+        const max = 280
+        const scale = Math.min(max / (img.width || max), max / (img.height || max), 1)
+        img.set({
+          left: -((img.width || 0) * scale) / 2 + canvas.getWidth() / 2,
+          top:  -((img.height || 0) * scale) / 2 + canvas.getHeight() / 2,
+          scaleX: scale, scaleY: scale,
+          data: { produkt_id: p.id, produkt_name: p.name },
+        })
+        canvas.add(img)
+        canvas.setActiveObject(img)
+        canvas.requestRenderAll()
+        pushHistory()
+        scheduleSave()
+      })
+    } else {
+      // Kein Bild → Text-Platzhalter
+      const fabric = fabricImportRef.current
+      const canvas = fabricRef.current
+      if (!fabric || !canvas) return
+      const group = new fabric.Group([
+        new fabric.Rect({ left: 0, top: 0, width: 200, height: 120, fill: '#f6ede2', stroke: '#cba178', strokeWidth: 1, rx: 8, ry: 8 }),
+        new fabric.IText(p.name, {
+          left: 12, top: 50,
+          width: 176,
+          fontSize: 14, fill: '#2d3e31', fontFamily: 'Inter, sans-serif',
+        }),
+      ], {
+        left: canvas.getWidth() / 2 - 100,
+        top:  canvas.getHeight() / 2 - 60,
+        data: { produkt_id: p.id, produkt_name: p.name },
+      })
+      canvas.add(group)
+      canvas.setActiveObject(group)
+      canvas.requestRenderAll()
+      pushHistory()
+      scheduleSave()
+    }
+  }
+
   // ── UI-Aktionen ────────────────────────────────────────────────
   function handleZoomIn() {
     const c = fabricRef.current; if (!c) return
@@ -466,13 +563,132 @@ export default function MoodboardEditor({
         </div>
       </div>
 
-      {/* Canvas-Bereich */}
-      <div className="flex-1 relative overflow-hidden" ref={containerRef}>
-        <canvas ref={canvasElRef} />
+      {/* Hauptbereich: Sidebar + Canvas */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Linke Sidebar */}
+        <aside className="w-64 shrink-0 bg-[#2d3e31] border-r border-[#445c49]/30 flex flex-col">
+          {/* Tab-Switcher */}
+          <div className="flex border-b border-[#445c49]/30 shrink-0">
+            <SidebarTab active={sidebarTab === 'produkte'} onClick={() => setSidebarTab('produkte')}>
+              <Package className="w-3.5 h-3.5" /> Produkte
+            </SidebarTab>
+            <SidebarTab active={sidebarTab === 'farben'} onClick={() => setSidebarTab('farben')}>
+              <Palette className="w-3.5 h-3.5" /> Farben
+            </SidebarTab>
+            <SidebarTab active={sidebarTab === 'upload'} onClick={() => setSidebarTab('upload')}>
+              <Upload className="w-3.5 h-3.5" /> Bilder
+            </SidebarTab>
+          </div>
 
-        {/* Status-Bar */}
-        <div className="absolute bottom-2 left-2 px-2 py-1 rounded bg-black/40 text-[11px] text-[#c8dbc9] backdrop-blur-sm">
-          Tool: <strong>{tool}</strong> · Pan: Space + Drag oder Mittlere Maustaste · Zoom: Mausrad
+          {/* Tab-Inhalt */}
+          <div className="flex-1 overflow-y-auto p-3">
+            {sidebarTab === 'produkte' && (
+              <div>
+                <div className="relative mb-3">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#94c1a4]" />
+                  <input
+                    type="text"
+                    value={produktSuche}
+                    onChange={(e) => setProduktSuche(e.target.value)}
+                    placeholder="Produkte suchen…"
+                    className="w-full pl-8 pr-2 py-1.5 text-xs bg-[#1a2e1e] border border-[#445c49]/40 rounded text-[#c8dbc9] placeholder-[#94c1a4]/60 focus:outline-none focus:border-[#94c1a4]"
+                  />
+                </div>
+                {produkteGefiltert.length === 0 ? (
+                  <p className="text-[11px] text-[#94c1a4] text-center py-6">
+                    {produkte.length === 0
+                      ? 'Keine Produkte vorhanden.'
+                      : 'Keine Treffer.'}
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {produkteGefiltert.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => addProduktAufBoard(p)}
+                        className="w-full flex items-center gap-2 p-1.5 rounded hover:bg-[#445c49]/40 transition-colors text-left group"
+                      >
+                        <div className="w-10 h-10 shrink-0 rounded bg-[#1a2e1e] border border-[#445c49]/40 overflow-hidden flex items-center justify-center">
+                          {p.bild_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.bild_url} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <Package className="w-4 h-4 text-[#94c1a4]/60" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs text-white truncate">{p.name}</div>
+                          {p.kategorie && (
+                            <div className="text-[10px] text-[#94c1a4] truncate">{p.kategorie}</div>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {sidebarTab === 'farben' && (
+              <div>
+                <p className="text-[11px] text-[#94c1a4] mb-2">Klicke einen Farbton, um einen Swatch aufs Board zu legen.</p>
+                <div className="grid grid-cols-6 gap-1.5">
+                  {COLOR_PALETTE.map((hex) => (
+                    <button
+                      key={hex}
+                      type="button"
+                      onClick={() => addColorSwatch(hex)}
+                      title={hex}
+                      className="aspect-square rounded border border-black/10 hover:scale-110 hover:ring-2 hover:ring-white/40 transition-all"
+                      style={{ backgroundColor: hex }}
+                    />
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <label className="block text-[11px] text-[#94c1a4] mb-1.5">Eigene Farbe</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      onChange={(e) => addColorSwatch(e.target.value)}
+                      className="w-10 h-9 rounded border-0 bg-transparent cursor-pointer"
+                    />
+                    <span className="text-[11px] text-[#94c1a4] self-center">Klick → Swatch hinzufügen</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {sidebarTab === 'upload' && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex flex-col items-center gap-2 px-3 py-6 border-2 border-dashed border-[#445c49] rounded-lg text-[#94c1a4] hover:border-[#94c1a4] hover:text-white transition-colors"
+                >
+                  <Upload className="w-6 h-6" />
+                  <span className="text-xs">Bild hochladen</span>
+                  <span className="text-[10px] text-[#94c1a4]/70">JPG/PNG, max 50 MB</span>
+                </button>
+                {uploading && (
+                  <p className="text-[11px] text-[#94c1a4] text-center mt-3">Lädt hoch…</p>
+                )}
+                <p className="text-[11px] text-[#94c1a4] mt-4 leading-relaxed">
+                  Hochgeladene Bilder werden im privaten Storage abgelegt und automatisch aufs Board platziert.
+                </p>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Canvas-Bereich */}
+        <div className="flex-1 relative overflow-hidden" ref={containerRef}>
+          <canvas ref={canvasElRef} />
+
+          {/* Status-Bar */}
+          <div className="absolute bottom-2 left-2 px-2 py-1 rounded bg-black/40 text-[11px] text-[#c8dbc9] backdrop-blur-sm">
+            Tool: <strong>{tool}</strong> · Pan: Space + Drag oder Mittlere Maustaste · Zoom: Mausrad
+          </div>
         </div>
       </div>
     </div>
@@ -480,6 +696,29 @@ export default function MoodboardEditor({
 }
 
 // ── Helper-Komponente ────────────────────────────────────────────
+function SidebarTab({
+  children, onClick, active,
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+  active?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        flex-1 flex items-center justify-center gap-1 px-2 py-2 text-[11px] transition-colors
+        ${active
+          ? 'bg-[#1a2e1e] text-white border-b-2 border-[#94c1a4]'
+          : 'text-[#94c1a4] hover:text-white hover:bg-[#3a5240]'}
+      `}
+    >
+      {children}
+    </button>
+  )
+}
+
 function ToolBtn({
   children, onClick, active, title,
 }: {
