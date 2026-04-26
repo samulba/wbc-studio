@@ -18,7 +18,7 @@ import {
   StickyNote, Loader2, Magnet, AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter,
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
-  Lock, Unlock, BoxSelect, Layers,
+  Lock, Unlock, BoxSelect, Layers, MessageSquare,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -26,10 +26,14 @@ import {
   moodboardVersionSpeichern, getMoodboardVersionen,
   moodboardVersionLoeschen, moodboardVersionWiederherstellen,
   moodboardFreigabeAktualisieren,
+  getMoodboardKommentare, moodboardKommentarAnlegen,
+  moodboardKommentarAntworten, moodboardKommentarErledigen,
+  moodboardKommentarLoeschen,
 } from '@/app/actions/moodboard'
-import type { MoodboardVersion } from '@/lib/supabase/types'
+import type { MoodboardVersion, MoodboardKommentar } from '@/lib/supabase/types'
 import MoodboardWelcome from './MoodboardWelcome'
 import MoodboardLayers from './MoodboardLayers'
+import MoodboardPinOverlay from './MoodboardPinOverlay'
 import type { MoodboardTemplate } from '@/lib/moodboard-templates'
 
 interface Props {
@@ -52,7 +56,7 @@ interface Props {
   }>
 }
 
-type Tool = 'select' | 'text' | 'rect' | 'circle' | 'note'
+type Tool = 'select' | 'text' | 'rect' | 'circle' | 'note' | 'comment'
 
 // Sticky-Note Farben (Pastell)
 const NOTE_FARBEN = [
@@ -124,6 +128,16 @@ export default function MoodboardEditor({
   const [layerPanelOffen, setLayerPanelOffen] = useState(false)
   const [layerReloadKey, setLayerReloadKey] = useState(0)
 
+  // Kommentar-Pins
+  const [pins, setPins] = useState<MoodboardKommentar[]>([])
+  const [pinsRefreshKey, setPinsRefreshKey] = useState(0)
+  const [aktiverPinId, setAktiverPinId] = useState<string | null>(null)
+  const [pinEntwurf, setPinEntwurf] = useState<{ x: number; y: number } | null>(null)
+  const [pinEntwurfText, setPinEntwurfText] = useState('')
+  // Re-Render bei Viewport-Aenderung damit Pins korrekt mitfliegen
+  const [viewportTick, setViewportTick] = useState(0)
+  const viewportPendingRef = useRef(false)
+
   // Snap & Smart-Guides
   const [snapToGrid, setSnapToGrid] = useState(false)
   const snapToGridRef = useRef(false)
@@ -131,6 +145,15 @@ export default function MoodboardEditor({
   const [snapEnabled, setSnapEnabled] = useState(true)
   const snapEnabledRef = useRef(true)
   useEffect(() => { snapEnabledRef.current = snapEnabled }, [snapEnabled])
+
+  // Pins laden
+  useEffect(() => {
+    let cancelled = false
+    getMoodboardKommentare(moodboardId).then((k) => {
+      if (!cancelled) setPins(k)
+    })
+    return () => { cancelled = true }
+  }, [moodboardId, pinsRefreshKey])
 
   // Toast nach 3.5s automatisch ausblenden
   useEffect(() => {
@@ -324,6 +347,14 @@ export default function MoodboardEditor({
             scheduleSave()
           }
         }
+
+        // Pin-Tool: Klick aufs Canvas oeffnet einen Pin-Entwurf
+        if (t === 'comment') {
+          const p = canvas.getPointer(e)
+          setPinEntwurf({ x: p.x, y: p.y })
+          setPinEntwurfText('')
+          setAktiverPinId(null)
+        }
       })
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -386,6 +417,17 @@ export default function MoodboardEditor({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       canvas.on('selection:updated', (e: any) => setActiveObj(e.selected?.[0] ?? canvas.getActiveObject() ?? null))
       canvas.on('selection:cleared', () => setActiveObj(null))
+      // Viewport-Aenderung → Pins neu positionieren
+      canvas.on('after:render', () => {
+        // Throttle ueber rAF damit wir nicht jeden Frame ein Re-Render triggern
+        if (!viewportPendingRef.current) {
+          viewportPendingRef.current = true
+          requestAnimationFrame(() => {
+            viewportPendingRef.current = false
+            setViewportTick((t) => t + 1)
+          })
+        }
+      })
       canvas.on('object:scaling',  () => bumpObjVersion())
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       canvas.on('object:moving',   (opt: any) => {
@@ -693,6 +735,52 @@ export default function MoodboardEditor({
         pushHistory()
         scheduleSave()
       })
+  }
+
+  // ── Pins: World → Screen ──────────────────────────────────────
+  function worldToScreen(wx: number, wy: number): { x: number; y: number } | null {
+    const c = fabricRef.current
+    if (!c) return null
+    const vpt = c.viewportTransform
+    return { x: vpt[0] * wx + vpt[4], y: vpt[3] * wy + vpt[5] }
+  }
+
+  // Pin anlegen (vom Entwurf)
+  async function pinSpeichern() {
+    if (!pinEntwurf) return
+    const text = pinEntwurfText.trim()
+    if (!text) { setRaumAlertMsg('Kommentar darf nicht leer sein.'); return }
+    const r = await moodboardKommentarAnlegen({
+      moodboardId,
+      posX: pinEntwurf.x,
+      posY: pinEntwurf.y,
+      inhalt: text,
+    })
+    if (r.fehler) { setRaumAlertMsg(r.fehler); return }
+    setPinEntwurf(null)
+    setPinEntwurfText('')
+    setTool('select')
+    setPinsRefreshKey((k) => k + 1)
+  }
+
+  async function pinAntworten(parentId: string, inhalt: string): Promise<boolean> {
+    const r = await moodboardKommentarAntworten({ parentId, inhalt })
+    if (r.fehler) { setRaumAlertMsg(r.fehler); return false }
+    setPinsRefreshKey((k) => k + 1)
+    return true
+  }
+
+  async function pinErledigt(id: string, erledigt: boolean) {
+    const r = await moodboardKommentarErledigen(id, erledigt)
+    if (r.fehler) { setRaumAlertMsg(r.fehler); return }
+    setPinsRefreshKey((k) => k + 1)
+  }
+
+  async function pinLoeschen(id: string) {
+    const r = await moodboardKommentarLoeschen(id)
+    if (r.fehler) { setRaumAlertMsg(r.fehler); return }
+    if (aktiverPinId === id) setAktiverPinId(null)
+    setPinsRefreshKey((k) => k + 1)
   }
 
   // ── Sektion aufs Board ────────────────────────────────────────
@@ -1450,6 +1538,13 @@ export default function MoodboardEditor({
             <ToolBtn onClick={addSection} title="Sektion einfügen">
               <BoxSelect className="w-[18px] h-[18px]" />
             </ToolBtn>
+            <ToolBtn
+              active={tool === 'comment'}
+              onClick={() => setTool(tool === 'comment' ? 'select' : 'comment')}
+              title="Kommentar-Pin (klick auf Canvas)"
+            >
+              <MessageSquare className="w-[18px] h-[18px]" />
+            </ToolBtn>
           </ToolGroup>
 
           <ToolDivider />
@@ -1739,6 +1834,72 @@ export default function MoodboardEditor({
               onSchliessen={() => setHintGeschlossen(true)}
             />
           )}
+
+          {/* Pin-Overlay (auch fuer viewportTick re-render) */}
+          {/* eslint-disable-next-line @typescript-eslint/no-unused-expressions */}
+          {void viewportTick}
+          <MoodboardPinOverlay
+            pins={pins}
+            worldToScreen={worldToScreen}
+            aktiverPinId={aktiverPinId}
+            setAktiverPinId={setAktiverPinId}
+            onAntworten={pinAntworten}
+            onErledigen={pinErledigt}
+            onLoeschen={pinLoeschen}
+          />
+
+          {/* Pin-Entwurf-Bubble */}
+          {pinEntwurf && (() => {
+            const pos = worldToScreen(pinEntwurf.x, pinEntwurf.y)
+            if (!pos) return null
+            return (
+              <div
+                className="absolute z-40"
+                style={{ left: pos.x, top: pos.y, transform: 'translate(-50%, -100%)' }}
+              >
+                <div className="w-72 bg-white rounded-xl shadow-2xl border border-gray-200 overflow-hidden">
+                  <div className="px-3 py-2 bg-wellbeing-green text-white flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span className="text-[11px] font-medium">Neuer Kommentar-Pin</span>
+                  </div>
+                  <div className="p-2.5">
+                    <textarea
+                      autoFocus
+                      value={pinEntwurfText}
+                      onChange={(e) => setPinEntwurfText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) pinSpeichern()
+                        if (e.key === 'Escape') { setPinEntwurf(null); setTool('select') }
+                      }}
+                      placeholder="Kommentar schreiben…"
+                      rows={3}
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded resize-none focus:outline-none focus:border-wellbeing-green focus:ring-1 focus:ring-wellbeing-green/30 text-gray-700"
+                    />
+                    <div className="flex justify-between items-center mt-1.5">
+                      <span className="text-[10px] text-gray-400">⌘/Ctrl + Enter</span>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => { setPinEntwurf(null); setTool('select') }}
+                          className="px-2 py-1 text-[11px] text-gray-500 hover:text-gray-700"
+                        >
+                          Abbrechen
+                        </button>
+                        <button
+                          type="button"
+                          onClick={pinSpeichern}
+                          disabled={!pinEntwurfText.trim()}
+                          className="px-2.5 py-1 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-[11px] font-medium rounded disabled:opacity-50"
+                        >
+                          Pin setzen
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Status-Bar (dezenter) */}
           <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-md bg-black/50 text-[10px] text-[#c8dbc9]/80 backdrop-blur-sm flex items-center gap-2">

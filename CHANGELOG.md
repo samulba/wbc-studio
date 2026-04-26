@@ -5,6 +5,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard Step 6 — Kommentar-Pins (intern + Kunden-Freigabe)
+- Migration **097**: neue Tabelle `moodboard_kommentare` mit threaded structure (parent_id self-referencing), World-Koordinaten, Erledigt-Flag, Realtime-Publication. RLS org-scoped + Anon-Select/Insert wenn Moodboard freigegeben + Kommentare erlaubt.
+- **Pin-Tool** in der Toolbar (MessageSquare-Icon) — Klick auf Canvas öffnet Pin-Entwurf mit Textarea + ⌘/Ctrl+Enter zum Speichern.
+- **Pin-Bubbles** (kleiner Kreis mit Nummer) erscheinen über dem Canvas, wandern mit Zoom + Pan mit. Farben: grün (Team-Pin), amber (Kunde-Pin), grün-Check (erledigt).
+- **Klick auf Pin** öffnet einen Thread: Kommentar + alle Antworten + Antwort-Box. Header-Aktionen: Erledigen-Toggle, Löschen, Schließen.
+- Server-Actions: `getMoodboardKommentare`, `moodboardKommentarAnlegen`, `moodboardKommentarAntworten`, `moodboardKommentarErledigen`, `moodboardKommentarLoeschen` + Anon-Variante `moodboardKundenKommentarAnlegen` für die Kunden-Freigabe-Seite.
+- Migration **097** muss manuell im Supabase SQL-Editor ausgeführt werden.
+
 ### Moodboard Step 5b — Layer-Panel (Ebenen-Liste)
 - Neuer Layer-Toggle-Button (Layers-Icon) öffnet rechts ein **Ebenen-Panel** mit allen Top-Level-Elementen, sortiert von der vordersten zur hintersten Ebene.
 - Pro Eintrag: Typ-Icon + Name (Bilder zeigen den Produktnamen falls verknüpft, Links die Domain, Notizen zeigen „Notiz", Sektionen den editierten Titel), Hover-Buttons für **Eine Ebene vor/zurück**, **Sperren/Entsperren** (Lock-Icon wechselt Farbe), **Sichtbarkeit ein/aus** (Eye-Icon).

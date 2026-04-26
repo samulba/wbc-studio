@@ -402,6 +402,26 @@ export interface MoodboardVersion {
   created_at: string
 }
 
+// ── Moodboard-Kommentare (Migration 097) ─────────────────
+export interface MoodboardKommentar {
+  id: string
+  organisation_id: string
+  moodboard_id: string
+  parent_id: string | null
+  pos_x: number | null
+  pos_y: number | null
+  bezogen_auf: string | null
+  autor_user_id: string | null
+  autor_name: string | null
+  autor_email: string | null
+  ist_kunde: boolean
+  inhalt: string
+  erledigt: boolean
+  erledigt_am: string | null
+  created_at: string
+  updated_at: string
+}
+
 // ── Raum-Produkt-Verknüpfung (Migration 038 + 058 Rabatt + 076 Status) ────
 export interface RaumProdukt {
   id: string

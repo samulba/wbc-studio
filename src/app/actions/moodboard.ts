@@ -4,7 +4,7 @@ import { createClient, getOrganisationId } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { auditLog } from '@/lib/audit'
-import type { Moodboard, MoodboardVersion } from '@/lib/supabase/types'
+import type { Moodboard, MoodboardVersion, MoodboardKommentar } from '@/lib/supabase/types'
 import crypto from 'crypto'
 
 // ── Moodboard CRUD ─────────────────────────────────────────────
@@ -242,6 +242,211 @@ export async function moodboardFreigabeAktualisieren(
   })
 
   return { erfolg: true }
+}
+
+
+// ── Kommentar-Pins ─────────────────────────────────────────────
+
+/** Alle Kommentare eines Moodboards laden (Threaded). */
+export async function getMoodboardKommentare(moodboardId: string): Promise<MoodboardKommentar[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('moodboard_kommentare')
+    .select('*')
+    .eq('moodboard_id', moodboardId)
+    .order('created_at', { ascending: true })
+  return (data ?? []) as MoodboardKommentar[]
+}
+
+/** Top-Level Pin anlegen (Admin). */
+export async function moodboardKommentarAnlegen(input: {
+  moodboardId: string
+  posX: number
+  posY: number
+  inhalt: string
+  bezogenAuf?: string | null
+}): Promise<{ id?: string; fehler?: string }> {
+  const text = input.inhalt.trim()
+  if (!text) return { fehler: 'Kommentar darf nicht leer sein.' }
+  if (text.length > 2000) return { fehler: 'Kommentar zu lang (max 2000 Zeichen).' }
+
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { data, error } = await supabase
+    .from('moodboard_kommentare')
+    .insert({
+      organisation_id: orgId,
+      moodboard_id:    input.moodboardId,
+      parent_id:       null,
+      pos_x:           input.posX,
+      pos_y:           input.posY,
+      bezogen_auf:     input.bezogenAuf ?? null,
+      autor_user_id:   user?.id ?? null,
+      autor_name:      user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? 'Team',
+      autor_email:     user?.email ?? null,
+      ist_kunde:       false,
+      inhalt:          text,
+    })
+    .select('id')
+    .single()
+  if (error || !data) return { fehler: 'Konnte Pin nicht speichern.' }
+  return { id: data.id }
+}
+
+/** Antwort auf einen Pin (Admin). */
+export async function moodboardKommentarAntworten(input: {
+  parentId: string
+  inhalt: string
+}): Promise<{ id?: string; fehler?: string }> {
+  const text = input.inhalt.trim()
+  if (!text) return { fehler: 'Antwort darf nicht leer sein.' }
+
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // Parent laden, um moodboard_id zu finden
+  const { data: parent } = await supabase
+    .from('moodboard_kommentare')
+    .select('moodboard_id, organisation_id')
+    .eq('id', input.parentId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!parent) return { fehler: 'Pin nicht gefunden.' }
+
+  const { data, error } = await supabase
+    .from('moodboard_kommentare')
+    .insert({
+      organisation_id: orgId,
+      moodboard_id:    parent.moodboard_id,
+      parent_id:       input.parentId,
+      pos_x:           null,
+      pos_y:           null,
+      autor_user_id:   user?.id ?? null,
+      autor_name:      user?.user_metadata?.full_name ?? user?.email?.split('@')[0] ?? 'Team',
+      autor_email:     user?.email ?? null,
+      ist_kunde:       false,
+      inhalt:          text,
+    })
+    .select('id')
+    .single()
+  if (error || !data) return { fehler: 'Konnte Antwort nicht speichern.' }
+  return { id: data.id }
+}
+
+/** Pin als erledigt markieren / wiederherstellen. */
+export async function moodboardKommentarErledigen(
+  id: string,
+  erledigt: boolean,
+): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error } = await supabase
+    .from('moodboard_kommentare')
+    .update({
+      erledigt,
+      erledigt_am: erledigt ? new Date().toISOString() : null,
+    })
+    .eq('id', id)
+    .is('parent_id', null) // nur Top-Level
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Aktualisierung fehlgeschlagen.' }
+  return { erfolg: true }
+}
+
+/** Pin loeschen (kaskadiert auf alle Antworten). */
+export async function moodboardKommentarLoeschen(
+  id: string,
+): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error } = await supabase
+    .from('moodboard_kommentare')
+    .delete()
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Löschen fehlgeschlagen.' }
+  return { erfolg: true }
+}
+
+/** Kunde (anonym) legt einen Pin via freigabe_token an. */
+export async function moodboardKundenKommentarAnlegen(input: {
+  freigabeToken: string
+  posX: number
+  posY: number
+  inhalt: string
+  parentId?: string | null
+  autorName: string
+  autorEmail?: string | null
+}): Promise<{ id?: string; fehler?: string }> {
+  const text = input.inhalt.trim()
+  if (!text) return { fehler: 'Kommentar darf nicht leer sein.' }
+  if (text.length > 2000) return { fehler: 'Kommentar zu lang.' }
+  const name = input.autorName.trim()
+  if (!name) return { fehler: 'Name ist erforderlich.' }
+
+  const admin = createAdminClient()
+  // Moodboard via Token finden + Berechtigungen pruefen
+  const { data: board } = await admin
+    .from('moodboards')
+    .select('id, organisation_id, freigabe_aktiv, freigabe_kommentare_aktiv')
+    .eq('freigabe_token', input.freigabeToken)
+    .maybeSingle()
+  if (!board || !board.freigabe_aktiv || !board.freigabe_kommentare_aktiv) {
+    return { fehler: 'Kommentare sind aktuell nicht erlaubt.' }
+  }
+
+  // Wenn Antwort: parent muss zum gleichen Moodboard gehoeren
+  if (input.parentId) {
+    const { data: parent } = await admin
+      .from('moodboard_kommentare')
+      .select('moodboard_id')
+      .eq('id', input.parentId)
+      .maybeSingle()
+    if (!parent || parent.moodboard_id !== board.id) {
+      return { fehler: 'Antwort-Ziel nicht gefunden.' }
+    }
+  }
+
+  const { data, error } = await admin
+    .from('moodboard_kommentare')
+    .insert({
+      organisation_id: board.organisation_id,
+      moodboard_id:    board.id,
+      parent_id:       input.parentId ?? null,
+      pos_x:           input.parentId ? null : input.posX,
+      pos_y:           input.parentId ? null : input.posY,
+      autor_user_id:   null,
+      autor_name:      name.slice(0, 80),
+      autor_email:     input.autorEmail?.trim().slice(0, 200) ?? null,
+      ist_kunde:       true,
+      inhalt:          text,
+    })
+    .select('id')
+    .single()
+  if (error || !data) return { fehler: 'Konnte Pin nicht speichern.' }
+  return { id: data.id }
+}
+
+/** Kommentare via Freigabe-Token laden (Admin-Client, anon). */
+export async function getMoodboardKommentareOeffentlich(
+  freigabeToken: string,
+): Promise<MoodboardKommentar[]> {
+  const admin = createAdminClient()
+  const { data: board } = await admin
+    .from('moodboards')
+    .select('id, freigabe_aktiv, freigabe_kommentare_aktiv')
+    .eq('freigabe_token', freigabeToken)
+    .maybeSingle()
+  if (!board || !board.freigabe_aktiv || !board.freigabe_kommentare_aktiv) return []
+  const { data } = await admin
+    .from('moodboard_kommentare')
+    .select('*')
+    .eq('moodboard_id', board.id)
+    .order('created_at', { ascending: true })
+  return (data ?? []) as MoodboardKommentar[]
 }
 
 
