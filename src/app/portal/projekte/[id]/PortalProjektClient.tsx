@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   CheckCircle2, MessageSquare, FileText, CalendarDays,
   LayoutGrid, Check, X, ChevronDown, ChevronUp, Download,
-  Clock, Flag, Truck, Info, ZoomIn,
+  Clock, Flag, Truck, Info, ZoomIn, Palette, ExternalLink,
 } from 'lucide-react'
 import Image from 'next/image'
 import {
@@ -52,6 +52,17 @@ interface Event {
   farbe: string | null
 }
 
+interface PortalMoodboard {
+  id: string
+  raum_id: string
+  raum_name: string
+  name: string
+  freigabe_aktiv: boolean
+  freigabe_token: string | null
+  vorschau_bild_url: string | null
+  updated_at: string
+}
+
 interface Props {
   projektId: string
   projektName: string
@@ -60,11 +71,12 @@ interface Props {
   dokumente: Dokument[]
   nachrichten: Nachricht[]
   events: Event[]
+  moodboards: PortalMoodboard[]
   preiseAnzeigen: boolean
   vorname: string
 }
 
-type Tab = 'freigaben' | 'dokumente' | 'nachrichten' | 'timeline'
+type Tab = 'freigaben' | 'moodboards' | 'dokumente' | 'nachrichten' | 'timeline'
 
 const eur = (n: number) =>
   new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
@@ -401,6 +413,75 @@ function DokumenteTab({ dokumente, prim }: { dokumente: Dokument[]; prim: string
 
 // ── Timeline-Tab ──────────────────────────────────────────────
 
+// ── MoodboardsTab ─────────────────────────────────────────────
+
+const moodboardFmt = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+function MoodboardsTab({ moodboards, prim }: { moodboards: PortalMoodboard[]; prim: string }) {
+  if (moodboards.length === 0) {
+    return (
+      <EmptyState
+        Icon={Palette}
+        title="Noch keine Moodboards freigegeben"
+        text="Sobald dein Designer ein Moodboard für dich freigibt, erscheint es hier."
+        prim={prim}
+      />
+    )
+  }
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {moodboards.map((m) => {
+        const url = m.freigabe_token ? `/moodboard/${m.freigabe_token}` : null
+        const inner = (
+          <>
+            <div className="aspect-[4/3] bg-gradient-to-br from-wellbeing-cream via-white to-wellbeing-sand/20 flex items-center justify-center relative">
+              {m.vorschau_bild_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={m.vorschau_bild_url} alt={m.name} className="w-full h-full object-cover" />
+              ) : (
+                <Palette className="w-10 h-10 text-wellbeing-green/30" />
+              )}
+            </div>
+            <div className="px-3 py-2.5">
+              <div className="text-sm font-medium text-gray-800 truncate">{m.name}</div>
+              <div className="text-xs text-gray-500 truncate mt-0.5">Raum: {m.raum_name}</div>
+              <div className="flex items-center justify-between mt-1.5">
+                <span className="text-[11px] text-gray-400">
+                  {moodboardFmt.format(new Date(m.updated_at))}
+                </span>
+                <span
+                  className="inline-flex items-center gap-1 text-[11px] font-medium"
+                  style={{ color: prim }}
+                >
+                  <ExternalLink className="w-3 h-3" /> Ansehen
+                </span>
+              </div>
+            </div>
+          </>
+        )
+        return url ? (
+          <a
+            key={m.id}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden hover:border-gray-300 hover:shadow-md transition-all"
+          >
+            {inner}
+          </a>
+        ) : (
+          <div
+            key={m.id}
+            className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden opacity-60 cursor-not-allowed"
+          >
+            {inner}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function TimelineTab({ events, prim }: { events: Event[]; prim: string }) {
   if (events.length === 0) {
     return (
@@ -451,7 +532,7 @@ function TimelineTab({ events, prim }: { events: Event[]; prim: string }) {
 // ── Haupt-Komponente ──────────────────────────────────────────
 
 export default function PortalProjektClient({
-  projektId, prim, raeume, dokumente, nachrichten, events, preiseAnzeigen, vorname,
+  projektId, prim, raeume, dokumente, nachrichten, events, moodboards, preiseAnzeigen, vorname,
 }: Props) {
   const [aktuellerTab, setAktuellerTab] = useState<Tab>('freigaben')
   const [statusMap, setStatusMap]       = useState<Record<string, string>>({})
@@ -484,6 +565,9 @@ export default function PortalProjektClient({
 
   const TABS = [
     { id: 'freigaben'   as Tab, label: 'Freigaben',  icon: <CheckCircle2 className="w-3.5 h-3.5" />, badge: ausstehend > 0 ? ausstehend : null },
+    ...(moodboards.length > 0 ? [
+      { id: 'moodboards' as Tab, label: 'Moodboards', icon: <Palette      className="w-3.5 h-3.5" />, badge: null },
+    ] : []),
     { id: 'dokumente'   as Tab, label: 'Dokumente',  icon: <FileText     className="w-3.5 h-3.5" />, badge: null },
     { id: 'nachrichten' as Tab, label: 'Nachrichten',icon: <MessageSquare className="w-3.5 h-3.5" />, badge: null },
     { id: 'timeline'    as Tab, label: 'Timeline',   icon: <CalendarDays  className="w-3.5 h-3.5" />, badge: null },
@@ -568,6 +652,10 @@ export default function PortalProjektClient({
             </>
           )}
         </div>
+      )}
+
+      {aktuellerTab === 'moodboards' && (
+        <MoodboardsTab moodboards={moodboards} prim={prim} />
       )}
 
       {aktuellerTab === 'dokumente' && (
