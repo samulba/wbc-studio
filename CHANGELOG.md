@@ -15,6 +15,7 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - **Portal „Was du tun sollst"**: Kunden sehen ihnen zugewiesene Aufgaben (assignee_kunde) und sichtbar markierte Aufgaben (sichtbar_fuer_kunde) im Portal-Dashboard; können erledigen mit Toggle-Button und Kommentare schreiben (`ist_kunde=true`).
 - **Realtime**: Board updated live wenn andere Team-Mitglieder Aufgaben verschieben/anlegen; Modal-Kommentare erscheinen ohne Refresh.
 - Migration **102** (`aufgaben` + `aufgaben_kommentare` Tabellen, Indizes, RLS, Storage-Bucket „aufgaben-anhaenge", Realtime) muss manuell im Supabase SQL-Editor ausgeführt werden.
+- **Manuelle Verknüpfung** (Sub-Commit 11): neue „Neue Aufgabe"-Buttons mit vollem Formular im Kanban-Board (oben rechts) und im Dashboard-Widget (Plus-Icon). Im Detail-Modal der rechten Sidebar lassen sich Projekt · Kunde · Raum jederzeit nachträglich auswählen oder ändern — Projekt-Wahl filtert die Raum-Liste automatisch und übernimmt den Kunden des Projekts, sofern noch keiner gesetzt war. Inline-Quick-Add per Spalte (+) bleibt für ultraschnelles Anlegen ohne Verknüpfungen.
 - Offen für Folge-Sessions: Vertrags-Meilenstein-Sync (braucht erst CRUD-UI für vertrag_meilensteine), Tag-Autocomplete, Aufgaben-Templates, Bulk-Aktionen.
 
 ### Bestell-Workflow KOMPLETT überarbeitet (11 Sub-Commits)
