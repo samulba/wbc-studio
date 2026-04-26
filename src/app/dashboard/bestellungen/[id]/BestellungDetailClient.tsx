@@ -5,8 +5,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft, Package, Truck, CheckCircle2, AlertTriangle, Clock,
-  ExternalLink, Upload, Trash2, Save, X, Loader2, FileText,
+  ExternalLink, Upload, Trash2, Save, X, Loader2, FileText, Mail,
 } from 'lucide-react'
+import { lieferantenBestellungMail } from '@/lib/mail-templates'
 import {
   bestellungAktualisieren, bestellungBestaetigen, bestellungVersandt,
   bestellungGeliefert, bestellungStornieren, bestellungLoeschen,
@@ -76,6 +77,26 @@ export default function BestellungDetailClient({ bestellung: initial }: Props) {
     })
   }
 
+  function handleEmailAnLieferanten() {
+    if (!b.partner) return
+    const mail = lieferantenBestellungMail({
+      partnerName:     b.partner.name,
+      bestellnummer:   b.bestellnummer,
+      liefertermin:    b.liefertermin_geplant,
+      notizen:         b.notizen,
+      positionen: b.positionen.map((p) => ({
+        name:             p.raum_produkt?.produkt?.name ?? 'Unbekannt',
+        menge:            p.menge,
+        einheit:          p.raum_produkt?.produkt?.einheit ?? 'Stk',
+        einzelpreisNetto: p.einzelpreis_netto,
+      })),
+    })
+    const empf = b.partner.email ?? ''
+    const subject = encodeURIComponent(mail.subject)
+    const body    = encodeURIComponent(mail.plainText)
+    window.location.href = `mailto:${empf}?subject=${subject}&body=${body}`
+  }
+
   function handlePositionEntfernen(posId: string) {
     if (!confirm('Position aus Bestellung entfernen?')) return
     startTransition(async () => {
@@ -129,6 +150,17 @@ export default function BestellungDetailClient({ bestellung: initial }: Props) {
             <StatusBadge status={b.status} />
           </div>
           <div className="flex items-center gap-2">
+            {b.partner && (
+              <button
+                type="button"
+                onClick={handleEmailAnLieferanten}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                title={b.partner.email ? `An ${b.partner.email}` : 'E-Mail-Vorlage in Mail-App öffnen'}
+              >
+                <Mail className="w-3.5 h-3.5" />
+                E-Mail an Lieferant
+              </button>
+            )}
             {naechsteAktionen.map((a) => (
               <button
                 key={a.action}

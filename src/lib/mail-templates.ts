@@ -256,3 +256,119 @@ export function onboardingLinkMail(opts: {
     }),
   }
 }
+
+
+/** Bestell-E-Mail an einen Lieferanten — produziert Plain-Text + HTML
+ *  fuer mailto: oder echte Versand-Integration. */
+export interface LieferantenBestellungMailPos {
+  name:               string
+  menge:              number
+  einheit:            string
+  einzelpreisNetto:   number | null
+}
+
+export function lieferantenBestellungMail(opts: {
+  partnerName:        string
+  bestellnummer:      string | null
+  positionen:         LieferantenBestellungMailPos[]
+  liefertermin?:      string | null
+  notizen?:           string | null
+  lieferadresse?:     string | null
+  branding?:          MailBranding
+}): { subject: string; plainText: string; html: string } {
+  const firmenname    = opts.branding?.firmenname    ?? DEFAULT_FIRMA
+  const primary_color = opts.branding?.primary_color ?? DEFAULT_PRIMARY
+
+  const subject = opts.bestellnummer
+    ? `Neue Bestellung ${opts.bestellnummer} — ${firmenname}`
+    : `Neue Bestellung — ${firmenname}`
+
+  // Plain-Text-Variante fuer mailto:-Link (E-Mail-Clients zeigen Plain-Text immer)
+  const liefertxt = opts.liefertermin
+    ? `\nWunsch-Liefertermin: ${new Date(opts.liefertermin).toLocaleDateString('de-DE')}\n`
+    : ''
+  const adressTxt = opts.lieferadresse
+    ? `\nLieferadresse:\n${opts.lieferadresse}\n`
+    : ''
+  const notizTxt = opts.notizen?.trim()
+    ? `\nAnmerkungen:\n${opts.notizen.trim()}\n`
+    : ''
+
+  const positionenTxt = opts.positionen.map((p, i) => {
+    const preis = p.einzelpreisNetto != null ? ` à ${p.einzelpreisNetto.toFixed(2)} €` : ''
+    return `${i + 1}. ${p.name} — ${p.menge} ${p.einheit}${preis}`
+  }).join('\n')
+
+  const summe = opts.positionen.reduce(
+    (s, p) => s + (p.einzelpreisNetto ?? 0) * p.menge, 0,
+  )
+  const summeTxt = summe > 0 ? `\nGesamtsumme netto: ${summe.toFixed(2)} €\n` : ''
+
+  const plainText = [
+    `Sehr geehrte Damen und Herren,`,
+    ``,
+    `wir möchten folgende Produkte bei Ihnen bestellen:`,
+    ``,
+    positionenTxt,
+    summeTxt,
+    liefertxt,
+    adressTxt,
+    notizTxt,
+    `Bitte bestätigen Sie uns kurz Eingang und Liefertermin.`,
+    ``,
+    `Vielen Dank und beste Grüße`,
+    firmenname,
+    opts.bestellnummer ? `\nUnsere Referenz: ${opts.bestellnummer}` : '',
+  ].filter(Boolean).join('\n')
+
+  // HTML-Variante (fuer spaetere echte Mail-Integration)
+  const positionenHtml = opts.positionen.map((p) => {
+    const preis = p.einzelpreisNetto != null ? `${p.einzelpreisNetto.toFixed(2)} €` : '—'
+    const gesamt = p.einzelpreisNetto != null ? `${(p.einzelpreisNetto * p.menge).toFixed(2)} €` : '—'
+    return `
+      <tr>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${escapeHtml(p.name)}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">${p.menge} ${escapeHtml(p.einheit)}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">${preis}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: right;">${gesamt}</td>
+      </tr>`
+  }).join('')
+
+  const body = `
+    <p style="font-size: 15px; color: #4b5563; line-height: 1.55; margin: 0 0 18px;">
+      wir möchten folgende Produkte bestellen:
+    </p>
+    <table style="width: 100%; border-collapse: collapse; margin: 0 0 18px; font-size: 14px;">
+      <thead>
+        <tr style="background: #f9fafb; text-align: left;">
+          <th style="padding: 8px; border-bottom: 2px solid #e5e7eb;">Produkt</th>
+          <th style="padding: 8px; border-bottom: 2px solid #e5e7eb; text-align: right;">Menge</th>
+          <th style="padding: 8px; border-bottom: 2px solid #e5e7eb; text-align: right;">Preis netto</th>
+          <th style="padding: 8px; border-bottom: 2px solid #e5e7eb; text-align: right;">Summe</th>
+        </tr>
+      </thead>
+      <tbody>${positionenHtml}</tbody>
+      ${summe > 0 ? `<tfoot><tr><td colspan="3" style="padding: 8px; text-align: right; font-weight: 600;">Gesamt netto:</td><td style="padding: 8px; text-align: right; font-weight: 600;">${summe.toFixed(2)} €</td></tr></tfoot>` : ''}
+    </table>
+    ${opts.liefertermin ? `<p style="font-size: 14px; color: #4b5563; margin: 0 0 8px;"><strong>Wunsch-Liefertermin:</strong> ${new Date(opts.liefertermin).toLocaleDateString('de-DE')}</p>` : ''}
+    ${opts.lieferadresse ? `<p style="font-size: 14px; color: #4b5563; margin: 0 0 8px;"><strong>Lieferadresse:</strong><br>${escapeHtml(opts.lieferadresse).replace(/\n/g, '<br>')}</p>` : ''}
+    ${opts.notizen ? `<p style="font-size: 14px; color: #4b5563; margin: 0 0 8px;"><strong>Anmerkungen:</strong> ${escapeHtml(opts.notizen)}</p>` : ''}
+    <p style="font-size: 14px; color: #4b5563; margin: 18px 0 0;">
+      Bitte bestätigen Sie uns kurz Eingang und Liefertermin.
+    </p>
+    ${opts.bestellnummer ? `<p style="font-size: 12px; color: #9ca3af; margin: 18px 0 0;">Unsere Referenz: ${escapeHtml(opts.bestellnummer)}</p>` : ''}
+  `.trim()
+
+  return {
+    subject,
+    plainText,
+    html: layout({
+      firmenname,
+      primary_color,
+      anrede:   `Sehr geehrte Damen und Herren,`,
+      bodyHtml: body,
+      ctaLabel: '',
+      ctaUrl:   '',
+    }),
+  }
+}
