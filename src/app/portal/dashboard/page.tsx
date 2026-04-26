@@ -1,25 +1,28 @@
 import { redirect } from 'next/navigation'
-import { portalDashboardDaten } from '@/app/actions/portal'
+import { portalDashboardDaten, portalAufgabenAbrufen } from '@/app/actions/portal'
 import { brandingFuerToken }    from '@/app/actions/branding'
 import { getPortalSession }     from '@/lib/portal-auth'
 import Link from 'next/link'
 import {
   FolderOpen, Clock, MessageSquare, ArrowUpRight,
-  ArrowRight, Users, Settings, Sparkles, Activity,
+  ArrowRight, Users, Settings, Sparkles, Activity, ListChecks,
 } from 'lucide-react'
 import PortalShell from '@/components/portal/PortalShell'
 import PortalWelcomeModal from '@/components/portal/PortalWelcomeModal'
+import PortalAufgabenSektion from '@/components/portal/PortalAufgabenSektion'
 
 export default async function PortalDashboardPage() {
-  const [daten, branding, session] = await Promise.all([
+  const [daten, branding, session, aufgaben] = await Promise.all([
     portalDashboardDaten().catch(() => null),
     brandingFuerToken(),
     getPortalSession(),
+    portalAufgabenAbrufen().catch(() => []),
   ])
 
   if (!daten || !session) redirect('/portal/login')
 
   const { projekte, aktivitaeten, ungelesenNachrichten } = daten
+  const offeneAufgaben = aufgaben.filter((a) => a.status !== 'erledigt' && a.assignee_kunde)
   const firma        = branding?.firmenname     ?? 'Wellbeing Spaces'
   const prim         = branding?.primary_color  ?? '#445c49'
   const welcomeText  = branding?.welcome_text ?? null
@@ -224,6 +227,22 @@ export default async function PortalDashboardPage() {
             )}
           </aside>
         </div>
+
+        {/* Meine Aufgaben (Migration 102) */}
+        {aufgaben.length > 0 && (
+          <section className="mb-5 md:mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <ListChecks className="w-3.5 h-3.5 opacity-50" />
+                <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] opacity-50">Was du tun sollst</h2>
+              </div>
+              {offeneAufgaben.length > 0 && (
+                <span className="text-[11px] opacity-50">{offeneAufgaben.length} offen</span>
+              )}
+            </div>
+            <PortalAufgabenSektion aufgaben={aufgaben} prim={prim} />
+          </section>
+        )}
 
         {/* Quick-Actions */}
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">

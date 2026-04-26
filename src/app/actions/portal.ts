@@ -1160,3 +1160,146 @@ export async function mitarbeiterEntfernen(mitgliedId: string): Promise<{ fehler
   revalidatePath('/portal/team')
   return {}
 }
+
+// ── PORTAL: AUFGABEN (Migration 102) ──────────────────────────
+
+export interface PortalAufgabe {
+  id:                 string
+  titel:              string
+  beschreibung:       string | null
+  status:             'backlog' | 'in_arbeit' | 'review' | 'erledigt'
+  prioritaet:         'niedrig' | 'normal' | 'hoch' | 'dringend'
+  faellig_am:         string | null
+  erledigt_am:        string | null
+  assignee_kunde:     boolean
+  projekt_id:         string | null
+  projekt_name:       string | null
+  raum_id:            string | null
+  raum_name:          string | null
+  checklist_offen:    number
+  checklist_gesamt:   number
+  anhang_count:       number
+  created_at:         string
+}
+
+/** Aufgaben fuer den eingeloggten Portal-Kunden. */
+export async function portalAufgabenAbrufen(projektId?: string): Promise<PortalAufgabe[]> {
+  const session = await requireSession()
+  const supabase = createAdminClient()
+
+  let q = supabase
+    .from('aufgaben')
+    .select(`
+      id, titel, beschreibung, status, prioritaet, faellig_am, erledigt_am,
+      assignee_kunde, projekt_id, raum_id, checklist, anhang_urls, created_at,
+      projekt:projekte(name),
+      raum:raeume(name)
+    `)
+    .eq('kunde_id', session.kundeId)
+    .or('assignee_kunde.eq.true,sichtbar_fuer_kunde.eq.true')
+    .order('faellig_am', { ascending: true, nullsFirst: false })
+    .order('created_at', { ascending: false })
+
+  if (projektId) q = q.eq('projekt_id', projektId)
+
+  const { data, error } = await q
+  if (error || !data) return []
+
+  type Row = {
+    id: string; titel: string; beschreibung: string | null
+    status: PortalAufgabe['status']; prioritaet: PortalAufgabe['prioritaet']
+    faellig_am: string | null; erledigt_am: string | null
+    assignee_kunde: boolean; projekt_id: string | null; raum_id: string | null
+    checklist: { erledigt: boolean }[] | null
+    anhang_urls: unknown[] | null
+    created_at: string
+    projekt: { name: string | null } | null
+    raum:    { name: string | null } | null
+  }
+  return (data as unknown as Row[]).map((r) => ({
+    id:               r.id,
+    titel:            r.titel,
+    beschreibung:     r.beschreibung,
+    status:           r.status,
+    prioritaet:       r.prioritaet,
+    faellig_am:       r.faellig_am,
+    erledigt_am:      r.erledigt_am,
+    assignee_kunde:   r.assignee_kunde,
+    projekt_id:       r.projekt_id,
+    projekt_name:     r.projekt?.name ?? null,
+    raum_id:          r.raum_id,
+    raum_name:        r.raum?.name ?? null,
+    checklist_offen:  (r.checklist ?? []).filter((c) => !c.erledigt).length,
+    checklist_gesamt: (r.checklist ?? []).length,
+    anhang_count:     (r.anhang_urls ?? []).length,
+    created_at:       r.created_at,
+  }))
+}
+
+/** Aufgabe als erledigt/nicht erledigt markieren — nur eigene assignee_kunde-Aufgaben. */
+export async function portalAufgabeErledigen(aufgabeId: string): Promise<{ fehler?: string }> {
+  const session = await requireSession()
+  const supabase = createAdminClient()
+
+  const { data: a } = await supabase
+    .from('aufgaben')
+    .select('id, assignee_kunde, kunde_id, status')
+    .eq('id', aufgabeId)
+    .maybeSingle()
+  if (!a) return { fehler: 'Aufgabe nicht gefunden.' }
+  if (a.kunde_id !== session.kundeId) return { fehler: 'Keine Berechtigung.' }
+  if (!a.assignee_kunde) return { fehler: 'Diese Aufgabe ist dir nicht zugewiesen.' }
+
+  const neu = a.status === 'erledigt' ? 'in_arbeit' : 'erledigt'
+  const update: Record<string, unknown> = { status: neu }
+  if (neu === 'erledigt') update.erledigt_am = new Date().toISOString()
+  else update.erledigt_am = null
+
+  const { error } = await supabase
+    .from('aufgaben')
+    .update(update)
+    .eq('id', aufgabeId)
+    .eq('kunde_id', session.kundeId)
+  if (error) return { fehler: 'Status konnte nicht aktualisiert werden.' }
+
+  revalidatePath('/portal/dashboard')
+  revalidatePath('/portal/aufgaben')
+  return {}
+}
+
+/** Kommentar zu einer Aufgabe vom Kunden hinzufuegen. */
+export async function portalAufgabeKommentar(
+  aufgabeId: string, inhalt: string,
+): Promise<{ fehler?: string }> {
+  const text = inhalt.trim()
+  if (!text) return { fehler: 'Kommentar darf nicht leer sein.' }
+  if (text.length > 4000) return { fehler: 'Kommentar zu lang.' }
+
+  const session = await requireSession()
+  const supabase = createAdminClient()
+
+  const { data: a } = await supabase
+    .from('aufgaben')
+    .select('id, kunde_id, organisation_id, assignee_kunde, sichtbar_fuer_kunde')
+    .eq('id', aufgabeId)
+    .maybeSingle()
+  if (!a) return { fehler: 'Aufgabe nicht gefunden.' }
+  if (a.kunde_id !== session.kundeId) return { fehler: 'Keine Berechtigung.' }
+  if (!a.assignee_kunde && !a.sichtbar_fuer_kunde) return { fehler: 'Keine Berechtigung.' }
+
+  const autorName = `${session.vorname} ${session.nachname}`.trim() || session.email
+  const { error } = await supabase
+    .from('aufgaben_kommentare')
+    .insert({
+      organisation_id: a.organisation_id,
+      aufgabe_id:      aufgabeId,
+      autor_user_id:   null,
+      autor_name:      autorName,
+      ist_kunde:       true,
+      inhalt:          text,
+    })
+  if (error) return { fehler: 'Kommentar konnte nicht gespeichert werden.' }
+
+  revalidatePath('/portal/aufgaben')
+  return {}
+}
