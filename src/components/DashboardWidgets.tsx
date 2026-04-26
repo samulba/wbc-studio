@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare, FolderOpen, ReceiptText, Flag, Truck, Layers, Info, ShoppingCart, AlertTriangle, Package } from 'lucide-react'
+import { ArrowRight, Calendar, Clock, TrendingUp, AlertCircle, CheckCircle2, PhoneCall, Mail, Users, MessageSquare, FolderOpen, ReceiptText, Flag, Truck, Layers, Info, ShoppingCart, AlertTriangle, Package, ListChecks, Check } from 'lucide-react'
+import { aufgabeStatusAendern } from '@/app/actions/aufgaben'
+import { useRouter } from 'next/navigation'
 
 // ── Typen ─────────────────────────────────────────────────────
 
@@ -45,6 +47,17 @@ export interface FollowUpEintrag {
   betreff: string | null
   follow_up_datum: string
   tageVerbleibend: number
+}
+
+export interface MeineAufgabe {
+  id:           string
+  titel:        string
+  status:       'backlog' | 'in_arbeit' | 'review' | 'erledigt'
+  prioritaet:   'niedrig' | 'normal' | 'hoch' | 'dringend'
+  faellig_am:   string | null
+  projektName?: string | null
+  kundeName?:   string | null
+  tageVerbleibend: number   // 0 = heute, <0 = ueberfaellig
 }
 
 export interface BudgetProjekt {
@@ -613,6 +626,113 @@ export function LetzteProjekte({ projekte }: { projekte: LetzesProjekt[] }) {
             </tbody>
           </table>
         </div>
+      )}
+    </div>
+  )
+}
+
+// ── Meine Aufgaben (Migration 102) ────────────────────────────
+
+const PRIO_PUNKT: Record<MeineAufgabe['prioritaet'], string> = {
+  niedrig:  'bg-gray-300',
+  normal:   'bg-blue-400',
+  hoch:     'bg-amber-500',
+  dringend: 'bg-red-500',
+}
+
+export function MeineAufgabenWidget({ aufgaben }: { aufgaben: MeineAufgabe[] }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [erledigtIds, setErledigtIds] = useState<Set<string>>(new Set())
+
+  const sichtbar = aufgaben.filter((a) => !erledigtIds.has(a.id))
+
+  function abhaken(id: string) {
+    setErledigtIds((prev) => {
+      const next = new Set(prev)
+      next.add(id)
+      return next
+    })
+    startTransition(async () => {
+      const res = await aufgabeStatusAendern(id, 'erledigt')
+      if (res.fehler) {
+        // Rollback
+        setErledigtIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+      } else {
+        router.refresh()
+      }
+    })
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
+      <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <ListChecks className="w-4 h-4 text-wellbeing-green" />
+          <h2 className="text-sm font-semibold text-gray-900">Meine Aufgaben</h2>
+          {sichtbar.length > 0 && (
+            <span className="text-xs text-gray-400 tabular-nums">({sichtbar.length})</span>
+          )}
+        </div>
+        <Link
+          href="/dashboard/aufgaben"
+          className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark transition-colors font-medium"
+        >Alle →</Link>
+      </div>
+      {sichtbar.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center gap-2 py-8">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+          </div>
+          <p className="text-xs text-gray-400">Alles erledigt für heute.</p>
+        </div>
+      ) : (
+        <ul className="flex-1 overflow-y-auto divide-y divide-gray-50">
+          {sichtbar.map((a) => {
+            const dl = a.tageVerbleibend
+            const tagLabel =
+              a.faellig_am == null ? null
+              : dl < 0 ? `${Math.abs(dl)}d überfällig`
+              : dl === 0 ? 'Heute'
+              : `${dl}d`
+            return (
+              <li key={a.id} className="px-5 py-3 hover:bg-gray-50 transition-colors flex items-start gap-3 group">
+                <button
+                  onClick={() => abhaken(a.id)}
+                  disabled={pending}
+                  aria-label="Aufgabe erledigen"
+                  className="mt-0.5 w-5 h-5 rounded border border-gray-300 hover:border-wellbeing-green flex items-center justify-center text-transparent hover:text-wellbeing-green disabled:opacity-50"
+                >
+                  <Check size={14} />
+                </button>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${PRIO_PUNKT[a.prioritaet]}`} aria-hidden />
+                    <Link
+                      href="/dashboard/aufgaben"
+                      className="text-xs font-medium text-gray-900 group-hover:text-wellbeing-green truncate"
+                    >{a.titel}</Link>
+                  </div>
+                  <p className="text-[11px] text-gray-500 mt-0.5 truncate">
+                    {a.projektName && <span>{a.projektName}</span>}
+                    {a.projektName && a.kundeName && ' · '}
+                    {a.kundeName}
+                  </p>
+                </div>
+                {tagLabel && (
+                  <span className={
+                    'text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 ' +
+                    (dl < 0 ? 'text-red-600 bg-red-50' : dl === 0 ? 'text-amber-700 bg-amber-50' : 'text-gray-500 bg-gray-50')
+                  }>{tagLabel}</span>
+                )}
+              </li>
+            )
+          })}
+        </ul>
       )}
     </div>
   )

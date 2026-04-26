@@ -8,12 +8,14 @@ import {
   OffeneFollowUps,
   BudgetUebersicht,
   LetzteProjekte,
+  MeineAufgabenWidget,
   type DeadlineProjekt,
   type DeadlineEvent,
   type DeadlineEventTyp,
   type FollowUpEintrag,
   type BudgetProjekt,
   type LetzesProjekt,
+  type MeineAufgabe,
 } from '@/components/DashboardWidgets'
 
 // ── Hilfsfunktionen ───────────────────────────────────────────
@@ -304,6 +306,43 @@ async function getDashboardData() {
   const anstehend7Tage     = anstehendResult.status          === 'fulfilled' ? (anstehendResult.value.count          ?? 0) : 0
   const offeneReklamationen = reklamationenResult.status     === 'fulfilled' ? (reklamationenResult.value.count      ?? 0) : 0
 
+  // ── Meine Aufgaben (Migration 102) ──────────────────────────
+  let meineAufgaben: MeineAufgabe[] = []
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      type AufgabeRaw = {
+        id: string
+        titel: string
+        status: 'backlog' | 'in_arbeit' | 'review' | 'erledigt'
+        prioritaet: 'niedrig' | 'normal' | 'hoch' | 'dringend'
+        faellig_am: string | null
+        projekt: { name: string | null } | null
+        kunde:   { name: string | null } | null
+      }
+      const r = await supabase
+        .from('aufgaben')
+        .select('id, titel, status, prioritaet, faellig_am, projekt:projekte(name), kunde:kunden(name)')
+        .eq('assignee_user_id', user.id)
+        .neq('status', 'erledigt')
+        .order('faellig_am', { ascending: true, nullsFirst: false })
+        .limit(8)
+      const rows = ((r.data ?? []) as unknown as AufgabeRaw[])
+      meineAufgaben = rows.map((a) => ({
+        id:           a.id,
+        titel:        a.titel,
+        status:       a.status,
+        prioritaet:   a.prioritaet,
+        faellig_am:   a.faellig_am,
+        projektName:  a.projekt?.name ?? null,
+        kundeName:    a.kunde?.name ?? null,
+        tageVerbleibend: a.faellig_am ? tageDiff(a.faellig_am) : 999,
+      }))
+    }
+  } catch {
+    // Migration 102 evtl. nicht ausgefuehrt — leeres Array akzeptiert
+  }
+
   return {
     aktiveKunden:     aktiveKundenResult.count     ?? 0,
     laufendeProjekte: laufendeProjekteResult.count ?? 0,
@@ -318,6 +357,7 @@ async function getDashboardData() {
     unterwegs,
     anstehend7Tage,
     offeneReklamationen,
+    meineAufgaben,
   }
 }
 
@@ -330,6 +370,7 @@ export default async function DashboardPage() {
     budgetProjekte,
     letzteProjekte,
     zuBestellen, unterwegs, anstehend7Tage, offeneReklamationen,
+    meineAufgaben,
   } = await getDashboardData()
 
   return (
@@ -382,10 +423,11 @@ export default async function DashboardPage() {
           />
         </div>
 
-        {/* ROW 2: Deadlines + Follow-ups (nebeneinander, flexibler Höhe) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-h-[220px] xl:flex-1 xl:min-h-0">
+        {/* ROW 2: Deadlines + Follow-ups + Meine Aufgaben */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 min-h-[220px] xl:flex-1 xl:min-h-0">
           <NaechsteDeadlines projekte={naechsteDeadlines} events={anstehendeEvents} />
           <OffeneFollowUps eintraege={followUpEintraege} />
+          <MeineAufgabenWidget aufgaben={meineAufgaben} />
         </div>
 
         {/* ROW 3: Budget + Letzte Projekte (nebeneinander, fluid rest of viewport) */}
