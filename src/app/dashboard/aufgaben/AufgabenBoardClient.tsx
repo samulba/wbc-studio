@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  useDroppable,
   closestCorners, type DragStartEvent, type DragEndEvent, type DragOverEvent,
 } from '@dnd-kit/core'
 import {
@@ -371,11 +372,7 @@ function Spalte({
         </button>
       </div>
       <SortableContext id={spalte.id} items={ids} strategy={verticalListSortingStrategy}>
-        <div
-          data-spalte-id={spalte.id}
-          id={spalte.id}
-          className="flex-1 p-3 space-y-2 min-h-[100px]"
-        >
+        <DroppableSpalte spalteId={spalte.id} istLeer={aufgaben.length === 0}>
           {aufgaben.map((a) => (<KarteSortable key={a.id} aufgabe={a} team={team} onClick={() => onCardClick(a.id)} />))}
           {quickAddOpen && (
             <div className="bg-white border border-wellbeing-green/40 rounded-lg p-2 shadow-sm">
@@ -404,12 +401,38 @@ function Spalte({
             </div>
           )}
           {aufgaben.length === 0 && !quickAddOpen && (
-            <div className="text-center text-xs text-gray-400 py-8">
-              Keine Aufgaben.
+            <div className="text-center text-xs text-gray-400 py-8 pointer-events-none">
+              Hierher ziehen
             </div>
           )}
-        </div>
+        </DroppableSpalte>
       </SortableContext>
+    </div>
+  )
+}
+
+// ─── Droppable-Spalten-Container ──────────────────────────────
+// Macht auch leere Spalten zu validen Drop-Targets und gibt visuelles
+// Feedback waehrend des Drags.
+function DroppableSpalte({
+  spalteId, istLeer, children,
+}: {
+  spalteId: AufgabeStatus
+  istLeer:  boolean
+  children: React.ReactNode
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: spalteId })
+  return (
+    <div
+      ref={setNodeRef}
+      data-spalte-id={spalteId}
+      className={
+        'flex-1 p-3 space-y-2 min-h-[160px] transition-colors ' +
+        (isOver ? 'bg-wellbeing-green/5 ring-2 ring-wellbeing-green/30 ring-inset rounded-b-xl '
+                : (istLeer ? 'rounded-b-xl border-2 border-dashed border-transparent ' : ''))
+      }
+    >
+      {children}
     </div>
   )
 }
