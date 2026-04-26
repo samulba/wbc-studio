@@ -14,7 +14,7 @@ import FilterBar from '@/components/FilterBar'
 import SortableProduktTabelle from '@/components/SortableProduktTabelle'
 import { Timeline } from '@/components/Timeline'
 import type { Partner, RaumProduktMitDetails } from '@/lib/supabase/types'
-import { LayoutDashboard } from 'lucide-react'
+import { LayoutDashboard, Palette } from 'lucide-react'
 import GrundrissVorschau from '@/components/raumplaner/GrundrissVorschau'
 import ProduktHinzufuegenModal from '@/components/ProduktHinzufuegenModal'
 import RaumEventButton from '@/components/RaumEventButton'
@@ -169,13 +169,22 @@ export default async function RaumDetailPage({
                   </p>
                 )}
               </div>
-              <Link
-                href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/planer`}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-xs font-medium rounded-lg transition-colors"
-              >
-                <LayoutDashboard className="w-3.5 h-3.5" />
-                Bearbeiten
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/moodboard`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-wellbeing-cream hover:bg-wellbeing-sand/40 text-wellbeing-green-dark text-xs font-medium rounded-lg transition-colors border border-wellbeing-sand/40"
+                >
+                  <Palette className="w-3.5 h-3.5" />
+                  Moodboard
+                </Link>
+                <Link
+                  href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/planer`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-xs font-medium rounded-lg transition-colors"
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5" />
+                  Bearbeiten
+                </Link>
+              </div>
             </div>
             <div className="flex-1 p-4 bg-gray-50 flex justify-center items-center">
               <GrundrissVorschau
@@ -198,13 +207,22 @@ export default async function RaumDetailPage({
                 <p className="text-xs text-gray-400 mt-0.5">Plane den Raum mit dem interaktiven Raumplaner</p>
               </div>
             </div>
-            <Link
-              href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/planer`}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors whitespace-nowrap border border-gray-700"
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              Raumplaner öffnen
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/moodboard`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-wellbeing-cream hover:bg-wellbeing-sand/40 text-wellbeing-green-dark text-sm font-medium rounded-lg transition-colors whitespace-nowrap border border-wellbeing-sand/40"
+              >
+                <Palette className="w-4 h-4" />
+                Moodboard
+              </Link>
+              <Link
+                href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/planer`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 text-sm font-medium rounded-lg transition-colors whitespace-nowrap border border-gray-700"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                Raumplaner öffnen
+              </Link>
+            </div>
           </div>
         )}
         </div>

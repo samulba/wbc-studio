@@ -88,9 +88,10 @@ export default function NavSidebar({
     return () => window.removeEventListener('changelog:seen', onSeen)
   }, [neuestesChangelogDatum])
 
-  // Im Raumplaner-Editor Sidebar komplett ausblenden (mehr Platz)
+  // Im Raumplaner- und Moodboard-Editor Sidebar komplett ausblenden (mehr Platz)
   const isPlanerEditor = /\/dashboard\/projekte\/[^/]+\/raeume\/[^/]+\/planer/.test(pathname)
-  if (isPlanerEditor) return null
+  const isMoodboardEditor = /\/dashboard\/projekte\/[^/]+\/raeume\/[^/]+\/moodboard/.test(pathname)
+  if (isPlanerEditor || isMoodboardEditor) return null
 
   const navLinks = [
     { label: 'Dashboard',  href: '/dashboard',            icon: LayoutDashboard, badge: 0 },
