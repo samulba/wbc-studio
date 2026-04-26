@@ -27,11 +27,12 @@ import {
   moodboardVersionSpeichern, getMoodboardVersionen,
   moodboardVersionLoeschen, moodboardVersionWiederherstellen,
   moodboardFreigabeAktualisieren,
+  moodboardStatusAendern,
   getMoodboardKommentare, moodboardKommentarAnlegen,
   moodboardKommentarAntworten, moodboardKommentarErledigen,
   moodboardKommentarLoeschen,
 } from '@/app/actions/moodboard'
-import type { MoodboardVersion, MoodboardKommentar } from '@/lib/supabase/types'
+import type { MoodboardVersion, MoodboardKommentar, MoodboardStatus } from '@/lib/supabase/types'
 import MoodboardWelcome from './MoodboardWelcome'
 import MoodboardLayers from './MoodboardLayers'
 import MoodboardPinOverlay from './MoodboardPinOverlay'
@@ -51,6 +52,7 @@ interface Props {
   freigabeToken: string | null
   freigabePasswortGesetzt?: boolean
   freigabeAblauf?: string | null
+  status?: MoodboardStatus
   produkte: Array<{
     id: string
     name: string
@@ -98,6 +100,14 @@ const COLOR_PALETTE = [
   '#1e3a5f', '#7d3c98', '#c0392b', '#d35400', '#16a085', '#2c3e50',
 ]
 
+// Status-Konfiguration (Workflow-Phasen)
+const STATUS_CONFIG: Record<MoodboardStatus, { label: string; dot: string; bg: string; text: string }> = {
+  entwurf:     { label: 'Entwurf',       dot: '#9ca3af', bg: 'bg-gray-100',     text: 'text-gray-700' },
+  abstimmung:  { label: 'In Abstimmung', dot: '#f59e0b', bg: 'bg-amber-100',    text: 'text-amber-800' },
+  freigegeben: { label: 'Freigegeben',   dot: '#059669', bg: 'bg-emerald-100',  text: 'text-emerald-800' },
+  archiviert:  { label: 'Archiviert',    dot: '#6b7280', bg: 'bg-slate-200',    text: 'text-slate-600' },
+}
+
 export default function MoodboardEditor({
   moodboardId, raumId, projektId, raumName, boardName,
   initialCanvasJson, produkte,
@@ -106,6 +116,7 @@ export default function MoodboardEditor({
   freigabeToken,
   freigabePasswortGesetzt = false,
   freigabeAblauf: initialAblauf = null,
+  status: initialStatus = 'entwurf',
 }: Props) {
   const canvasElRef    = useRef<HTMLCanvasElement | null>(null)
   const containerRef   = useRef<HTMLDivElement | null>(null)
@@ -156,6 +167,19 @@ export default function MoodboardEditor({
 
   // Presentation-Mode (Vollbild ohne UI)
   const [presentationMode, setPresentationMode] = useState(false)
+
+  // Workflow-Status
+  const [status, setStatus] = useState<MoodboardStatus>(initialStatus)
+  const [statusDropdownOffen, setStatusDropdownOffen] = useState(false)
+
+  async function handleStatusAendern(neu: MoodboardStatus) {
+    setStatusDropdownOffen(false)
+    if (neu === status) return
+    const r = await moodboardStatusAendern(moodboardId, neu)
+    if (r.fehler) { setRaumAlertMsg(r.fehler); return }
+    setStatus(neu)
+    setRaumAlertMsg(`Status: ${STATUS_CONFIG[neu].label}`)
+  }
 
   // Snap & Smart-Guides
   const [snapToGrid, setSnapToGrid] = useState(false)
@@ -1795,6 +1819,52 @@ export default function MoodboardEditor({
 
         {/* Rechts: Save-Status + Zoom + Freigabe */}
         <div className="flex items-center gap-2">
+          {/* Status-Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setStatusDropdownOffen((v) => !v)}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium ${STATUS_CONFIG[status].bg} ${STATUS_CONFIG[status].text} hover:opacity-90 transition-opacity`}
+              title="Status ändern"
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ background: STATUS_CONFIG[status].dot }}
+              />
+              {STATUS_CONFIG[status].label}
+              <span className="text-[8px] opacity-60">▼</span>
+            </button>
+            {statusDropdownOffen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setStatusDropdownOffen(false)}
+                />
+                <div className="absolute top-full right-0 mt-1 z-50 w-44 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
+                  {(Object.keys(STATUS_CONFIG) as MoodboardStatus[]).map((s) => {
+                    const cfg = STATUS_CONFIG[s]
+                    const aktiv = s === status
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => handleStatusAendern(s)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 text-left ${aktiv ? 'bg-gray-50 font-medium' : ''}`}
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full shrink-0"
+                          style={{ background: cfg.dot }}
+                        />
+                        <span className="text-gray-700">{cfg.label}</span>
+                        {aktiv && <Check className="w-3 h-3 ml-auto text-wellbeing-green" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
           <SaveBadge status={saveStatus} />
 
           <ToolDivider />

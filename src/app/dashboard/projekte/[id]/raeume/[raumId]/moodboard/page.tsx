@@ -59,6 +59,7 @@ export default async function MoodboardPage({ params }: Props) {
         freigabeToken={moodboard.freigabe_token}
         freigabePasswortGesetzt={!!moodboard.freigabe_passwort_hash}
         freigabeAblauf={moodboard.freigabe_ablauf ?? null}
+        status={moodboard.status ?? 'entwurf'}
         produkte={produkte}
       />
     </div>

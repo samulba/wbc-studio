@@ -5,6 +5,13 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard-Sync mit Raumplaner & Workflow-Status
+- **Raumplaner-Übersicht**: pro Raum-Card zeigt jetzt auch den Moodboard-Status — zwei gleichberechtigte Buttons unten (Planer + Moodboard) jeweils mit grünem Status-Dot wenn vorhanden, grau wenn leer. List-View entsprechend mit kleinem Moodboard-Icon-Button vor dem Planer.
+- **Moodboard-Übersicht**: neue Sektion „Räume ohne Moodboard" am Ende — listet alle Räume aller Projekte ohne Board als gestrichelte Cards. Klick öffnet den Editor und legt automatisch ein leeres Board an.
+- **Voting-Markierungen pro Element**: 5 Markierungen (⭐ Favorit · 👍 Gefällt mir · 👎 Passt nicht · ✅ Final · ❓ Unsicher) als Picker im Eigenschaften-Panel. Markierte Elemente bekommen ein farbiges Eck-Badge mit Emoji (mitfliegend mit Zoom + Pan).
+- **Moodboard-Status (Workflow)**: Migration **099** ergänzt eine `status`-Spalte mit 4 Phasen (Entwurf · In Abstimmung · Freigegeben · Archiviert). Status-Dropdown im Editor-Header (oben rechts), Status-Filter-Tabs auf der Übersicht, Status-Badge zusätzlich zur Freigabe-Badge auf jeder Card.
+- Migration **099** muss manuell im Supabase SQL-Editor ausgeführt werden.
+
 ### Moodboard Step 8 — Erweiterte Freigabe (Passwort + Ablaufdatum)
 - Migration **098**: zwei neue Spalten auf `moodboards` — `freigabe_passwort_hash` (bcrypt) und `freigabe_ablauf` (Timestamp).
 - Im Freigabe-Modal des Editors zwei neue Sektionen:

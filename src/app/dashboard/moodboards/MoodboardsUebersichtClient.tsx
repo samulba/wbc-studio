@@ -18,7 +18,7 @@ export type RaumOhneMoodboard = {
   kunde_name: string | null
 }
 
-type FilterStatus = 'alle' | 'freigegeben' | 'entwurf'
+type FilterStatus = 'alle' | 'entwurf' | 'abstimmung' | 'freigegeben' | 'archiviert'
 type ViewMode     = 'grid' | 'list'
 
 interface Props {
@@ -33,14 +33,17 @@ export default function MoodboardsUebersichtClient({ eintraege, raeumeOhneMoodbo
 
   const counts = useMemo(() => ({
     alle:        eintraege.length,
-    freigegeben: eintraege.filter((e) => e.freigabe_aktiv).length,
-    entwurf:     eintraege.filter((e) => !e.freigabe_aktiv).length,
+    entwurf:     eintraege.filter((e) => (e.status ?? 'entwurf') === 'entwurf').length,
+    abstimmung:  eintraege.filter((e) => e.status === 'abstimmung').length,
+    freigegeben: eintraege.filter((e) => e.status === 'freigegeben').length,
+    archiviert:  eintraege.filter((e) => e.status === 'archiviert').length,
   }), [eintraege])
 
   const gefiltert = useMemo(() => {
     let r = eintraege
-    if (filter === 'freigegeben') r = r.filter((e) => e.freigabe_aktiv)
-    if (filter === 'entwurf')     r = r.filter((e) => !e.freigabe_aktiv)
+    if (filter !== 'alle') {
+      r = r.filter((e) => (e.status ?? 'entwurf') === filter)
+    }
     if (suche.trim()) {
       const q = suche.trim().toLowerCase()
       r = r.filter(
@@ -56,8 +59,8 @@ export default function MoodboardsUebersichtClient({ eintraege, raeumeOhneMoodbo
 
   return (
     <>
-      {/* Status-Tabs (Aktiv / Archiviert-Style) */}
-      <div className="flex items-center gap-2 mb-4">
+      {/* Status-Tabs */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
         <FilterTab
           active={filter === 'alle'}
           onClick={() => setFilter('alle')}
@@ -65,17 +68,28 @@ export default function MoodboardsUebersichtClient({ eintraege, raeumeOhneMoodbo
           label="Alle"
         />
         <FilterTab
-          active={filter === 'freigegeben'}
-          onClick={() => setFilter('freigegeben')}
-          count={counts.freigegeben}
-          label="Freigegeben"
-          icon={<Share2 className="w-3.5 h-3.5" />}
-        />
-        <FilterTab
           active={filter === 'entwurf'}
           onClick={() => setFilter('entwurf')}
           count={counts.entwurf}
           label="Entwurf"
+        />
+        <FilterTab
+          active={filter === 'abstimmung'}
+          onClick={() => setFilter('abstimmung')}
+          count={counts.abstimmung}
+          label="In Abstimmung"
+        />
+        <FilterTab
+          active={filter === 'freigegeben'}
+          onClick={() => setFilter('freigegeben')}
+          count={counts.freigegeben}
+          label="Freigegeben"
+        />
+        <FilterTab
+          active={filter === 'archiviert'}
+          onClick={() => setFilter('archiviert')}
+          count={counts.archiviert}
+          label="Archiviert"
         />
       </div>
 
@@ -249,9 +263,18 @@ function GridView({ eintraege }: { eintraege: MoodboardListEintrag[] }) {
   )
 }
 
+const STATUS_LABELS: Record<string, { label: string; bg: string; text: string; dot: string }> = {
+  entwurf:     { label: 'Entwurf',       bg: 'bg-gray-100',    text: 'text-gray-700',     dot: '#9ca3af' },
+  abstimmung:  { label: 'In Abstimmung', bg: 'bg-amber-100',   text: 'text-amber-800',    dot: '#f59e0b' },
+  freigegeben: { label: 'Freigegeben',   bg: 'bg-emerald-100', text: 'text-emerald-800',  dot: '#059669' },
+  archiviert:  { label: 'Archiviert',    bg: 'bg-slate-200',   text: 'text-slate-600',    dot: '#6b7280' },
+}
+
 function MoodboardCard({ eintrag }: { eintrag: MoodboardListEintrag }) {
   const farbe = avatarFarbe(eintrag.projekt_id)
   const initialen = projektInitialen(eintrag.projekt_name)
+  const status = eintrag.status ?? 'entwurf'
+  const statusCfg = STATUS_LABELS[status] ?? STATUS_LABELS.entwurf
 
   return (
     <Link
@@ -261,12 +284,18 @@ function MoodboardCard({ eintrag }: { eintrag: MoodboardListEintrag }) {
       {/* Vorschau */}
       <div className="relative border-b border-gray-100">
         <MoodboardVorschau canvasJson={eintrag.canvas_json} hoehe={180} />
-        {eintrag.freigabe_aktiv && (
-          <div className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 px-2 py-0.5 bg-wellbeing-green text-white text-[10px] font-medium rounded-full shadow-sm">
-            <Share2 className="w-2.5 h-2.5" />
-            Freigabe
+        <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1">
+          {eintrag.freigabe_aktiv && (
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-wellbeing-green text-white text-[10px] font-medium rounded-full shadow-sm">
+              <Share2 className="w-2.5 h-2.5" />
+              Freigabe
+            </div>
+          )}
+          <div className={`inline-flex items-center gap-1 px-2 py-0.5 ${statusCfg.bg} ${statusCfg.text} text-[10px] font-medium rounded-full shadow-sm`}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusCfg.dot }} />
+            {statusCfg.label}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Info-Block */}

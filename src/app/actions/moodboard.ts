@@ -71,6 +71,30 @@ export async function moodboardSpeichern(
   return { erfolg: true }
 }
 
+/** Aendert den Status (Workflow-Phase) eines Moodboards. */
+export async function moodboardStatusAendern(
+  moodboardId: string,
+  status: 'entwurf' | 'abstimmung' | 'freigegeben' | 'archiviert',
+): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error } = await supabase
+    .from('moodboards')
+    .update({ status })
+    .eq('id', moodboardId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Status konnte nicht aktualisiert werden.' }
+
+  await auditLog({
+    aktion:        'moodboard_status_geaendert' as string,
+    entitaet_typ:  'moodboard' as string,
+    entitaet_id:   moodboardId,
+    details:       { status },
+  })
+
+  return { erfolg: true }
+}
+
 /** Aktualisiert Name + Beschreibung. */
 export async function moodboardMetaAktualisieren(
   moodboardId: string,

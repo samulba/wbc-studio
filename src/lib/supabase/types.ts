@@ -375,6 +375,8 @@ export type ProduktMitDetails = Produkt & {
 
 // ── Moodboard (Migration 096) ──────────────────────────────────
 // Pro Raum genau eins. canvas_json enthält den Fabric.js-State.
+export type MoodboardStatus = 'entwurf' | 'abstimmung' | 'freigegeben' | 'archiviert'
+
 export interface Moodboard {
   id: string
   organisation_id: string
@@ -391,6 +393,8 @@ export interface Moodboard {
   freigabe_passwort_hash?: string | null
   /** Migration 098: Ablaufdatum, nach dem der Freigabe-Link nicht mehr geht. */
   freigabe_ablauf?: string | null
+  /** Migration 099: Workflow-Status (unabhaengig von freigabe_aktiv) */
+  status?: MoodboardStatus
   created_at: string
   updated_at: string
 }
