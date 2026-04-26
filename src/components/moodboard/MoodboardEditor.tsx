@@ -37,7 +37,6 @@ import MoodboardWelcome from './MoodboardWelcome'
 import MoodboardLayers from './MoodboardLayers'
 import MoodboardPinOverlay from './MoodboardPinOverlay'
 import MoodboardMarkierungOverlay from './MoodboardMarkierungOverlay'
-import MoodboardGridLayer from './MoodboardGridLayer'
 import MoodboardErrorBoundary from './MoodboardErrorBoundary'
 import type { MoodboardTemplate } from '@/lib/moodboard-templates'
 
@@ -203,6 +202,8 @@ export default function MoodboardEditor({
 
   // Sichtbares Grid (0 = aus, sonst Pixel-Groesse)
   const [gridSize, setGridSize] = useState(0)
+  const gridSizeRef = useRef(0)
+  useEffect(() => { gridSizeRef.current = gridSize; fabricRef.current?.requestRenderAll() }, [gridSize])
   const [gridDropdownOffen, setGridDropdownOffen] = useState(false)
 
   // ESC verlässt Presentation-Mode
@@ -339,8 +340,7 @@ export default function MoodboardEditor({
         preserveObjectStacking: true,
         stopContextMenu: true,
         fireRightClick: true,
-        // Container haelt den BG-Color, Canvas selbst transparent damit Grid sichtbar wird
-        backgroundColor: 'transparent',
+        backgroundColor: '#f5f5f0',
       })
       fabricRef.current = canvas
       canvas.selectionColor       = 'rgba(68,92,73,0.08)'
@@ -504,9 +504,9 @@ export default function MoodboardEditor({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       canvas.on('selection:updated', (e: any) => setActiveObj(e.selected?.[0] ?? canvas.getActiveObject() ?? null))
       canvas.on('selection:cleared', () => setActiveObj(null))
-      // Viewport-Aenderung → Pins neu positionieren
+      // Viewport-Aenderung → Pins neu positionieren + Grid zeichnen
       canvas.on('after:render', () => {
-        // Throttle ueber rAF damit wir nicht jeden Frame ein Re-Render triggern
+        // 1) Pins/Markierungen mitfliegen (Throttle ueber rAF)
         if (!viewportPendingRef.current) {
           viewportPendingRef.current = true
           requestAnimationFrame(() => {
@@ -514,6 +514,35 @@ export default function MoodboardEditor({
             setViewportTick((t) => t + 1)
           })
         }
+        // 2) Grid direkt auf Canvas zeichnen (im Screen-Space, mit Pan-Offset)
+        const size = gridSizeRef.current
+        if (size <= 0) return
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const ctx = (canvas as any).contextContainer as CanvasRenderingContext2D | undefined
+        if (!ctx) return
+        const vpt = canvas.viewportTransform
+        if (!Array.isArray(vpt) || vpt.length < 6) return
+        const z = Number(vpt[0]) || 1
+        const screenSize = size * z
+        if (!Number.isFinite(screenSize) || screenSize < 6) return
+        const tx = Number(vpt[4]) || 0
+        const ty = Number(vpt[5]) || 0
+        const offX = ((tx % screenSize) + screenSize) % screenSize
+        const offY = ((ty % screenSize) + screenSize) % screenSize
+        const w = canvas.getWidth()
+        const h = canvas.getHeight()
+        ctx.save()
+        ctx.setTransform(1, 0, 0, 1, 0, 0)
+        ctx.fillStyle = 'rgba(0,0,0,0.18)'
+        const r = 1
+        for (let y = offY; y < h; y += screenSize) {
+          for (let x = offX; x < w; x += screenSize) {
+            ctx.beginPath()
+            ctx.arc(x, y, r, 0, Math.PI * 2)
+            ctx.fill()
+          }
+        }
+        ctx.restore()
       })
       canvas.on('object:scaling',  () => bumpObjVersion())
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2147,18 +2176,8 @@ export default function MoodboardEditor({
         <div
           className="flex-1 relative overflow-hidden"
           ref={containerRef}
-          style={{ background: '#f5f5f0' }}
         >
-          {/* Grid-Layer (hinter Canvas) — folgt Pan/Zoom via viewportTick */}
-          <MoodboardErrorBoundary name="GridLayer">
-            <MoodboardGridLayer
-              gridSize={gridSize}
-              viewportTick={viewportTick}
-              fabricRef={fabricRef}
-            />
-          </MoodboardErrorBoundary>
-
-          <canvas ref={canvasElRef} className="relative" />
+          <canvas ref={canvasElRef} />
 
           {/* Welcome-Modal (Templates + Schnellstart) */}
           {istLeer && !hintGeschlossen && (
@@ -2300,85 +2319,94 @@ export default function MoodboardEditor({
               {raumAlertMsg}
             </div>
           )}
+
+          {/* Rechte Overlay-Panels: Layer-Panel + Properties-Panel.
+              Sind absolute statt Flex-Items damit Canvas-Breite STABIL bleibt
+              (sonst kurzes weisses Flackern bei Selection-Toggle weil Fabric
+              setWidth() triggert) */}
+          {!presentationMode && (
+            <div className="absolute right-0 top-0 bottom-0 flex flex-row z-20 pointer-events-none shadow-2xl">
+              {layerPanelOffen && fabricRef.current && typeof fabricRef.current.getObjects === 'function' && (
+                <div className="pointer-events-auto h-full">
+                  <MoodboardErrorBoundary name="LayerPanel">
+                    <MoodboardLayers
+                      objects={fabricRef.current.getObjects()}
+                      activeObj={activeObj}
+                      reloadKey={layerReloadKey}
+                      onSelect={(o) => {
+                        const c = fabricRef.current
+                        if (!c) return
+                        c.setActiveObject(o)
+                        c.requestRenderAll()
+                        setActiveObj(o)
+                      }}
+                      onToggleVis={(o) => {
+                        const c = fabricRef.current
+                        if (!c) return
+                        o.visible = !o.visible
+                        c.requestRenderAll()
+                        setLayerReloadKey((k) => k + 1)
+                        scheduleSave()
+                      }}
+                      onToggleLock={(o) => {
+                        const c = fabricRef.current
+                        if (!c) return
+                        const neu = !(o.lockMovementX === true)
+                        o.lockMovementX = neu
+                        o.lockMovementY = neu
+                        o.lockScalingX  = neu
+                        o.lockScalingY  = neu
+                        o.lockRotation  = neu
+                        o.hasControls   = !neu
+                        o.hoverCursor   = neu ? 'not-allowed' : 'move'
+                        c.requestRenderAll()
+                        setLayerReloadKey((k) => k + 1)
+                        scheduleSave()
+                      }}
+                      onForward={(o) => {
+                        const c = fabricRef.current
+                        if (!c) return
+                        c.bringObjectForward(o)
+                        c.requestRenderAll()
+                        setLayerReloadKey((k) => k + 1)
+                        scheduleSave()
+                      }}
+                      onBackward={(o) => {
+                        const c = fabricRef.current
+                        if (!c) return
+                        c.sendObjectBackwards(o)
+                        c.requestRenderAll()
+                        setLayerReloadKey((k) => k + 1)
+                        scheduleSave()
+                      }}
+                      onClose={() => setLayerPanelOffen(false)}
+                    />
+                  </MoodboardErrorBoundary>
+                </div>
+              )}
+              {activeObj && (
+                <div className="pointer-events-auto h-full">
+                  <MoodboardErrorBoundary name="PropertiesPanel">
+                    <PropertiesPanel
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      obj={activeObj as any}
+                      objVersion={objVersion}
+                      onSet={setObjProp}
+                      onDuplicate={duplicateActive}
+                      onDelete={deleteActive}
+                      onForward={bringForward}
+                      onBackward={sendBackwards}
+                      onAlign={alignActive}
+                      onDistribute={distributeActive}
+                      onToggleLock={toggleLockActive}
+                      onSetMarkierung={setMarkierung}
+                    />
+                  </MoodboardErrorBoundary>
+                </div>
+              )}
+            </div>
+          )}
         </div>
-
-        {/* Layer-Panel */}
-        {!presentationMode && layerPanelOffen && fabricRef.current && typeof fabricRef.current.getObjects === 'function' && (
-          <MoodboardErrorBoundary name="LayerPanel">
-          <MoodboardLayers
-            objects={fabricRef.current.getObjects()}
-            activeObj={activeObj}
-            reloadKey={layerReloadKey}
-            onSelect={(o) => {
-              const c = fabricRef.current
-              if (!c) return
-              c.setActiveObject(o)
-              c.requestRenderAll()
-              setActiveObj(o)
-            }}
-            onToggleVis={(o) => {
-              const c = fabricRef.current
-              if (!c) return
-              o.visible = !o.visible
-              c.requestRenderAll()
-              setLayerReloadKey((k) => k + 1)
-              scheduleSave()
-            }}
-            onToggleLock={(o) => {
-              const c = fabricRef.current
-              if (!c) return
-              const neu = !(o.lockMovementX === true)
-              o.lockMovementX = neu
-              o.lockMovementY = neu
-              o.lockScalingX  = neu
-              o.lockScalingY  = neu
-              o.lockRotation  = neu
-              o.hasControls   = !neu
-              o.hoverCursor   = neu ? 'not-allowed' : 'move'
-              c.requestRenderAll()
-              setLayerReloadKey((k) => k + 1)
-              scheduleSave()
-            }}
-            onForward={(o) => {
-              const c = fabricRef.current
-              if (!c) return
-              c.bringObjectForward(o)
-              c.requestRenderAll()
-              setLayerReloadKey((k) => k + 1)
-              scheduleSave()
-            }}
-            onBackward={(o) => {
-              const c = fabricRef.current
-              if (!c) return
-              c.sendObjectBackwards(o)
-              c.requestRenderAll()
-              setLayerReloadKey((k) => k + 1)
-              scheduleSave()
-            }}
-            onClose={() => setLayerPanelOffen(false)}
-          />
-          </MoodboardErrorBoundary>
-        )}
-
-        {/* Rechte Sidebar – nur wenn etwas selektiert ist */}
-        {!presentationMode && activeObj && (
-          <MoodboardErrorBoundary name="PropertiesPanel">
-            <PropertiesPanel
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              obj={activeObj as any}
-              objVersion={objVersion}
-              onSet={setObjProp}
-              onDuplicate={duplicateActive}
-              onDelete={deleteActive}
-              onForward={bringForward}
-              onBackward={sendBackwards}
-              onAlign={alignActive}
-              onDistribute={distributeActive}
-              onToggleLock={toggleLockActive}
-              onSetMarkierung={setMarkierung}
-            />
-          </MoodboardErrorBoundary>
-        )}
       </div>
 
       {/* Freigabe-Modal */}
