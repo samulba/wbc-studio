@@ -12,7 +12,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Calendar, AlertTriangle, FolderOpen, Search, X } from 'lucide-react'
+import { Plus, Calendar, AlertTriangle, FolderOpen, Search, X, Check } from 'lucide-react'
 import StickyPageHeader from '@/components/StickyPageHeader'
 import AufgabeAnlegenModal from '@/components/AufgabeAnlegenModal'
 import {
@@ -30,11 +30,12 @@ const SPALTEN: { id: AufgabeStatus; label: string; farbe: string }[] = [
   { id: 'erledigt',  label: 'Erledigt',  farbe: 'bg-emerald-50 text-emerald-700' },
 ]
 
-const PRIO_FARBE: Record<AufgabePrioritaet, string> = {
-  niedrig:  'bg-gray-300',
-  normal:   'bg-blue-400',
-  hoch:     'bg-amber-500',
-  dringend: 'bg-red-500',
+// Linker Akzent-Streifen pro Prio (border-left-color)
+const PRIO_BORDER: Record<AufgabePrioritaet, string> = {
+  niedrig:  'border-l-gray-200',
+  normal:   'border-l-blue-300',
+  hoch:     'border-l-amber-400',
+  dringend: 'border-l-red-500',
 }
 
 type Filter = 'alle' | 'mir' | 'heute' | 'woche' | 'ueberfaellig'
@@ -476,57 +477,117 @@ function Karte({ aufgabe, dragging, team }: {
   const heute = new Date().toISOString().slice(0, 10)
   const ueberfaellig = aufgabe.faellig_am && aufgabe.faellig_am < heute && aufgabe.status !== 'erledigt'
   const istAuto = aufgabe.quelle !== 'manuell' && aufgabe.quelle !== 'kunde_anfrage'
+  const istErledigt = aufgabe.status === 'erledigt'
   const checkErledigt = aufgabe.checklist.filter((c) => c.erledigt).length
   const checkGesamt   = aufgabe.checklist.length
+  const checkProzent  = checkGesamt > 0 ? Math.round((checkErledigt / checkGesamt) * 100) : 0
   const assignee = aufgabe.assignee_user_id
     ? team?.find((t) => t.user_id === aufgabe.assignee_user_id)
     : null
+  const hatFooter = !!aufgabe.faellig_am || checkGesamt > 0 || aufgabe.tags.length > 0
+                  || istAuto || aufgabe.assignee_kunde || !!assignee
+
   return (
     <div className={
-      'bg-white border border-gray-200 rounded-lg p-3 shadow-sm hover:shadow-md hover:border-wellbeing-green/40 cursor-grab active:cursor-grabbing transition-shadow ' +
-      (dragging ? 'shadow-lg' : '')
+      'bg-white border border-gray-200 rounded-xl shadow-sm border-l-[3px] ' +
+      'transition-all duration-150 hover:shadow-md hover:-translate-y-0.5 hover:border-wellbeing-green/40 ' +
+      'cursor-grab active:cursor-grabbing ' +
+      PRIO_BORDER[aufgabe.prioritaet] + ' ' +
+      (istErledigt ? 'opacity-70 ' : '') +
+      (dragging ? 'shadow-xl ring-2 ring-wellbeing-green/20 ' : '')
     }>
-      <div className="flex items-start gap-2">
-        <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${PRIO_FARBE[aufgabe.prioritaet]}`} aria-hidden />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 line-clamp-2">{aufgabe.titel}</p>
-          {(aufgabe.projekt || aufgabe.kunde) && (
-            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5 truncate">
-              {aufgabe.projekt && (<><FolderOpen size={11} />{aufgabe.projekt.name}</>)}
-              {aufgabe.projekt && aufgabe.kunde && <span>·</span>}
-              {aufgabe.kunde && <span className="truncate">{aufgabe.kunde.name}</span>}
-            </p>
-          )}
-          <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 flex-wrap">
-            {aufgabe.faellig_am && (
-              <span className={ueberfaellig ? 'inline-flex items-center gap-1 text-red-600 font-medium' : 'inline-flex items-center gap-1'}>
-                {ueberfaellig ? <AlertTriangle size={11} /> : <Calendar size={11} />}
-                {formatDateShort(aufgabe.faellig_am)}
-              </span>
-            )}
-            {checkGesamt > 0 && (
-              <span className="text-gray-400">{checkErledigt}/{checkGesamt}</span>
-            )}
-            {aufgabe.tags.length > 0 && (
-              <span className="text-gray-400 truncate">#{aufgabe.tags[0]}</span>
+      {/* Body */}
+      <div className="px-3 pt-3 pb-2.5">
+        {/* Top-Row: Prio-Punkt + Auto-Badge + Tags */}
+        {(aufgabe.tags.length > 0 || istAuto) && (
+          <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+            {aufgabe.tags.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-wellbeing-green/10 text-wellbeing-green-dark"
+              >#{tag}</span>
+            ))}
+            {aufgabe.tags.length > 3 && (
+              <span className="text-[10px] text-gray-400">+{aufgabe.tags.length - 3}</span>
             )}
             {istAuto && (
-              <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">auto</span>
+              <span
+                title={`Automatisch aus ${aufgabe.quelle}`}
+                className="ml-auto inline-flex items-center gap-0.5 text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded"
+              >⚡ auto</span>
             )}
-            <span className="ml-auto inline-flex items-center gap-1">
-              {aufgabe.assignee_kunde && (
-                <span
-                  title="An Kunde zugewiesen"
-                  className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-medium"
-                >K</span>
-              )}
-              {assignee && (
-                <MiniAvatar name={assignee.name} avatarUrl={assignee.avatarUrl} />
-              )}
-            </span>
           </div>
-        </div>
+        )}
+
+        {/* Titel */}
+        <p className={
+          'text-sm font-medium line-clamp-3 leading-snug ' +
+          (istErledigt ? 'line-through text-gray-500' : 'text-gray-900')
+        }>{aufgabe.titel}</p>
+
+        {/* Projekt/Kunde */}
+        {(aufgabe.projekt || aufgabe.kunde) && (
+          <div className="text-[11px] text-gray-500 mt-1.5 flex items-center gap-1.5 truncate">
+            {aufgabe.projekt && (
+              <span className="inline-flex items-center gap-1 truncate">
+                <FolderOpen size={10} className="shrink-0 text-gray-400" />
+                <span className="truncate">{aufgabe.projekt.name}</span>
+              </span>
+            )}
+            {aufgabe.projekt && aufgabe.kunde && <span className="text-gray-300">·</span>}
+            {aufgabe.kunde && <span className="truncate">{aufgabe.kunde.name}</span>}
+          </div>
+        )}
+
+        {/* Checklist-Progress */}
+        {checkGesamt > 0 && (
+          <div className="mt-2.5">
+            <div className="flex items-center justify-between text-[10px] text-gray-400 mb-1">
+              <span className="inline-flex items-center gap-1">
+                <Check size={10} /> {checkErledigt}/{checkGesamt}
+              </span>
+              <span className="tabular-nums">{checkProzent}%</span>
+            </div>
+            <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-wellbeing-green/60 transition-all"
+                style={{ width: `${checkProzent}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Footer mit Trennlinie */}
+      {hatFooter && (
+        <div className="px-3 py-2 border-t border-gray-100 flex items-center gap-2 text-[11px]">
+          {aufgabe.faellig_am ? (
+            <span className={
+              'inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-medium ' +
+              (ueberfaellig
+                ? 'bg-red-50 text-red-700'
+                : aufgabe.faellig_am === heute
+                  ? 'bg-amber-50 text-amber-700'
+                  : 'text-gray-500')
+            }>
+              {ueberfaellig ? <AlertTriangle size={10} /> : <Calendar size={10} />}
+              {formatDateShort(aufgabe.faellig_am)}
+            </span>
+          ) : <span className="text-gray-300 inline-flex items-center gap-1"><Calendar size={10} />—</span>}
+
+          <span className="ml-auto inline-flex items-center gap-1.5">
+            {aufgabe.assignee_kunde && (
+              <span
+                title="An Kunde zugewiesen"
+                className="w-5 h-5 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-[10px] font-medium"
+              >K</span>
+            )}
+            {assignee && (
+              <MiniAvatar name={assignee.name} avatarUrl={assignee.avatarUrl} />
+            )}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
