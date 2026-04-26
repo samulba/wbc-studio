@@ -5,6 +5,16 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-04-26
 
+### Moodboard Polish — Raum-Detail & rechtes Properties-Panel modernisiert
+- **Raum-Detailseite** zeigt jetzt **Grundriss + Moodboard nebeneinander** im linken Bereich (3/5), beide mit gleichem Card-Style — Header mit Icon + Status, Vorschau, „Öffnen →"-Button. Falls noch kein Moodboard existiert: gestrichelte Card als Empty-State (analog zum Grundriss-Empty-State).
+- **Properties-Panel** komplett neu gestaltet im Figma-Stil:
+  - **Slim-Slider** statt klobige Browser-Slider — schmaler Track (4 px) + weißer 14-px-Knopf mit Schatten + Hover-Scale, Wert-Anzeige inline rechts neben dem Label.
+  - **Kompakte Inline-Inputs** für Position/Größe (X / Y / W / H) — Label im Feld links integriert statt separate Reihe.
+  - **Markierungen als Emoji-Bar**: 5 große Emojis nebeneinander, Active-State mit weißem Ring + Scale, Label nur unten als Inline-Text.
+  - **Layer-Aktionen kompakt**: Lock-Toggle als Full-Width-Button + 4 Icon-Buttons (Vor/Zurück/Duplizieren/Löschen) als Strip statt Text-Buttons.
+  - Sektionen jetzt mit Trennlinien + einheitlichem Label-Stil (10 px UPPERCASE letterspacing).
+  - Aktive Markierung wird als kleines Eck-Badge im Panel-Header angezeigt.
+
 ### Moodboard UX-Fixes — Pan mit Maus & sichtbares Raster
 - **Pan auf leerem Canvas**: Linksklick + Drag auf einer leeren Stelle pannt jetzt das Board (wie in Miro / Figma / Apple Freeform). Space halten ist nicht mehr nötig — Cursor zeigt Hand-Symbol auf leerem Bereich, Move-Symbol über Objekten.
 - **Sichtbares Raster**: neuer Grid-Button in der Toolbar mit Dropdown — Aus / Klein (20 px) / Mittel (40 px) / Groß (80 px). Punktraster fliegt mit Pan + Zoom mit, blendet sich bei zu starkem Auszoomen automatisch aus (Moiré-Schutz).

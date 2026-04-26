@@ -19,7 +19,7 @@ import {
   AlignStartHorizontal, AlignCenterHorizontal, AlignEndHorizontal,
   AlignStartVertical, AlignCenterVertical, AlignEndVertical,
   Lock, Unlock, BoxSelect, Layers, MessageSquare, FileText, Presentation, Minimize2,
-  Clock, Grid3X3,
+  Clock, Grid3X3, ChevronUp, ChevronDown,
 } from 'lucide-react'
 import QRCode from 'react-qr-code'
 import {
@@ -2814,46 +2814,44 @@ function PropertiesPanel({
   // Bei Multi-Selektion zeigen wir ein anderes Panel: Align + Distribute
   if (isMulti) {
     return (
-      <aside className="w-64 shrink-0 bg-[#2d3e31] border-l border-[#445c49]/30 flex flex-col overflow-y-auto">
-        <div className="px-3 py-2 border-b border-[#445c49]/30 flex items-center justify-between">
-          <span className="text-xs text-white font-medium">{multiCount} Objekte</span>
-          <span className="text-[10px] text-[#94c1a4] uppercase">Mehrfach</span>
-        </div>
-        <div className="p-3 space-y-4">
-          <div>
-            <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Horizontal ausrichten</label>
-            <div className="grid grid-cols-3 gap-1.5">
-              <AlignBtn onClick={() => onAlign('left')}    title="Links"><AlignStartHorizontal className="w-3.5 h-3.5" /></AlignBtn>
-              <AlignBtn onClick={() => onAlign('centerH')} title="Mittig"><AlignCenterHorizontal className="w-3.5 h-3.5" /></AlignBtn>
-              <AlignBtn onClick={() => onAlign('right')}   title="Rechts"><AlignEndHorizontal className="w-3.5 h-3.5" /></AlignBtn>
+      <aside className="w-72 shrink-0 bg-[#0f1f13] border-l border-[#1f3a25] flex flex-col overflow-y-auto">
+        <PanelHeader
+          title={`${multiCount} Objekte`}
+          subtitle="Mehrfachauswahl"
+        />
+        <div className="p-4 space-y-5">
+          <PanelSection label="Horizontal">
+            <div className="grid grid-cols-3 gap-1">
+              <IconBtn onClick={() => onAlign('left')}    title="Links"><AlignStartHorizontal  className="w-4 h-4" /></IconBtn>
+              <IconBtn onClick={() => onAlign('centerH')} title="Mittig"><AlignCenterHorizontal className="w-4 h-4" /></IconBtn>
+              <IconBtn onClick={() => onAlign('right')}   title="Rechts"><AlignEndHorizontal    className="w-4 h-4" /></IconBtn>
             </div>
-          </div>
-          <div>
-            <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Vertikal ausrichten</label>
-            <div className="grid grid-cols-3 gap-1.5">
-              <AlignBtn onClick={() => onAlign('top')}     title="Oben"><AlignStartVertical className="w-3.5 h-3.5" /></AlignBtn>
-              <AlignBtn onClick={() => onAlign('centerV')} title="Mittig"><AlignCenterVertical className="w-3.5 h-3.5" /></AlignBtn>
-              <AlignBtn onClick={() => onAlign('bottom')}  title="Unten"><AlignEndVertical className="w-3.5 h-3.5" /></AlignBtn>
+          </PanelSection>
+          <PanelSection label="Vertikal">
+            <div className="grid grid-cols-3 gap-1">
+              <IconBtn onClick={() => onAlign('top')}     title="Oben"><AlignStartVertical  className="w-4 h-4" /></IconBtn>
+              <IconBtn onClick={() => onAlign('centerV')} title="Mittig"><AlignCenterVertical className="w-4 h-4" /></IconBtn>
+              <IconBtn onClick={() => onAlign('bottom')}  title="Unten"><AlignEndVertical    className="w-4 h-4" /></IconBtn>
             </div>
-          </div>
+          </PanelSection>
           {multiCount >= 3 && (
-            <div>
-              <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Gleichmäßig verteilen</label>
-              <div className="grid grid-cols-2 gap-1.5">
-                <AlignBtn onClick={() => onDistribute('h')} title="Horizontal verteilen">
-                  <AlignHorizontalDistributeCenter className="w-3.5 h-3.5" />
-                </AlignBtn>
-                <AlignBtn onClick={() => onDistribute('v')} title="Vertikal verteilen">
-                  <AlignVerticalDistributeCenter className="w-3.5 h-3.5" />
-                </AlignBtn>
+            <PanelSection label="Verteilen">
+              <div className="grid grid-cols-2 gap-1">
+                <IconBtn onClick={() => onDistribute('h')} title="Horizontal verteilen">
+                  <AlignHorizontalDistributeCenter className="w-4 h-4" />
+                </IconBtn>
+                <IconBtn onClick={() => onDistribute('v')} title="Vertikal verteilen">
+                  <AlignVerticalDistributeCenter className="w-4 h-4" />
+                </IconBtn>
               </div>
-            </div>
+            </PanelSection>
           )}
-          <div className="pt-3 border-t border-[#445c49]/30">
-            <PanelBtn onClick={onDuplicate}>Duplizieren</PanelBtn>
-            <div className="h-1.5" />
-            <PanelBtn onClick={onDelete} danger>Alle löschen</PanelBtn>
-          </div>
+          <PanelSection label="Aktionen" divider>
+            <div className="grid grid-cols-2 gap-1">
+              <IconBtn onClick={onDuplicate} title="Duplizieren"><Copy className="w-4 h-4" /></IconBtn>
+              <IconBtn onClick={onDelete} title="Alle löschen" danger><Trash2 className="w-4 h-4" /></IconBtn>
+            </div>
+          </PanelSection>
         </div>
       </aside>
     )
@@ -2865,65 +2863,71 @@ function PropertiesPanel({
   const height = Math.round((obj.height ?? 0) * (obj.scaleY ?? 1))
   const angle = Math.round(obj.angle ?? 0)
   const opacity = Math.round((obj.opacity ?? 1) * 100)
+  const fontSize = obj.fontSize ?? 24
+  const strokeWidth = obj.strokeWidth ?? 0
+  const aktiveMarkierung = obj.data?.markierung as string | undefined
+
+  // Schöner Object-Type-Label
+  const typeLabel = (() => {
+    if (isText) return 'Text'
+    if (isImage) return 'Bild'
+    if (obj.type === 'rect' || obj.type === 'Rect') return 'Rechteck'
+    if (obj.type === 'circle' || obj.type === 'Circle') return 'Kreis'
+    if (obj.type === 'group' || obj.type === 'Group') return 'Gruppe'
+    return obj.type
+  })()
 
   return (
-    <aside className="w-64 shrink-0 bg-[#2d3e31] border-l border-[#445c49]/30 flex flex-col overflow-y-auto">
-      <div className="px-3 py-2 border-b border-[#445c49]/30 flex items-center justify-between">
-        <span className="text-xs text-white font-medium">Eigenschaften</span>
-        <span className="text-[10px] text-[#94c1a4] uppercase">{obj.type}</span>
-      </div>
+    <aside className="w-72 shrink-0 bg-[#0f1f13] border-l border-[#1f3a25] flex flex-col overflow-y-auto">
+      <PanelHeader
+        title="Eigenschaften"
+        subtitle={typeLabel}
+        markierung={aktiveMarkierung}
+      />
 
-      <div className="p-3 space-y-4">
-        {/* Position + Größe */}
-        <div>
-          <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Position</label>
+      <div className="p-4 space-y-5">
+        {/* Position & Größe */}
+        <div className="space-y-2.5">
+          <PanelLabel>Position</PanelLabel>
           <div className="grid grid-cols-2 gap-2">
-            <NumInput label="X"      value={left}   onChange={(v) => onSet('left', v)} />
-            <NumInput label="Y"      value={top}    onChange={(v) => onSet('top', v)} />
+            <CompactInput label="X" value={left} onChange={(v) => onSet('left', v)} />
+            <CompactInput label="Y" value={top}  onChange={(v) => onSet('top', v)} />
           </div>
-        </div>
-
-        {!isImage && (
-          <div>
-            <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Größe</label>
+          {!isImage && (
             <div className="grid grid-cols-2 gap-2">
-              <NumInput label="B" value={width}  onChange={(v) => {
+              <CompactInput label="W" value={width}  onChange={(v) => {
                 if ((obj.width ?? 0) > 0) onSet('scaleX', v / obj.width)
               }} />
-              <NumInput label="H" value={height} onChange={(v) => {
+              <CompactInput label="H" value={height} onChange={(v) => {
                 if ((obj.height ?? 0) > 0) onSet('scaleY', v / obj.height)
               }} />
             </div>
-          </div>
-        )}
-
-        {/* Rotation + Deckkraft */}
-        <div>
-          <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Rotation</label>
-          <input
-            type="range" min={-180} max={180} value={angle}
-            onChange={(e) => onSet('angle', Number(e.target.value))}
-            className="w-full accent-[#94c1a4]"
-          />
-          <div className="text-[11px] text-[#c8dbc9] text-right">{angle}°</div>
+          )}
         </div>
 
-        <div>
-          <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Deckkraft</label>
-          <input
-            type="range" min={0} max={100} value={opacity}
-            onChange={(e) => onSet('opacity', Number(e.target.value) / 100)}
-            className="w-full accent-[#94c1a4]"
+        {/* Rotation + Deckkraft als Slim-Slider */}
+        <div className="space-y-3">
+          <SlimSlider
+            label="Rotation"
+            min={-180}
+            max={180}
+            value={angle}
+            unit="°"
+            onChange={(v) => onSet('angle', v)}
           />
-          <div className="text-[11px] text-[#c8dbc9] text-right">{opacity}%</div>
+          <SlimSlider
+            label="Deckkraft"
+            min={0}
+            max={100}
+            value={opacity}
+            unit="%"
+            onChange={(v) => onSet('opacity', v / 100)}
+          />
         </div>
 
         {/* Farbe (Shape oder Text) */}
         {(isShape || isText) && (
-          <div>
-            <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">
-              {isText ? 'Textfarbe' : 'Füllung'}
-            </label>
+          <PanelSection label={isText ? 'Textfarbe' : 'Füllung'} divider>
             <div className="grid grid-cols-6 gap-1.5 mb-2">
               {PROP_SWATCHES.map((hex) => (
                 <button
@@ -2931,74 +2935,70 @@ function PropertiesPanel({
                   type="button"
                   onClick={() => onSet('fill', hex)}
                   title={hex}
-                  className="aspect-square rounded border border-black/10 hover:scale-110 transition-transform"
+                  className={`aspect-square rounded-md border border-white/10 transition-all hover:scale-110 ${
+                    obj.fill === hex ? 'ring-2 ring-white' : ''
+                  }`}
                   style={{ backgroundColor: hex }}
                 />
               ))}
             </div>
-            <input
-              type="color"
+            <ColorPickerRow
               value={typeof obj.fill === 'string' ? obj.fill : '#000000'}
-              onChange={(e) => onSet('fill', e.target.value)}
-              className="w-full h-8 rounded border-0 bg-transparent cursor-pointer"
+              onChange={(v) => onSet('fill', v)}
             />
-          </div>
+          </PanelSection>
         )}
 
         {/* Text-spezifisch */}
         {isText && (
-          <>
-            <div>
-              <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Schriftgröße</label>
-              <input
-                type="range" min={10} max={96} value={obj.fontSize ?? 24}
-                onChange={(e) => onSet('fontSize', Number(e.target.value))}
-                className="w-full accent-[#94c1a4]"
-              />
-              <div className="text-[11px] text-[#c8dbc9] text-right">{obj.fontSize ?? 24} px</div>
+          <PanelSection label="Typografie" divider>
+            <SlimSlider
+              label="Größe"
+              min={10}
+              max={96}
+              value={fontSize}
+              unit="px"
+              onChange={(v) => onSet('fontSize', v)}
+            />
+            <div className="flex gap-1 mt-2.5">
+              <ToggleBtn active={obj.fontWeight === 'bold'} onClick={() =>
+                onSet('fontWeight', obj.fontWeight === 'bold' ? 'normal' : 'bold')
+              } title="Fett">
+                <strong className="text-sm">B</strong>
+              </ToggleBtn>
+              <ToggleBtn active={obj.fontStyle === 'italic'} onClick={() =>
+                onSet('fontStyle', obj.fontStyle === 'italic' ? 'normal' : 'italic')
+              } title="Kursiv">
+                <em className="text-sm">I</em>
+              </ToggleBtn>
+              <ToggleBtn active={obj.underline === true} onClick={() =>
+                onSet('underline', !obj.underline)
+              } title="Unterstrichen">
+                <u className="text-sm">U</u>
+              </ToggleBtn>
             </div>
-            <div>
-              <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Stil</label>
-              <div className="flex gap-1">
-                <StyleBtn active={obj.fontWeight === 'bold'} onClick={() =>
-                  onSet('fontWeight', obj.fontWeight === 'bold' ? 'normal' : 'bold')
-                }>
-                  <strong>B</strong>
-                </StyleBtn>
-                <StyleBtn active={obj.fontStyle === 'italic'} onClick={() =>
-                  onSet('fontStyle', obj.fontStyle === 'italic' ? 'normal' : 'italic')
-                }>
-                  <em>I</em>
-                </StyleBtn>
-                <StyleBtn active={obj.underline === true} onClick={() =>
-                  onSet('underline', !obj.underline)
-                }>
-                  <u>U</u>
-                </StyleBtn>
-              </div>
-            </div>
-          </>
+          </PanelSection>
         )}
 
         {/* Shape: Kontur */}
         {isShape && (
-          <div>
-            <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Konturbreite</label>
-            <input
-              type="range" min={0} max={12} value={obj.strokeWidth ?? 0}
-              onChange={(e) => onSet('strokeWidth', Number(e.target.value))}
-              className="w-full accent-[#94c1a4]"
+          <PanelSection label="Kontur" divider>
+            <SlimSlider
+              label="Stärke"
+              min={0}
+              max={12}
+              value={strokeWidth}
+              unit="px"
+              onChange={(v) => onSet('strokeWidth', v)}
             />
-            <div className="text-[11px] text-[#c8dbc9] text-right">{obj.strokeWidth ?? 0} px</div>
-          </div>
+          </PanelSection>
         )}
 
-        {/* Markierung (Voting) */}
-        <div className="pt-3 border-t border-[#445c49]/30">
-          <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Markierung</label>
-          <div className="grid grid-cols-5 gap-1">
+        {/* Markierung (Voting) als Emoji-Bar */}
+        <PanelSection label="Markierung" divider>
+          <div className="flex gap-1">
             {MARKIERUNGEN.map((m) => {
-              const aktiv = obj.data?.markierung === m.id
+              const aktiv = aktiveMarkierung === m.id
               return (
                 <button
                   key={m.id}
@@ -3006,71 +3006,133 @@ function PropertiesPanel({
                   onClick={() => onSetMarkierung(aktiv ? null : m.id)}
                   title={m.label}
                   className={`
-                    flex flex-col items-center justify-center py-1.5 rounded transition-colors
+                    flex-1 aspect-square rounded-md text-lg flex items-center justify-center transition-all
                     ${aktiv
-                      ? 'ring-2 ring-white bg-white/10 text-white'
-                      : 'bg-[#1a2e1e] hover:bg-[#3a5240]'}
+                      ? 'bg-white/10 ring-2 ring-white scale-105'
+                      : 'bg-black/20 hover:bg-white/5 hover:scale-105'}
                   `}
                 >
-                  <span className="text-base leading-none">{m.emoji}</span>
-                  <span className="text-[9px] mt-0.5 text-[#94c1a4]">{m.label}</span>
+                  {m.emoji}
                 </button>
               )
             })}
           </div>
-          {obj.data?.markierung && (
-            <button
-              type="button"
-              onClick={() => onSetMarkierung(null)}
-              className="text-[10px] text-[#94c1a4] hover:text-white mt-1.5 underline"
-            >
-              Markierung entfernen
-            </button>
+          {aktiveMarkierung && (
+            <p className="text-[10px] text-[#94c1a4] mt-2 text-center">
+              {MARKIERUNGEN.find((m) => m.id === aktiveMarkierung)?.label}
+              {' · '}
+              <button
+                type="button"
+                onClick={() => onSetMarkierung(null)}
+                className="hover:text-white underline underline-offset-2"
+              >
+                entfernen
+              </button>
+            </p>
           )}
-        </div>
+        </PanelSection>
 
-        {/* Layer + Aktionen */}
-        <div className="pt-3 border-t border-[#445c49]/30">
-          {/* Lock-Toggle */}
+        {/* Layer + Aktionen — kompakter Icon-Strip */}
+        <PanelSection label="Aktionen" divider>
+          {/* Lock-Toggle (full-width, breiter Akzent) */}
           <button
             type="button"
             onClick={onToggleLock}
             className={`
-              w-full flex items-center justify-center gap-1.5 px-2 py-2 mb-1.5 text-[11px] rounded transition-colors
+              w-full flex items-center justify-center gap-1.5 px-2 py-2 text-[11px] font-medium rounded-md transition-colors mb-2
               ${obj.lockMovementX
-                ? 'bg-amber-900/40 text-amber-200 hover:bg-amber-900/60'
-                : 'bg-[#1a2e1e] text-[#c8dbc9] hover:bg-[#3a5240]'}
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30'
+                : 'bg-black/20 text-[#c8dbc9] border border-transparent hover:bg-white/5'}
             `}
           >
-            {obj.lockMovementX ? (
-              <><Lock className="w-3.5 h-3.5" /> Gesperrt — Klick zum Entsperren</>
-            ) : (
-              <><Unlock className="w-3.5 h-3.5" /> Sperren</>
-            )}
+            {obj.lockMovementX ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+            {obj.lockMovementX ? 'Entsperren' : 'Sperren'}
           </button>
-          <div className="grid grid-cols-2 gap-1.5 mb-1.5">
-            <PanelBtn onClick={onForward}>Eine Ebene vor</PanelBtn>
-            <PanelBtn onClick={onBackward}>Eine Ebene zurück</PanelBtn>
+          {/* Icon-Strip: Layer + Aktionen */}
+          <div className="grid grid-cols-4 gap-1">
+            <IconBtn onClick={onForward}   title="Eine Ebene vor"><ChevronUp     className="w-4 h-4" /></IconBtn>
+            <IconBtn onClick={onBackward}  title="Eine Ebene zurück"><ChevronDown className="w-4 h-4" /></IconBtn>
+            <IconBtn onClick={onDuplicate} title="Duplizieren"><Copy className="w-4 h-4" /></IconBtn>
+            <IconBtn onClick={onDelete}    title="Löschen" danger><Trash2 className="w-4 h-4" /></IconBtn>
           </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            <PanelBtn onClick={onDuplicate}>Duplizieren</PanelBtn>
-            <PanelBtn onClick={onDelete} danger>Löschen</PanelBtn>
-          </div>
-        </div>
+        </PanelSection>
 
         {/* Produkt-Info wenn verknuepft */}
         {obj.data?.produkt_name && (
-          <div className="pt-3 border-t border-[#445c49]/30">
-            <label className="block text-[10px] text-[#94c1a4] uppercase tracking-wide mb-1.5">Verknüpftes Produkt</label>
-            <div className="text-xs text-white">{obj.data.produkt_name}</div>
-          </div>
+          <PanelSection label="Verknüpftes Produkt" divider>
+            <div className="bg-black/20 border border-[#1f3a25] rounded-md px-2.5 py-2 flex items-center gap-2">
+              <Package className="w-3.5 h-3.5 text-[#94c1a4] shrink-0" />
+              <span className="text-xs text-white truncate">{obj.data.produkt_name}</span>
+            </div>
+          </PanelSection>
         )}
       </div>
     </aside>
   )
 }
 
-function NumInput({
+// ── Properties-Panel: moderne Helper-Komponenten ─────────────────
+
+const MARKIERUNG_EMOJI: Record<string, string> = {
+  favorit: '⭐', gefaellt: '👍', passt_nicht: '👎', final: '✅', unsicher: '❓',
+}
+
+function PanelHeader({
+  title, subtitle, markierung,
+}: {
+  title:    string
+  subtitle?: string
+  markierung?: string
+}) {
+  return (
+    <div className="px-4 pt-4 pb-3 border-b border-[#1f3a25]">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase tracking-[0.18em] text-[#94c1a4]/70 font-semibold">
+            {title}
+          </div>
+          {subtitle && (
+            <div className="text-sm text-white font-medium mt-0.5 truncate">{subtitle}</div>
+          )}
+        </div>
+        {markierung && (
+          <div
+            className="w-7 h-7 rounded-full bg-white/10 ring-2 ring-white/20 flex items-center justify-center text-base shrink-0"
+            title="Markierung gesetzt"
+          >
+            {MARKIERUNG_EMOJI[markierung] ?? '•'}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PanelLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="text-[10px] uppercase tracking-[0.15em] text-[#94c1a4]/70 font-semibold">
+      {children}
+    </div>
+  )
+}
+
+function PanelSection({
+  label, children, divider,
+}: {
+  label: string
+  children: React.ReactNode
+  divider?: boolean
+}) {
+  return (
+    <div className={divider ? 'pt-4 border-t border-white/[0.06]' : ''}>
+      <PanelLabel>{label}</PanelLabel>
+      <div className="mt-2.5">{children}</div>
+    </div>
+  )
+}
+
+/** Kompakter Number-Input für Position/Größe — Label inline links, weniger Whitespace */
+function CompactInput({
   label, value, onChange,
 }: {
   label: string
@@ -3078,8 +3140,8 @@ function NumInput({
   onChange: (v: number) => void
 }) {
   return (
-    <div>
-      <div className="text-[10px] text-[#94c1a4] mb-0.5">{label}</div>
+    <div className="flex items-center bg-black/30 border border-[#1f3a25] rounded-md focus-within:border-wellbeing-green-light focus-within:ring-1 focus-within:ring-wellbeing-green-light/30 transition-colors">
+      <span className="text-[10px] text-[#94c1a4]/70 font-semibold pl-2 pr-1.5 select-none">{label}</span>
       <input
         type="number"
         value={value}
@@ -3087,38 +3149,72 @@ function NumInput({
           const n = Number(e.target.value)
           if (!Number.isNaN(n)) onChange(n)
         }}
-        className="w-full px-2 py-1 text-xs bg-[#1a2e1e] border border-[#445c49]/40 rounded text-[#c8dbc9] focus:outline-none focus:border-[#94c1a4]"
+        className="w-full bg-transparent py-1.5 pr-2 text-xs text-white focus:outline-none tabular-nums"
       />
     </div>
   )
 }
 
-function StyleBtn({
-  children, onClick, active,
+/** Schlanker Slider mit Track + Wert inline rechts (Figma/Linear-Stil) */
+function SlimSlider({
+  label, min, max, value, unit, onChange,
+}: {
+  label:  string
+  min:    number
+  max:    number
+  value:  number
+  unit?:  string
+  onChange: (v: number) => void
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <PanelLabel>{label}</PanelLabel>
+        <span className="text-[11px] text-white tabular-nums">
+          {value}{unit ?? ''}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="moodboard-slider w-full"
+      />
+    </div>
+  )
+}
+
+/** Color-Picker mit aktueller Farbe + HEX-Anzeige (kompakt) */
+function ColorPickerRow({
+  value, onChange,
+}: {
+  value:  string
+  onChange: (v: string) => void
+}) {
+  return (
+    <label className="flex items-center gap-2 bg-black/30 border border-[#1f3a25] rounded-md px-2 py-1.5 cursor-pointer hover:border-wellbeing-green-light transition-colors">
+      <input
+        type="color"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-5 h-5 rounded border-0 cursor-pointer bg-transparent appearance-none"
+        style={{ padding: 0 }}
+      />
+      <span className="text-[11px] text-white tabular-nums uppercase">{value}</span>
+      <span className="text-[10px] text-[#94c1a4]/60 ml-auto">Eigene Farbe</span>
+    </label>
+  )
+}
+
+/** Modern Toggle-Button (B/I/U) */
+function ToggleBtn({
+  children, onClick, active, title,
 }: {
   children: React.ReactNode
   onClick?: () => void
   active?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`
-        w-9 h-9 rounded text-sm transition-colors
-        ${active ? 'bg-[#445c49] text-white' : 'bg-[#1a2e1e] text-[#c8dbc9] hover:bg-[#3a5240]'}
-      `}
-    >
-      {children}
-    </button>
-  )
-}
-
-function AlignBtn({
-  children, onClick, title,
-}: {
-  children: React.ReactNode
-  onClick?: () => void
   title?: string
 }) {
   return (
@@ -3126,29 +3222,37 @@ function AlignBtn({
       type="button"
       onClick={onClick}
       title={title}
-      className="flex items-center justify-center h-8 rounded bg-[#1a2e1e] text-[#c8dbc9] hover:bg-[#3a5240] hover:text-white transition-colors"
+      className={`
+        flex-1 h-9 rounded-md flex items-center justify-center transition-all
+        ${active
+          ? 'bg-white text-[#0f1f13] shadow-sm'
+          : 'bg-black/20 text-[#c8dbc9] hover:bg-white/5 hover:text-white'}
+      `}
     >
       {children}
     </button>
   )
 }
 
-function PanelBtn({
-  children, onClick, danger,
+/** Kompakter Icon-Button (für Layer-Strip + Align/Distribute) */
+function IconBtn({
+  children, onClick, title, danger,
 }: {
   children: React.ReactNode
   onClick?: () => void
+  title?: string
   danger?: boolean
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      title={title}
       className={`
-        px-2 py-1.5 text-[11px] rounded transition-colors
+        flex items-center justify-center h-9 rounded-md transition-colors
         ${danger
-          ? 'bg-red-900/30 text-red-300 hover:bg-red-900/50'
-          : 'bg-[#1a2e1e] text-[#c8dbc9] hover:bg-[#3a5240]'}
+          ? 'bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200'
+          : 'bg-black/20 text-[#c8dbc9] hover:bg-white/5 hover:text-white'}
       `}
     >
       {children}
