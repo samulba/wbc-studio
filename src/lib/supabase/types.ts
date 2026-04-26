@@ -461,6 +461,13 @@ export interface RaumProdukt {
   lieferung_erhalten_am: string | null
   freigabe_status: ProduktStatus
   freigabe_kommentar: string | null
+  // Migration 100 — Lifecycle-Datums-Felder
+  storniert_am?: string | null
+  mangel_gemeldet_am?: string | null
+  retoure_am?: string | null
+  // Migration 101 — Gewaehrleistungs-Tracking (auto-berechnet bei Lieferung)
+  gewaehrleistung_bis?: string | null
+  gewaehrleistung_monate?: number
   created_at: string
 }
 
@@ -1060,6 +1067,8 @@ export interface Kommunikation {
   kunde_id: string
   projekt_id: string | null
   raum_id?: string | null
+  // Migration 101: optionaler Bezug auf ein konkretes raum_produkt
+  raum_produkte_id?: string | null
   typ: KommunikationTyp
   richtung: KommunikationRichtung | null
   betreff: string | null
