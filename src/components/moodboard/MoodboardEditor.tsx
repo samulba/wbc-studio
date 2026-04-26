@@ -13,9 +13,15 @@ import Link from 'next/link'
 import {
   ArrowLeft, MousePointer2, Type as TypeIcon, Square, Circle as CircleIcon,
   Image as ImageIcon, Trash2, Undo2, Redo2, Save, Maximize2,
-  Search, Package, Palette, Upload,
+  Search, Package, Palette, Upload, History, Download, X, Plus,
+  RotateCcw,
 } from 'lucide-react'
-import { moodboardSpeichern, moodboardBildHochladen } from '@/app/actions/moodboard'
+import {
+  moodboardSpeichern, moodboardBildHochladen,
+  moodboardVersionSpeichern, getMoodboardVersionen,
+  moodboardVersionLoeschen, moodboardVersionWiederherstellen,
+} from '@/app/actions/moodboard'
+import type { MoodboardVersion } from '@/lib/supabase/types'
 
 interface Props {
   moodboardId: string
@@ -85,6 +91,15 @@ export default function MoodboardEditor({
   const [activeObj, setActiveObj] = useState<any>(null)
   const [objVersion, setObjVersion] = useState(0)
   const bumpObjVersion = useCallback(() => setObjVersion((v) => v + 1), [])
+
+  // Versionen-Modal
+  const [versionenOffen, setVersionenOffen] = useState(false)
+  const [versionen, setVersionen] = useState<MoodboardVersion[]>([])
+  const [versionenLaden, setVersionenLaden] = useState(false)
+  const [neueVersionName, setNeueVersionName] = useState('')
+  const [neueVersionBeschr, setNeueVersionBeschr] = useState('')
+  const [versionSaving, setVersionSaving] = useState(false)
+  const [versionFehler, setVersionFehler] = useState<string | null>(null)
 
   // Linke Sidebar: aktiver Tab + Suche
   const [sidebarTab, setSidebarTab] = useState<'produkte' | 'farben' | 'upload'>('produkte')
@@ -519,6 +534,120 @@ export default function MoodboardEditor({
     setZoom(1)
   }
 
+  // ── Versionen ──────────────────────────────────────────────────
+  async function ladeVersionen() {
+    setVersionenLaden(true)
+    const v = await getMoodboardVersionen(moodboardId)
+    setVersionen(v)
+    setVersionenLaden(false)
+  }
+
+  function oeffneVersionenModal() {
+    setVersionenOffen(true)
+    setVersionFehler(null)
+    setNeueVersionName('')
+    setNeueVersionBeschr('')
+    ladeVersionen()
+  }
+
+  async function speichereNeueVersion() {
+    if (!neueVersionName.trim()) {
+      setVersionFehler('Name ist erforderlich.')
+      return
+    }
+    setVersionSaving(true); setVersionFehler(null)
+
+    // Erst aktuellen Stand committen, damit die Version den neuesten State enthaelt
+    const canvas = fabricRef.current
+    if (canvas) {
+      const json = (canvas as unknown as { toJSON: (props?: string[]) => Record<string, unknown> }).toJSON(['data'])
+      await moodboardSpeichern(moodboardId, json)
+    }
+
+    const r = await moodboardVersionSpeichern(moodboardId, neueVersionName.trim(), neueVersionBeschr.trim() || null)
+    setVersionSaving(false)
+    if (r.fehler) { setVersionFehler(r.fehler); return }
+    setNeueVersionName(''); setNeueVersionBeschr('')
+    ladeVersionen()
+  }
+
+  async function loescheVersion(versionId: string) {
+    if (!confirm('Diese Version wirklich löschen? Dieser Vorgang kann nicht rückgängig gemacht werden.')) return
+    const r = await moodboardVersionLoeschen(versionId)
+    if (r.fehler) { alert(r.fehler); return }
+    ladeVersionen()
+  }
+
+  async function stelleVersionWiederHer(versionId: string) {
+    if (!confirm('Den aktuellen Stand mit dieser Version überschreiben?')) return
+    const r = await moodboardVersionWiederherstellen(moodboardId, versionId)
+    if (r.fehler) { alert(r.fehler); return }
+    // Canvas neu laden
+    const canvas = fabricRef.current
+    if (!canvas) { setVersionenOffen(false); return }
+    const ver = versionen.find((v) => v.id === versionId)
+    if (ver?.canvas_json) {
+      skipHistoryRef.current = true
+      canvas.loadFromJSON(ver.canvas_json, () => {
+        canvas.requestRenderAll()
+        skipHistoryRef.current = false
+        undoStackRef.current.push(JSON.stringify((canvas as unknown as { toJSON: (props?: string[]) => Record<string, unknown> }).toJSON(['data'])))
+      })
+    }
+    setVersionenOffen(false)
+  }
+
+  // ── PNG-Export ────────────────────────────────────────────────
+  function exportPng() {
+    const canvas = fabricRef.current
+    if (!canvas) return
+
+    // Bounding-Box aller Objekte ermitteln
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const objs = canvas.getObjects() as any[]
+    if (objs.length === 0) {
+      alert('Das Board ist leer.')
+      return
+    }
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
+    objs.forEach((o) => {
+      const r = o.getBoundingRect()
+      minX = Math.min(minX, r.left)
+      minY = Math.min(minY, r.top)
+      maxX = Math.max(maxX, r.left + r.width)
+      maxY = Math.max(maxY, r.top + r.height)
+    })
+
+    const PAD = 40
+    const w = maxX - minX + 2 * PAD
+    const h = maxY - minY + 2 * PAD
+
+    // Aktuellen Viewport sichern
+    const oldVp = canvas.viewportTransform.slice()
+    const oldZoom = canvas.getZoom()
+    canvas.setViewportTransform([1, 0, 0, 1, -minX + PAD, -minY + PAD])
+
+    const dataUrl = canvas.toDataURL({
+      format: 'png',
+      multiplier: 2,
+      left: 0, top: 0, width: w, height: h,
+    })
+
+    // Viewport wiederherstellen
+    canvas.setViewportTransform(oldVp)
+    canvas.setZoom(oldZoom)
+    canvas.requestRenderAll()
+
+    // Download
+    const a = document.createElement('a')
+    a.href = dataUrl
+    a.download = `moodboard-${raumName.replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.png`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
   async function handleManualSave() {
     const canvas = fabricRef.current; if (!canvas) return
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
@@ -605,6 +734,12 @@ export default function MoodboardEditor({
         <div className="w-px h-6 bg-[#445c49]/40 mx-1" />
         <ToolBtn onClick={handleManualSave} title="Speichern (Ctrl+S)">
           <Save className="w-4 h-4" />
+        </ToolBtn>
+        <ToolBtn onClick={oeffneVersionenModal} title="Versionen">
+          <History className="w-4 h-4" />
+        </ToolBtn>
+        <ToolBtn onClick={exportPng} title="Als PNG exportieren">
+          <Download className="w-4 h-4" />
         </ToolBtn>
 
         {/* Rechts: Zoom */}
@@ -769,6 +904,125 @@ export default function MoodboardEditor({
           />
         )}
       </div>
+
+      {/* Versionen-Modal */}
+      {versionenOffen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => setVersionenOffen(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col text-gray-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="px-5 py-3.5 border-b border-gray-200 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-wellbeing-green" />
+                <h2 className="text-base font-medium">Versionen</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setVersionenOffen(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+                aria-label="Schließen"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-5">
+              {/* Neue Version anlegen */}
+              <div className="mb-5 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-3">
+                  <Plus className="w-4 h-4 text-wellbeing-green" />
+                  <h3 className="text-sm font-medium">Neue Version speichern</h3>
+                </div>
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={neueVersionName}
+                    onChange={(e) => setNeueVersionName(e.target.value)}
+                    placeholder={'Versionsname (z. B. „Entwurf 1")'}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-wellbeing-green"
+                  />
+                  <textarea
+                    value={neueVersionBeschr}
+                    onChange={(e) => setNeueVersionBeschr(e.target.value)}
+                    placeholder="Optionale Beschreibung"
+                    rows={2}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:border-wellbeing-green resize-none"
+                  />
+                  {versionFehler && (
+                    <p className="text-xs text-red-600">{versionFehler}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={speichereNeueVersion}
+                    disabled={versionSaving || !neueVersionName.trim()}
+                    className="px-3 py-1.5 bg-wellbeing-green hover:bg-wellbeing-green-dark text-white text-xs font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {versionSaving ? 'Speichere…' : 'Version speichern'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Liste */}
+              <div>
+                <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                  Gespeicherte Versionen
+                  {versionen.length > 0 && <span className="ml-1 text-gray-400">({versionen.length})</span>}
+                </h3>
+                {versionenLaden ? (
+                  <p className="text-sm text-gray-500 py-4 text-center">Lade…</p>
+                ) : versionen.length === 0 ? (
+                  <p className="text-sm text-gray-500 py-6 text-center">
+                    Noch keine Versionen gespeichert.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {versionen.map((v) => (
+                      <div
+                        key={v.id}
+                        className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-wellbeing-green/40 transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-gray-800 truncate">{v.name}</div>
+                          {v.beschreibung && (
+                            <div className="text-xs text-gray-500 mt-0.5">{v.beschreibung}</div>
+                          )}
+                          <div className="text-[11px] text-gray-400 mt-1">
+                            {new Date(v.created_at).toLocaleString('de-DE')}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => stelleVersionWiederHer(v.id)}
+                            title="Wiederherstellen"
+                            className="p-1.5 text-wellbeing-green hover:bg-wellbeing-green/10 rounded"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => loescheVersion(v.id)}
+                            title="Löschen"
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
