@@ -149,6 +149,8 @@ export interface AufgabenFilter {
   tag?:           string
   suche?:         string
   nurKundenSichtbar?: boolean
+  /** true = NUR archivierte; false/undefined = NUR aktive */
+  archiviert?:    boolean
 }
 
 /** Alle Aufgaben einer Org mit optionalen Filtern. */
@@ -176,6 +178,12 @@ export async function getAufgaben(filter: AufgabenFilter = {}): Promise<AufgabeM
   if (filter.tag)       q = q.contains('tags', [filter.tag])
   if (filter.nurKundenSichtbar) {
     q = q.or('assignee_kunde.eq.true,sichtbar_fuer_kunde.eq.true')
+  }
+  // Archiv-Filter: standardmaessig nur aktive Aufgaben (archiviert_am IS NULL)
+  if (filter.archiviert === true) {
+    q = q.not('archiviert_am', 'is', null)
+  } else {
+    q = q.is('archiviert_am', null)
   }
 
   if (filter.assignee === 'mir' && user) q = q.eq('assignee_user_id', user.id)
@@ -232,9 +240,50 @@ export async function getAufgabenUeberfaelligCount(): Promise<number> {
     .from('aufgaben')
     .select('id', { count: 'exact', head: true })
     .eq('organisation_id', orgId)
+    .is('archiviert_am', null)
     .neq('status', 'erledigt')
     .lt('faellig_am', heute)
   return count ?? 0
+}
+
+// ── Archivieren ──────────────────────────────────────────────
+
+export async function aufgabeArchivieren(id: string): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error } = await supabase
+    .from('aufgaben')
+    .update({ archiviert_am: new Date().toISOString() })
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Konnte Aufgabe nicht archivieren.' }
+  await auditLog({
+    aktion:        'aufgabe_aktualisiert',
+    entitaet_typ:  'aufgabe',
+    entitaet_id:   id,
+    details:       { archiviert: true },
+  })
+  revalidatePath('/dashboard/aufgaben')
+  return { erfolg: true }
+}
+
+export async function aufgabeWiederherstellen(id: string): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error } = await supabase
+    .from('aufgaben')
+    .update({ archiviert_am: null })
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Konnte Aufgabe nicht wiederherstellen.' }
+  await auditLog({
+    aktion:        'aufgabe_aktualisiert',
+    entitaet_typ:  'aufgabe',
+    entitaet_id:   id,
+    details:       { wiederhergestellt: true },
+  })
+  revalidatePath('/dashboard/aufgaben')
+  return { erfolg: true }
 }
 
 // ── Anlegen / Aktualisieren ──────────────────────────────────

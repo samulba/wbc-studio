@@ -1283,6 +1283,8 @@ export interface Aufgabe {
   anhang_urls:         AufgabeAnhang[]
   erstellt_von:        string | null
   erstellt_von_kunde:  boolean
+  /** Migration 104 — null = aktiv, Datum = archiviert */
+  archiviert_am:       string | null
   created_at:          string
   updated_at:          string
 }

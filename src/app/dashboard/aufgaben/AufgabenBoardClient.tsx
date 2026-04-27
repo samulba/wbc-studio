@@ -12,7 +12,8 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Calendar, AlertTriangle, FolderOpen, Search, X, Check } from 'lucide-react'
+import Link from 'next/link'
+import { Plus, Calendar, AlertTriangle, FolderOpen, Search, X, Check, Archive, ArchiveRestore } from 'lucide-react'
 import StickyPageHeader from '@/components/StickyPageHeader'
 import AufgabeAnlegenModal from '@/components/AufgabeAnlegenModal'
 import {
@@ -43,9 +44,11 @@ type Filter = 'alle' | 'mir' | 'heute' | 'woche' | 'ueberfaellig'
 export default function AufgabenBoardClient({
   initialeAufgaben,
   pickerOptionen,
+  zeigeArchiv = false,
 }: {
   initialeAufgaben: AufgabeMitDetails[]
   pickerOptionen?: AufgabePickerOptionen
+  zeigeArchiv?: boolean
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -200,6 +203,7 @@ export default function AufgabenBoardClient({
       faellig_am: null, erledigt_am: null,
       assignee_user_id: null, assignee_kunde: false,
       sichtbar_fuer_kunde: false, tags: [], label_ids: [],
+      archiviert_am: null,
       kunde_id: null, projekt_id: null, raum_id: null,
       raum_produkte_id: null, bestellung_id: null,
       quelle: 'manuell', quelle_id: null,
@@ -222,19 +226,30 @@ export default function AufgabenBoardClient({
   return (
     <>
       <StickyPageHeader
-        title="Aufgaben"
+        title={zeigeArchiv ? 'Aufgaben — Archiv' : 'Aufgaben'}
         count={aufgaben.length}
         countLabel={aufgaben.length === 1 ? 'Aufgabe' : 'Aufgaben'}
-        subtitle="Alle Aufgaben deiner Organisation auf einem Brett"
+        subtitle={zeigeArchiv
+          ? 'Archivierte Aufgaben — über das Detail wiederherstellen'
+          : 'Alle Aufgaben deiner Organisation auf einem Brett'}
         action={
-          pickerOptionen ? (
-            <button
-              onClick={() => setAnlegenStatus('backlog')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-wellbeing-green text-white rounded-lg hover:bg-wellbeing-green-dark"
+          <div className="flex items-center gap-2">
+            <Link
+              href={zeigeArchiv ? '/dashboard/aufgaben' : '/dashboard/aufgaben?archiviert=1'}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+              title={zeigeArchiv ? 'Zurück zum aktiven Board' : 'Archivierte Aufgaben anzeigen'}
             >
-              <Plus size={16} /> Neue Aufgabe
-            </button>
-          ) : null
+              {zeigeArchiv ? <><ArchiveRestore size={14} /> Aktiv</> : <><Archive size={14} /> Archiv</>}
+            </Link>
+            {pickerOptionen && !zeigeArchiv && (
+              <button
+                onClick={() => setAnlegenStatus('backlog')}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-wellbeing-green text-white rounded-lg hover:bg-wellbeing-green-dark"
+              >
+                <Plus size={16} /> Neue Aufgabe
+              </button>
+            )}
+          </div>
         }
       />
       <div className="px-6 py-6 space-y-4">

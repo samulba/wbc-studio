@@ -6,7 +6,7 @@ import { useModal } from '@/lib/hooks/useModal'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import {
   X, Calendar, Trash2, Plus, Check, Square, Paperclip, MessageCircle, Pencil,
-  ChevronDown, AlertCircle, Loader2,
+  ChevronDown, AlertCircle, Loader2, Archive, ArchiveRestore,
 } from 'lucide-react'
 import {
   aufgabeAktualisieren, aufgabeLoeschen, aufgabeChecklistAktualisieren,
@@ -14,6 +14,7 @@ import {
   aufgabenKommentareAbrufen, aufgabenKommentarAnlegen,
   aufgabenKommentarAktualisieren, aufgabenKommentarLoeschen,
   aufgabeLabelsSetzen,
+  aufgabeArchivieren, aufgabeWiederherstellen,
   type AufgabePickerOptionen,
 } from '@/app/actions/aufgaben'
 import AufgabeVerknuepfungenPicker from '@/components/AufgabeVerknuepfungenPicker'
@@ -151,8 +152,8 @@ export default function AufgabeDetailModal({
   function handleLoeschen() {
     if (!aufgabe) return
     setConfirmDialog({
-      title:   'Aufgabe löschen?',
-      message: `'${aufgabe.titel}' wird unwiderruflich entfernt — inkl. aller Kommentare, Checklisten-Einträge und Anhänge.`,
+      title:   'Aufgabe endgültig löschen?',
+      message: `'${aufgabe.titel}' wird unwiderruflich entfernt — inkl. aller Kommentare, Checklisten-Einträge und Anhänge. Falls du sie nur ausblenden willst, nutze stattdessen "Archivieren".`,
       onConfirm: () => {
         setConfirmDialog(null)
         startTransition(async () => {
@@ -161,6 +162,24 @@ export default function AufgabeDetailModal({
           else { onClose(); router.refresh() }
         })
       },
+    })
+  }
+
+  function handleArchivieren() {
+    if (!aufgabe) return
+    startTransition(async () => {
+      const res = await aufgabeArchivieren(aufgabe.id)
+      if (res.fehler) setFehler(res.fehler)
+      else { onClose(); router.refresh() }
+    })
+  }
+
+  function handleWiederherstellen() {
+    if (!aufgabe) return
+    startTransition(async () => {
+      const res = await aufgabeWiederherstellen(aufgabe.id)
+      if (res.fehler) setFehler(res.fehler)
+      else router.refresh()
     })
   }
 
@@ -197,12 +216,37 @@ export default function AufgabeDetailModal({
                   ⚡ Auto: {aufgabe.quelle}
                 </span>
               )}
+              {aufgabe.archiviert_am && (
+                <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded inline-flex items-center gap-1">
+                  <Archive size={10} /> Archiviert
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0 ml-4">
+            {aufgabe.archiviert_am ? (
+              <button
+                onClick={handleWiederherstellen}
+                aria-label="Wiederherstellen"
+                title="Aus dem Archiv zurückholen"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-wellbeing-green hover:bg-wellbeing-green/10"
+              >
+                <ArchiveRestore className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={handleArchivieren}
+                aria-label="Archivieren"
+                title="Archivieren — bleibt im Archiv wiederherstellbar"
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-wellbeing-green hover:bg-wellbeing-green/10"
+              >
+                <Archive className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={handleLoeschen}
-              aria-label="Aufgabe löschen"
+              aria-label="Endgültig löschen"
+              title="Endgültig löschen — nicht wiederherstellbar"
               className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50"
             >
               <Trash2 className="w-4 h-4" />
