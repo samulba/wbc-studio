@@ -10,6 +10,7 @@ import {
   getVertragMeilensteine, meilensteinAnlegen,
   meilensteinStatusAendern, meilensteinLoeschen,
 } from '@/app/actions/vertrag-meilensteine'
+import ConfirmModal from '@/components/ConfirmModal'
 import type { VertragMeilenstein, MeilensteinStatus } from '@/lib/supabase/types'
 
 const STATUS: { id: MeilensteinStatus; label: string; klasse: string }[] = [
@@ -40,6 +41,7 @@ export default function VertragMeilensteineModal({
   const [neuBetrag, setNeuBetrag] = useState('')
   const [neuProzent, setNeuProzent] = useState('')
   const [fehler, setFehler] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<VertragMeilenstein | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -84,8 +86,14 @@ export default function VertragMeilensteineModal({
     })
   }
 
-  function handleDelete(id: string) {
-    if (!confirm('Meilenstein wirklich loeschen?')) return
+  function handleDelete(item: VertragMeilenstein) {
+    setConfirmDelete(item)
+  }
+
+  function bestaetigeDelete() {
+    if (!confirmDelete) return
+    const id = confirmDelete.id
+    setConfirmDelete(null)
     setItems((prev) => prev.filter((m) => m.id !== id))
     startTransition(async () => {
       const res = await meilensteinLoeschen(id)
@@ -164,7 +172,7 @@ export default function VertragMeilensteineModal({
                       {STATUS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
                     </select>
                     <button
-                      onClick={() => handleDelete(m.id)}
+                      onClick={() => handleDelete(m)}
                       aria-label="Loeschen"
                       className="text-gray-300 hover:text-red-500 p-1"
                     >
@@ -231,6 +239,19 @@ export default function VertragMeilensteineModal({
           >Fertig</button>
         </div>
       </div>
+
+      {confirmDelete && (
+        <ConfirmModal
+          isOpen={true}
+          title="Meilenstein löschen?"
+          message={`'${confirmDelete.titel}' wird unwiderruflich entfernt — die zugehörige Aufgabe im Kanban-Board ebenfalls.`}
+          confirmText="Löschen"
+          variant="danger"
+          isLoading={pending}
+          onConfirm={bestaetigeDelete}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   )
 }

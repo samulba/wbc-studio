@@ -17,6 +17,7 @@ import {
 } from '@/app/actions/aufgaben'
 import AufgabeVerknuepfungenPicker from '@/components/AufgabeVerknuepfungenPicker'
 import AufgabeAssigneePicker from '@/components/AufgabeAssigneePicker'
+import ConfirmModal from '@/components/ConfirmModal'
 import type {
   AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet,
   AufgabeChecklistItem, AufgabeAnhang, AufgabeKommentar,
@@ -52,6 +53,13 @@ export default function AufgabeDetailModal({
   const modalRef = useModal(open, () => onClose())
   const [pending, startTransition] = useTransition()
   const [fehler, setFehler] = useState<string | null>(null)
+
+  // Confirm-Dialog State (vereinheitlicht statt window.confirm())
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title:   string
+    message: string
+    onConfirm: () => void
+  } | null>(null)
 
   // Lokaler Zustand fuer Inline-Edits (Auto-Save bei Blur)
   const [titel, setTitel] = useState('')
@@ -140,11 +148,17 @@ export default function AufgabeDetailModal({
 
   function handleLoeschen() {
     if (!aufgabe) return
-    if (!confirm('Aufgabe wirklich löschen?')) return
-    startTransition(async () => {
-      const res = await aufgabeLoeschen(aufgabe.id)
-      if (res.fehler) setFehler(res.fehler)
-      else { onClose(); router.refresh() }
+    setConfirmDialog({
+      title:   'Aufgabe löschen?',
+      message: `'${aufgabe.titel}' wird unwiderruflich entfernt — inkl. aller Kommentare, Checklisten-Einträge und Anhänge.`,
+      onConfirm: () => {
+        setConfirmDialog(null)
+        startTransition(async () => {
+          const res = await aufgabeLoeschen(aufgabe.id)
+          if (res.fehler) setFehler(res.fehler)
+          else { onClose(); router.refresh() }
+        })
+      },
     })
   }
 
@@ -288,11 +302,17 @@ export default function AufgabeDetailModal({
                     <AnhangZeile
                       key={i} anhang={a}
                       onLoeschen={() => {
-                        if (!confirm(`'${a.name}' wirklich loeschen?`)) return
-                        startTransition(async () => {
-                          const res = await aufgabeAnhangEntfernen(aufgabe.id, a.url)
-                          if (res.fehler) setFehler(res.fehler)
-                          else { setFehler(null); router.refresh() }
+                        setConfirmDialog({
+                          title:   'Anhang entfernen?',
+                          message: `'${a.name}' wird unwiderruflich gelöscht.`,
+                          onConfirm: () => {
+                            setConfirmDialog(null)
+                            startTransition(async () => {
+                              const res = await aufgabeAnhangEntfernen(aufgabe.id, a.url)
+                              if (res.fehler) setFehler(res.fehler)
+                              else { setFehler(null); router.refresh() }
+                            })
+                          },
                         })
                       }}
                     />
@@ -331,12 +351,18 @@ export default function AufgabeDetailModal({
                         setKommentare(liste)
                         return true
                       }}
-                      onLoeschen={async () => {
-                        if (!confirm('Kommentar wirklich loeschen?')) return
-                        const res = await aufgabenKommentarLoeschen(k.id)
-                        if (res.fehler) { setFehler(res.fehler); return }
-                        const liste = await aufgabenKommentareAbrufen(aufgabe.id)
-                        setKommentare(liste)
+                      onLoeschen={() => {
+                        setConfirmDialog({
+                          title:   'Kommentar löschen?',
+                          message: 'Dieser Kommentar wird unwiderruflich entfernt.',
+                          onConfirm: async () => {
+                            setConfirmDialog(null)
+                            const res = await aufgabenKommentarLoeschen(k.id)
+                            if (res.fehler) { setFehler(res.fehler); return }
+                            const liste = await aufgabenKommentareAbrufen(aufgabe.id)
+                            setKommentare(liste)
+                          },
+                        })
                       }}
                     />
                   ))}
@@ -475,6 +501,19 @@ export default function AufgabeDetailModal({
           )}
         </div>
       </div>
+
+      {confirmDialog && (
+        <ConfirmModal
+          isOpen={true}
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmText="Löschen"
+          variant="danger"
+          isLoading={pending}
+          onConfirm={confirmDialog.onConfirm}
+          onClose={() => setConfirmDialog(null)}
+        />
+      )}
     </div>
   )
 }
@@ -525,7 +564,7 @@ function KommentarZeile({
   kommentar: AufgabeKommentar
   currentUserId: string | null
   onAktualisieren: (text: string) => Promise<boolean>
-  onLoeschen: () => Promise<void>
+  onLoeschen: () => void
 }) {
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(kommentar.inhalt)
