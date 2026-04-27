@@ -13,9 +13,10 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import Link from 'next/link'
-import { Plus, Calendar, AlertTriangle, FolderOpen, Search, X, Check, Archive, ArchiveRestore } from 'lucide-react'
+import { Plus, Calendar, AlertTriangle, FolderOpen, Search, X, Check, Archive, ArchiveRestore, LayoutGrid, List } from 'lucide-react'
 import StickyPageHeader from '@/components/StickyPageHeader'
 import AufgabeAnlegenModal from '@/components/AufgabeAnlegenModal'
+import AufgabenListe from '@/components/AufgabenListe'
 import {
   aufgabeAnlegen, aufgabeReihenfolgeAendern,
   type AufgabePickerOptionen,
@@ -56,6 +57,7 @@ export default function AufgabenBoardClient({
   const [activeId, setActiveId] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>('alle')
   const [suche, setSuche] = useState('')
+  const [view, setView] = useState<'board' | 'liste'>('board')
   const [neuOffen, setNeuOffen] = useState<AufgabeStatus | null>(null)
   const [neuTitel, setNeuTitel] = useState('')
   const [detailId, setDetailId] = useState<string | null>(null)
@@ -234,6 +236,27 @@ export default function AufgabenBoardClient({
           : 'Alle Aufgaben deiner Organisation auf einem Brett'}
         action={
           <div className="flex items-center gap-2">
+            {/* View-Toggle: Board / Liste */}
+            <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setView('board')}
+                title="Kanban-Board"
+                aria-label="Kanban-Board"
+                className={
+                  'px-2.5 py-1.5 text-sm transition-colors ' +
+                  (view === 'board' ? 'bg-wellbeing-green text-white' : 'text-gray-500 hover:bg-gray-50')
+                }
+              ><LayoutGrid size={14} /></button>
+              <button
+                onClick={() => setView('liste')}
+                title="Liste"
+                aria-label="Liste"
+                className={
+                  'px-2.5 py-1.5 text-sm transition-colors border-l border-gray-200 ' +
+                  (view === 'liste' ? 'bg-wellbeing-green text-white' : 'text-gray-500 hover:bg-gray-50')
+                }
+              ><List size={14} /></button>
+            </div>
             <Link
               href={zeigeArchiv ? '/dashboard/aufgaben' : '/dashboard/aufgaben?archiviert=1'}
               className="inline-flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
@@ -300,38 +323,43 @@ export default function AufgabenBoardClient({
         {pending && <span className="text-xs text-gray-400">speichert…</span>}
       </div>
 
-      {/* 4-Spalten-Board */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {SPALTEN.map((spalte) => (
-            <Spalte
-              key={spalte.id}
-              spalte={spalte}
-              aufgaben={spaltenInhalt[spalte.id]}
-              team={pickerOptionen?.team}
-              labels={pickerOptionen?.labels}
-              onCardClick={(id) => setDetailId(id)}
-              quickAddOpen={neuOffen === spalte.id}
-              onQuickAddOpen={() => { setNeuOffen(spalte.id); setNeuTitel('') }}
-              onQuickAddClose={() => setNeuOffen(null)}
-              quickAddTitel={neuTitel}
-              onQuickAddTitelChange={setNeuTitel}
-              onQuickAddSubmit={() => handleQuickAdd(spalte.id)}
-            />
-          ))}
-        </div>
-        <DragOverlay>
-          {activeId ? (
-            <Karte aufgabe={aufgaben.find((a) => a.id === activeId)!} dragging team={pickerOptionen?.team} labels={pickerOptionen?.labels} />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      {view === 'board' ? (
+        /* 4-Spalten-Board */
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            {SPALTEN.map((spalte) => (
+              <Spalte
+                key={spalte.id}
+                spalte={spalte}
+                aufgaben={spaltenInhalt[spalte.id]}
+                team={pickerOptionen?.team}
+                labels={pickerOptionen?.labels}
+                onCardClick={(id) => setDetailId(id)}
+                quickAddOpen={neuOffen === spalte.id}
+                onQuickAddOpen={() => { setNeuOffen(spalte.id); setNeuTitel('') }}
+                onQuickAddClose={() => setNeuOffen(null)}
+                quickAddTitel={neuTitel}
+                onQuickAddTitelChange={setNeuTitel}
+                onQuickAddSubmit={() => handleQuickAdd(spalte.id)}
+              />
+            ))}
+          </div>
+          <DragOverlay>
+            {activeId ? (
+              <Karte aufgabe={aufgaben.find((a) => a.id === activeId)!} dragging team={pickerOptionen?.team} labels={pickerOptionen?.labels} />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      ) : (
+        /* Listen-Ansicht */
+        <AufgabenListe aufgaben={gefiltert} pickerOptionen={pickerOptionen} />
+      )}
 
       <AufgabeDetailModal
         aufgabe={aufgaben.find((a) => a.id === detailId) ?? null}
