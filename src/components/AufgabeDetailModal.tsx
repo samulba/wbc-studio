@@ -84,7 +84,11 @@ export default function AufgabeDetailModal({
   const [aktivitaetenOffen, setAktivitaetenOffen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Beim Oeffnen: Felder aus Aufgabe befuellen + Kommentare/Aktivitaet laden
+  // Beim Oeffnen / Aufgabe-Wechsel: Felder befuellen + Kommentare/Aktivitaet laden.
+  // Deps nur auf aufgabe.id+open — sonst wuerde jeder Server-Refresh den lokalen
+  // Inline-Edit-State (Titel/Checklist) zurueckschreiben und Race-Conditions
+  // erzeugen die zum White-Screen-Crash fuehren konnten.
+  const aufgabeId = aufgabe?.id ?? null
   useEffect(() => {
     if (!aufgabe || !open) return
     setTitel(aufgabe.titel)
@@ -92,11 +96,14 @@ export default function AufgabeDetailModal({
     setStatus(aufgabe.status)
     setPrioritaet(aufgabe.prioritaet)
     setFaelligAm(aufgabe.faellig_am ?? '')
-    setChecklist(aufgabe.checklist)
+    setChecklist(aufgabe.checklist ?? [])
     setFehler(null)
-    void aufgabenKommentareAbrufen(aufgabe.id).then(setKommentare)
-    void getAufgabeAktivitaet(aufgabe.id).then(setAktivitaeten)
-  }, [aufgabe, open])
+    let cancelled = false
+    void aufgabenKommentareAbrufen(aufgabe.id).then((k) => { if (!cancelled) setKommentare(k) })
+    void getAufgabeAktivitaet(aufgabe.id).then((a) => { if (!cancelled) setAktivitaeten(a) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aufgabeId, open])
 
   // Live-Kommentare: Subscribe so lange Modal offen ist
   useRealtimeRefresh({

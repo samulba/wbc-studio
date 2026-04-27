@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, ChevronRight, AlertTriangle, Calendar, Check } from 'lucide-react'
 import { aufgabeAnlegen, aufgabeStatusAendern, type AufgabePickerOptionen } from '@/app/actions/aufgaben'
 import AufgabeDetailModal from '@/components/AufgabeDetailModal'
+import AufgabenErrorBoundary from '@/components/AufgabenErrorBoundary'
 import type { AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet } from '@/lib/supabase/types'
 
 const STATUS_LABEL: Record<AufgabeStatus, string> = {
@@ -203,12 +204,14 @@ export default function ProjektAufgabenBlock({
         </ul>
       )}
 
+      <AufgabenErrorBoundary name="projekt-aufgabe-detail">
       <AufgabeDetailModal
         aufgabe={aufgaben.find((a) => a.id === detailId) ?? null}
         open={!!detailId}
         onClose={() => setDetailId(null)}
         pickerOptionen={pickerOptionen}
       />
+      </AufgabenErrorBoundary>
     </div>
   )
 }

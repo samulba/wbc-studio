@@ -18,6 +18,7 @@ import StickyPageHeader from '@/components/StickyPageHeader'
 import AufgabeAnlegenModal from '@/components/AufgabeAnlegenModal'
 import AufgabenListe from '@/components/AufgabenListe'
 import AufgabenKalender from '@/components/AufgabenKalender'
+import AufgabenErrorBoundary from '@/components/AufgabenErrorBoundary'
 import {
   aufgabeAnlegen, aufgabeReihenfolgeAendern,
   type AufgabePickerOptionen,
@@ -41,7 +42,8 @@ const PRIO_BORDER: Record<AufgabePrioritaet, string> = {
   dringend: 'border-l-red-500',
 }
 
-type Filter = 'alle' | 'mir' | 'heute' | 'woche' | 'ueberfaellig' | 'mit_projekt' | 'intern'
+type ZeitFilter    = 'alle' | 'mir' | 'heute' | 'woche' | 'ueberfaellig'
+type KontextFilter = 'alle' | 'mit_projekt' | 'intern'
 
 export default function AufgabenBoardClient({
   initialeAufgaben,
@@ -56,7 +58,8 @@ export default function AufgabenBoardClient({
   const [pending, startTransition] = useTransition()
   const [aufgaben, setAufgaben] = useState<AufgabeMitDetails[]>(initialeAufgaben)
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [filter, setFilter] = useState<Filter>('alle')
+  const [zeitFilter, setZeitFilter]       = useState<ZeitFilter>('alle')
+  const [kontextFilter, setKontextFilter] = useState<KontextFilter>('alle')
   const [suche, setSuche] = useState('')
   const [view, setView] = useState<'board' | 'liste' | 'kalender'>('board')
   const [neuOffen, setNeuOffen] = useState<AufgabeStatus | null>(null)
@@ -92,20 +95,22 @@ export default function AufgabenBoardClient({
   const sucheNorm = suche.trim().toLowerCase()
   const gefiltert = useMemo(() => {
     return aufgaben.filter((a) => {
-      // Pill-Filter
-      if (filter === 'mir') {
+      // Zeit-/Owner-Filter
+      if (zeitFilter === 'mir') {
         if (!currentUserId) return false
         if (a.assignee_user_id !== currentUserId) return false
-      } else if (filter === 'heute') {
+      } else if (zeitFilter === 'heute') {
         if (!(a.faellig_am === heute && a.status !== 'erledigt')) return false
-      } else if (filter === 'woche') {
+      } else if (zeitFilter === 'woche') {
         if (!a.faellig_am || a.status === 'erledigt') return false
         if (!(a.faellig_am >= heute && a.faellig_am <= inEinerWoche)) return false
-      } else if (filter === 'ueberfaellig') {
+      } else if (zeitFilter === 'ueberfaellig') {
         if (!(a.faellig_am && a.faellig_am < heute && a.status !== 'erledigt')) return false
-      } else if (filter === 'mit_projekt') {
+      }
+      // Kontext-Filter (unabhaengig kombinierbar)
+      if (kontextFilter === 'mit_projekt') {
         if (!a.projekt_id && !a.kunde_id) return false
-      } else if (filter === 'intern') {
+      } else if (kontextFilter === 'intern') {
         if (a.projekt_id || a.kunde_id) return false
       }
       // Volltext-Suche ueber Titel + Beschreibung + Tags + Projekt + Kunde
@@ -121,7 +126,7 @@ export default function AufgabenBoardClient({
       }
       return true
     })
-  }, [aufgaben, filter, heute, inEinerWoche, currentUserId, sucheNorm])
+  }, [aufgaben, zeitFilter, kontextFilter, heute, inEinerWoche, currentUserId, sucheNorm])
 
   // Spalten-Mapping
   const spaltenInhalt = useMemo(() => {
@@ -296,18 +301,19 @@ export default function AufgabenBoardClient({
       {/* Filter-Pills + Suche */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Zeit-/Owner-Gruppe */}
           {([
             { id: 'alle', label: 'Alle' },
             { id: 'mir',  label: 'Mir' },
             { id: 'heute', label: 'Heute' },
             { id: 'woche', label: 'Diese Woche' },
             { id: 'ueberfaellig', label: 'Überfällig' },
-          ] as { id: Filter; label: string }[]).map((p) => {
-            const aktiv = filter === p.id
+          ] as { id: ZeitFilter; label: string }[]).map((p) => {
+            const aktiv = zeitFilter === p.id
             return (
               <button
                 key={p.id}
-                onClick={() => setFilter(p.id)}
+                onClick={() => setZeitFilter(p.id)}
                 className={
                   aktiv
                     ? 'px-3 py-1.5 rounded-full text-sm font-medium bg-wellbeing-green text-white'
@@ -320,15 +326,17 @@ export default function AufgabenBoardClient({
           })}
           {/* Visueller Trenner zur Kontext-Gruppe */}
           <div className="w-px h-5 bg-gray-200 mx-1" aria-hidden />
+          {/* Kontext-Gruppe (unabhaengig kombinierbar) */}
           {([
+            { id: 'alle',        label: 'Alle' },
             { id: 'mit_projekt', label: 'Mit Projekt' },
             { id: 'intern',      label: 'Intern' },
-          ] as { id: Filter; label: string }[]).map((p) => {
-            const aktiv = filter === p.id
+          ] as { id: KontextFilter; label: string }[]).map((p) => {
+            const aktiv = kontextFilter === p.id
             return (
               <button
                 key={p.id}
-                onClick={() => setFilter(p.id)}
+                onClick={() => setKontextFilter(p.id)}
                 className={
                   aktiv
                     ? 'px-3 py-1.5 rounded-full text-sm font-medium bg-wellbeing-green text-white'
@@ -361,6 +369,7 @@ export default function AufgabenBoardClient({
         {pending && <span className="text-xs text-gray-400">speichert…</span>}
       </div>
 
+      <AufgabenErrorBoundary name="aufgaben-view">
       {view === 'board' ? (
         /* 4-Spalten-Board */
         <DndContext
@@ -401,13 +410,16 @@ export default function AufgabenBoardClient({
         /* Kalender-Ansicht */
         <AufgabenKalender aufgaben={gefiltert} pickerOptionen={pickerOptionen} />
       )}
+      </AufgabenErrorBoundary>
 
+      <AufgabenErrorBoundary name="aufgabe-detail-modal">
       <AufgabeDetailModal
         aufgabe={aufgaben.find((a) => a.id === detailId) ?? null}
         open={!!detailId}
         onClose={() => setDetailId(null)}
         pickerOptionen={pickerOptionen}
       />
+      </AufgabenErrorBoundary>
       {pickerOptionen && (
         <AufgabeAnlegenModal
           open={!!anlegenStatus}

@@ -18,6 +18,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - Migration **106** (`feedback`-Tabelle + Storage-Bucket `feedback-screenshots`) muss manuell im Supabase SQL-Editor ausgeführt werden.
 - Vor dem Live-Gehen `SUPER_ADMIN_EMAILS=samuel@…` als ENV-Variable in Vercel setzen.
 
+### Aufgaben-Board: Filter kombinierbar + Crash-Schutz
+- **Filter-Pills sind jetzt zwei unabhängige Gruppen** — Zeit-/Owner-Filter (Alle/Mir/Heute/Diese Woche/Überfällig) und Kontext-Filter (Alle/Mit Projekt/Intern) lassen sich gleichzeitig setzen. Beispiel: „Mir" + „Intern" zeigt alle internen Aufgaben die mir zugewiesen sind. Beide Gruppen visuell getrennt durch einen kleinen Trenner.
+- **White-Screen-Crash beim Bearbeiten von Aufgaben behoben**: ErrorBoundary um Board, View und Detail-Modal — bei Render-Fehlern erscheint jetzt eine Recovery-Card mit „Neu laden"-Button statt einer leeren Seite. Plus: das Detail-Modal lud bei jedem Server-Refresh seinen State neu (auch während aktivem Inline-Edit), was Race-Conditions und Crashes verursachen konnte. Behoben — State wird jetzt nur bei Aufgaben-Wechsel reinitialisiert.
+
 ### Aufgaben-Board: Trennung Intern / Mit Projekt
 - Zwei neue **Filter-Pills**: „Mit Projekt" (nur Aufgaben mit Projekt-/Kunden-Verknüpfung) und „Intern" (nur Aufgaben ohne) — visuell getrennt von den Zeit-Filtern durch einen kleinen Trenner.
 - Cards ohne Verknüpfung zeigen jetzt einen dezenten **„Intern"-Indikator** mit grauem Punkt — vorher waren sie kontextlos.
