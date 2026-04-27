@@ -6,7 +6,7 @@ import { useModal } from '@/lib/hooks/useModal'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
 import {
   X, Calendar, Trash2, Plus, Check, Square, Paperclip, MessageCircle, Pencil,
-  ChevronDown, AlertCircle, Loader2, Archive, ArchiveRestore, Activity,
+  ChevronDown, AlertCircle, Loader2, Archive, ArchiveRestore, Activity, Copy, Bookmark,
 } from 'lucide-react'
 import {
   aufgabeAktualisieren, aufgabeLoeschen, aufgabeChecklistAktualisieren,
@@ -15,6 +15,7 @@ import {
   aufgabenKommentarAktualisieren, aufgabenKommentarLoeschen,
   aufgabeLabelsSetzen,
   aufgabeArchivieren, aufgabeWiederherstellen,
+  aufgabeDuplizieren, vorlageAnlegen,
   getAufgabeAktivitaet,
   type AufgabePickerOptionen,
   type AufgabeAktivitaet,
@@ -65,6 +66,8 @@ export default function AufgabeDetailModal({
     message: string
     onConfirm: () => void
   } | null>(null)
+  // 'Als Vorlage speichern' Inline-Dialog
+  const [vorlageDialog, setVorlageDialog] = useState<string | null>(null)
 
   // Lokaler Zustand fuer Inline-Edits (Auto-Save bei Blur)
   const [titel, setTitel] = useState('')
@@ -188,6 +191,37 @@ export default function AufgabeDetailModal({
     })
   }
 
+  function handleDuplizieren() {
+    if (!aufgabe) return
+    startTransition(async () => {
+      const res = await aufgabeDuplizieren(aufgabe.id)
+      if (res.fehler) setFehler(res.fehler)
+      else { onClose(); router.refresh() }
+    })
+  }
+
+  function handleAlsVorlage() {
+    if (!aufgabe) return
+    setVorlageDialog(aufgabe.titel)
+  }
+
+  function speichereAlsVorlage(name: string) {
+    if (!aufgabe || !name.trim()) return
+    startTransition(async () => {
+      const res = await vorlageAnlegen({
+        name: name.trim(),
+        titel: aufgabe.titel,
+        beschreibung: aufgabe.beschreibung,
+        prioritaet: aufgabe.prioritaet,
+        checklist: aufgabe.checklist.map((c) => ({ ...c, erledigt: false })),
+        label_ids: aufgabe.label_ids ?? [],
+        sichtbar_fuer_kunde: aufgabe.sichtbar_fuer_kunde,
+      })
+      if (res.fehler) setFehler(res.fehler)
+      else { setFehler(null); setVorlageDialog(null) }
+    })
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -229,6 +263,22 @@ export default function AufgabeDetailModal({
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0 ml-4">
+            <button
+              onClick={handleDuplizieren}
+              aria-label="Duplizieren"
+              title="Aufgabe duplizieren"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-wellbeing-green hover:bg-wellbeing-green/10"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleAlsVorlage}
+              aria-label="Als Vorlage speichern"
+              title="Als Vorlage speichern"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-wellbeing-green hover:bg-wellbeing-green/10"
+            >
+              <Bookmark className="w-4 h-4" />
+            </button>
             {aufgabe.archiviert_am ? (
               <button
                 onClick={handleWiederherstellen}
@@ -619,6 +669,60 @@ export default function AufgabeDetailModal({
           onClose={() => setConfirmDialog(null)}
         />
       )}
+
+      {vorlageDialog !== null && (
+        <VorlageSpeichernDialog
+          initial={vorlageDialog}
+          isLoading={pending}
+          onSave={speichereAlsVorlage}
+          onClose={() => setVorlageDialog(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+function VorlageSpeichernDialog({
+  initial, isLoading, onSave, onClose,
+}: {
+  initial:   string
+  isLoading: boolean
+  onSave:    (name: string) => void
+  onClose:   () => void
+}) {
+  const [name, setName] = useState(initial)
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-1.5">Als Vorlage speichern</h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Die Vorlage merkt sich Titel, Beschreibung, Priorität, Checkliste und Labels.
+        </p>
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && name.trim()) onSave(name)
+            if (e.key === 'Escape') onClose()
+          }}
+          placeholder="Vorlagen-Name"
+          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 mb-4 outline-none focus:border-wellbeing-green-light"
+        />
+        <div className="flex gap-2.5 justify-end">
+          <button
+            onClick={onClose}
+            disabled={isLoading}
+            className="px-4 py-2 text-xs font-medium border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50"
+          >Abbrechen</button>
+          <button
+            onClick={() => onSave(name)}
+            disabled={isLoading || !name.trim()}
+            className="px-4 py-2 text-xs font-medium bg-wellbeing-green text-white rounded-lg hover:bg-wellbeing-green-dark disabled:opacity-50"
+          >Speichern</button>
+        </div>
+      </div>
     </div>
   )
 }

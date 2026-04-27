@@ -246,6 +246,191 @@ export async function getAufgabenUeberfaelligCount(): Promise<number> {
   return count ?? 0
 }
 
+// ── Duplizieren ──────────────────────────────────────────────
+
+export async function aufgabeDuplizieren(id: string): Promise<{ id?: string; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { data: orig } = await supabase
+    .from('aufgaben')
+    .select('*')
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!orig) return { fehler: 'Aufgabe nicht gefunden.' }
+
+  // Hoechste Reihenfolge in Backlog ermitteln
+  const { data: maxRow } = await supabase
+    .from('aufgaben')
+    .select('reihenfolge')
+    .eq('organisation_id', orgId)
+    .eq('status', 'backlog')
+    .order('reihenfolge', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const reihenfolge = (maxRow?.reihenfolge ?? -1) + 1
+
+  const { data, error } = await supabase
+    .from('aufgaben')
+    .insert({
+      organisation_id:     orgId,
+      titel:               orig.titel + ' (Kopie)',
+      beschreibung:        orig.beschreibung,
+      status:              'backlog',
+      reihenfolge,
+      prioritaet:          orig.prioritaet,
+      faellig_am:          null,
+      assignee_user_id:    orig.assignee_user_id,
+      assignee_kunde:      orig.assignee_kunde,
+      sichtbar_fuer_kunde: orig.sichtbar_fuer_kunde,
+      tags:                orig.tags,
+      label_ids:           orig.label_ids,
+      kunde_id:            orig.kunde_id,
+      projekt_id:          orig.projekt_id,
+      raum_id:             orig.raum_id,
+      raum_produkte_id:    orig.raum_produkte_id,
+      bestellung_id:       orig.bestellung_id,
+      checklist:           (orig.checklist ?? []).map((c: AufgabeChecklistItem) => ({ ...c, erledigt: false })),
+      anhang_urls:         [],  // Anhaenge nicht kopieren
+      quelle:              'manuell',
+      erstellt_von:        user?.id ?? null,
+    })
+    .select('id')
+    .single()
+  if (error || !data) return { fehler: 'Konnte nicht duplizieren.' }
+
+  await auditLog({
+    aktion: 'aufgabe_angelegt', entitaet_typ: 'aufgabe',
+    entitaet_id: data.id, entitaet_name: orig.titel + ' (Kopie)',
+    details: { dupliziert_von: id },
+  })
+
+  revalidatePath('/dashboard/aufgaben')
+  return { id: data.id }
+}
+
+// ── Vorlagen-CRUD ────────────────────────────────────────────
+
+export async function getAufgabenVorlagen(): Promise<import('@/lib/supabase/types').AufgabeVorlage[]> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data } = await supabase
+    .from('aufgaben_vorlagen')
+    .select('*')
+    .eq('organisation_id', orgId)
+    .order('reihenfolge', { ascending: true })
+    .order('name', { ascending: true })
+  return (data ?? []) as import('@/lib/supabase/types').AufgabeVorlage[]
+}
+
+export async function vorlageAnlegen(input: {
+  name: string
+  beschreibung?: string | null
+  titel: string
+  prioritaet?: AufgabePrioritaet
+  checklist?: AufgabeChecklistItem[]
+  label_ids?: string[]
+  sichtbar_fuer_kunde?: boolean
+}): Promise<{ id?: string; fehler?: string }> {
+  const name = input.name.trim()
+  const titel = input.titel.trim()
+  if (!name) return { fehler: 'Vorlagen-Name darf nicht leer sein.' }
+  if (!titel) return { fehler: 'Aufgaben-Titel darf nicht leer sein.' }
+
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { data, error } = await supabase
+    .from('aufgaben_vorlagen')
+    .insert({
+      organisation_id:     orgId,
+      name,
+      beschreibung:        input.beschreibung ?? null,
+      titel,
+      prioritaet:          input.prioritaet ?? 'normal',
+      checklist:           input.checklist ?? [],
+      label_ids:           input.label_ids ?? [],
+      sichtbar_fuer_kunde: input.sichtbar_fuer_kunde ?? false,
+    })
+    .select('id')
+    .single()
+  if (error || !data) return { fehler: 'Konnte Vorlage nicht anlegen.' }
+  revalidatePath('/dashboard/aufgaben')
+  return { id: data.id }
+}
+
+export async function vorlageLoeschen(id: string): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error } = await supabase
+    .from('aufgaben_vorlagen')
+    .delete()
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Konnte Vorlage nicht loeschen.' }
+  revalidatePath('/dashboard/aufgaben')
+  return { erfolg: true }
+}
+
+export async function aufgabeAusVorlage(input: {
+  vorlageId: string
+  status?: AufgabeStatus
+  faellig_am?: string | null
+  projekt_id?: string | null
+  kunde_id?: string | null
+  raum_id?: string | null
+}): Promise<{ id?: string; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { data: v } = await supabase
+    .from('aufgaben_vorlagen')
+    .select('*')
+    .eq('id', input.vorlageId)
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  if (!v) return { fehler: 'Vorlage nicht gefunden.' }
+
+  const status = input.status ?? 'backlog'
+  const { data: maxRow } = await supabase
+    .from('aufgaben')
+    .select('reihenfolge')
+    .eq('organisation_id', orgId)
+    .eq('status', status)
+    .order('reihenfolge', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const reihenfolge = (maxRow?.reihenfolge ?? -1) + 1
+
+  const { data, error } = await supabase
+    .from('aufgaben')
+    .insert({
+      organisation_id:     orgId,
+      titel:               v.titel,
+      beschreibung:        v.beschreibung,
+      status,
+      reihenfolge,
+      prioritaet:          v.prioritaet,
+      faellig_am:          input.faellig_am ?? null,
+      projekt_id:          input.projekt_id ?? null,
+      kunde_id:            input.kunde_id ?? null,
+      raum_id:             input.raum_id ?? null,
+      sichtbar_fuer_kunde: v.sichtbar_fuer_kunde,
+      label_ids:           v.label_ids,
+      checklist:           v.checklist,
+      quelle:              'manuell',
+      erstellt_von:        user?.id ?? null,
+    })
+    .select('id')
+    .single()
+  if (error || !data) return { fehler: 'Konnte Aufgabe aus Vorlage nicht erstellen.' }
+  revalidatePath('/dashboard/aufgaben')
+  return { id: data.id }
+}
+
 // ── Activity-Log ─────────────────────────────────────────────
 
 export interface AufgabeAktivitaet {

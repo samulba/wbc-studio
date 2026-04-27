@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation'
 import { useModal } from '@/lib/hooks/useModal'
 import { X, Plus, AlertCircle, Loader2 } from 'lucide-react'
 import {
-  aufgabeAnlegen,
+  aufgabeAnlegen, getAufgabenVorlagen,
   type AufgabePickerOptionen,
 } from '@/app/actions/aufgaben'
+import type { AufgabeVorlage } from '@/lib/supabase/types'
 import AufgabeVerknuepfungenPicker from '@/components/AufgabeVerknuepfungenPicker'
 import AufgabeAssigneePicker from '@/components/AufgabeAssigneePicker'
 import AufgabeLabelsPicker from '@/components/AufgabeLabelsPicker'
@@ -60,6 +61,7 @@ export default function AufgabeAnlegenModal({
   const [assigneeKunde, setAssigneeKunde] = useState(false)
   const [sichtbarKunde, setSichtbarKunde] = useState(false)
   const [labelIds, setLabelIds] = useState<string[]>([])
+  const [vorlagen, setVorlagen] = useState<AufgabeVorlage[]>([])
   const [fehler, setFehler] = useState<string | null>(null)
 
   // Beim Oeffnen Defaults zuruecksetzen
@@ -78,7 +80,16 @@ export default function AufgabeAnlegenModal({
     setSichtbarKunde(false)
     setLabelIds([])
     setFehler(null)
+    void getAufgabenVorlagen().then(setVorlagen)
   }, [open, defaultProjektId, defaultKundeId, defaultRaumId, defaultStatus])
+
+  function vorlageAnwenden(v: AufgabeVorlage) {
+    setTitel(v.titel)
+    setBeschreibung(v.beschreibung ?? '')
+    setPrio(v.prioritaet)
+    setLabelIds(v.label_ids ?? [])
+    setSichtbarKunde(v.sichtbar_fuer_kunde)
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -133,6 +144,25 @@ export default function AufgabeAnlegenModal({
         {/* Form — scrollbar */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="px-6 py-5 space-y-4">
+            {/* Vorlagen-Quick-Picker */}
+            {vorlagen.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 uppercase mb-1.5">Aus Vorlage starten</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {vorlagen.map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => vorlageAnwenden(v)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 text-xs border border-gray-200 rounded-lg hover:border-wellbeing-green hover:bg-wellbeing-green/5 text-gray-700"
+                    >
+                      📋 {v.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Titel */}
             <div>
               <label className="block text-xs font-medium text-gray-500 uppercase mb-1.5">Titel</label>

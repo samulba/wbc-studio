@@ -1301,6 +1301,22 @@ export interface AufgabeLabel {
   updated_at:      string
 }
 
+// Migration 105: Aufgaben-Vorlagen (Trello-Style Karten-Templates)
+export interface AufgabeVorlage {
+  id:                  string
+  organisation_id:     string
+  name:                string
+  beschreibung:        string | null
+  titel:               string
+  prioritaet:          AufgabePrioritaet
+  checklist:           AufgabeChecklistItem[]
+  label_ids:           string[]
+  sichtbar_fuer_kunde: boolean
+  reihenfolge:         number
+  created_at:          string
+  updated_at:          string
+}
+
 export interface AufgabeKommentar {
   id:              string
   organisation_id: string
