@@ -249,6 +249,7 @@ export interface AufgabeInput {
   assignee_kunde?:     boolean
   sichtbar_fuer_kunde?: boolean
   tags?:               string[]
+  label_ids?:          string[]
   kunde_id?:           string | null
   projekt_id?:         string | null
   raum_id?:            string | null
@@ -299,6 +300,7 @@ export async function aufgabeAnlegen(input: AufgabeInput): Promise<{ id?: string
       raum_produkte_id:    input.raum_produkte_id ?? null,
       bestellung_id:       input.bestellung_id ?? null,
       checklist:           input.checklist ?? [],
+      label_ids:           input.label_ids ?? [],
       quelle:              'manuell',
       erstellt_von:        user?.id ?? null,
     })
@@ -868,12 +870,14 @@ export interface AufgabePickerTeamMitglied {
   email:    string | null
   avatarUrl: string | null
 }
+export interface AufgabePickerLabel { id: string; name: string; farbe: string }
 
 export interface AufgabePickerOptionen {
   projekte: AufgabePickerProjekt[]
   kunden:   AufgabePickerKunde[]
   raeume:   AufgabePickerRaum[]
   team:     AufgabePickerTeamMitglied[]
+  labels:   AufgabePickerLabel[]
   /** Aktueller User — fuer 'Mir zuweisen'-Button + Mir-Filter */
   currentUserId: string | null
 }
@@ -884,7 +888,7 @@ export async function getAufgabePickerOptionen(): Promise<AufgabePickerOptionen>
   const orgId = await getOrganisationId()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [projekteRes, kundenRes, raeumeRes, teamRes] = await Promise.all([
+  const [projekteRes, kundenRes, raeumeRes, teamRes, labelsRes] = await Promise.all([
     supabase
       .from('projekte')
       .select('id, name, kunde_id')
@@ -911,6 +915,12 @@ export async function getAufgabePickerOptionen(): Promise<AufgabePickerOptionen>
       .eq('organisation_id', orgId)
       .neq('status', 'deaktiviert')
       .order('vorname', { ascending: true, nullsFirst: false }),
+    supabase
+      .from('aufgaben_labels')
+      .select('id, name, farbe')
+      .eq('organisation_id', orgId)
+      .order('reihenfolge', { ascending: true })
+      .order('name', { ascending: true }),
   ])
 
   type TeamRow = {
@@ -935,8 +945,139 @@ export async function getAufgabePickerOptionen(): Promise<AufgabePickerOptionen>
     kunden:   (kundenRes.data   ?? []) as AufgabePickerKunde[],
     raeume:   (raeumeRes.data   ?? []) as AufgabePickerRaum[],
     team,
+    labels:   (labelsRes.data   ?? []) as AufgabePickerLabel[],
     currentUserId: user?.id ?? null,
   }
+}
+
+// ── Label-CRUD ───────────────────────────────────────────────
+
+export async function getLabels(): Promise<import('@/lib/supabase/types').AufgabeLabel[]> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { data } = await supabase
+    .from('aufgaben_labels')
+    .select('*')
+    .eq('organisation_id', orgId)
+    .order('reihenfolge', { ascending: true })
+    .order('name', { ascending: true })
+  return (data ?? []) as import('@/lib/supabase/types').AufgabeLabel[]
+}
+
+export async function labelAnlegen(input: {
+  name: string
+  farbe?: string
+}): Promise<{ id?: string; fehler?: string }> {
+  const name = input.name.trim()
+  if (!name) return { fehler: 'Name darf nicht leer sein.' }
+  if (name.length > 40) return { fehler: 'Name zu lang (max 40 Zeichen).' }
+  const farbe = (input.farbe ?? '#94c1a4').toLowerCase()
+  if (!/^#[0-9a-f]{6}$/.test(farbe)) return { fehler: 'Ungueltige Farbe (HEX erwartet).' }
+
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const { data: maxRow } = await supabase
+    .from('aufgaben_labels')
+    .select('reihenfolge')
+    .eq('organisation_id', orgId)
+    .order('reihenfolge', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const reihenfolge = (maxRow?.reihenfolge ?? -1) + 1
+
+  const { data, error } = await supabase
+    .from('aufgaben_labels')
+    .insert({ organisation_id: orgId, name, farbe, reihenfolge })
+    .select('id')
+    .single()
+  if (error || !data) {
+    if (error?.code === '23505') return { fehler: 'Label-Name existiert bereits.' }
+    return { fehler: 'Konnte Label nicht anlegen.' }
+  }
+  revalidatePath('/dashboard/aufgaben')
+  return { id: data.id }
+}
+
+export async function labelAktualisieren(
+  id: string,
+  patch: { name?: string; farbe?: string },
+): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  const update: Record<string, unknown> = {}
+  if (patch.name !== undefined) {
+    const name = patch.name.trim()
+    if (!name) return { fehler: 'Name darf nicht leer sein.' }
+    if (name.length > 40) return { fehler: 'Name zu lang.' }
+    update.name = name
+  }
+  if (patch.farbe !== undefined) {
+    const farbe = patch.farbe.toLowerCase()
+    if (!/^#[0-9a-f]{6}$/.test(farbe)) return { fehler: 'Ungueltige Farbe.' }
+    update.farbe = farbe
+  }
+
+  const { error } = await supabase
+    .from('aufgaben_labels')
+    .update(update)
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+  if (error) {
+    if (error.code === '23505') return { fehler: 'Label-Name existiert bereits.' }
+    return { fehler: 'Konnte Label nicht aktualisieren.' }
+  }
+  revalidatePath('/dashboard/aufgaben')
+  return { erfolg: true }
+}
+
+export async function labelLoeschen(id: string): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+
+  // Aus allen aufgaben.label_ids entfernen (nur Aufgaben die diesen Label tragen)
+  // Effizient via array_remove auf SQL-Ebene — aber Supabase-JS hat das nicht,
+  // also: lade alle betroffenen, update einzeln. Bei wenigen Labels ok.
+  const { data: betroffen } = await supabase
+    .from('aufgaben')
+    .select('id, label_ids')
+    .eq('organisation_id', orgId)
+    .contains('label_ids', [id])
+  for (const a of betroffen ?? []) {
+    const neu = (a.label_ids as string[]).filter((x) => x !== id)
+    await supabase
+      .from('aufgaben')
+      .update({ label_ids: neu })
+      .eq('id', a.id)
+      .eq('organisation_id', orgId)
+  }
+
+  const { error } = await supabase
+    .from('aufgaben_labels')
+    .delete()
+    .eq('id', id)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Konnte Label nicht loeschen.' }
+  revalidatePath('/dashboard/aufgaben')
+  return { erfolg: true }
+}
+
+/** Label-IDs einer Aufgabe ersetzen. */
+export async function aufgabeLabelsSetzen(
+  aufgabeId: string,
+  labelIds: string[],
+): Promise<{ erfolg?: boolean; fehler?: string }> {
+  const supabase = await createClient()
+  const orgId = await getOrganisationId()
+  const { error } = await supabase
+    .from('aufgaben')
+    .update({ label_ids: labelIds })
+    .eq('id', aufgabeId)
+    .eq('organisation_id', orgId)
+  if (error) return { fehler: 'Konnte Labels nicht speichern.' }
+  revalidatePath('/dashboard/aufgaben')
+  return { erfolg: true }
 }
 
 // ── Admin-Variante (fuer anon-Kontexte wie Onboarding-Submission) ─

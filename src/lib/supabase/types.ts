@@ -1270,6 +1270,8 @@ export interface Aufgabe {
   assignee_kunde:      boolean
   sichtbar_fuer_kunde: boolean
   tags:                string[]
+  /** Migration 103 — UUIDs aus aufgaben_labels-Tabelle */
+  label_ids:           string[]
   kunde_id:            string | null
   projekt_id:          string | null
   raum_id:             string | null
@@ -1283,6 +1285,18 @@ export interface Aufgabe {
   erstellt_von_kunde:  boolean
   created_at:          string
   updated_at:          string
+}
+
+// Migration 103: org-weite Label-Definitionen
+export interface AufgabeLabel {
+  id:              string
+  organisation_id: string
+  name:            string
+  /** HEX-Farbe inkl. # */
+  farbe:           string
+  reihenfolge:     number
+  created_at:      string
+  updated_at:      string
 }
 
 export interface AufgabeKommentar {

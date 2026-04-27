@@ -13,10 +13,12 @@ import {
   aufgabeAnhangHochladen, aufgabeAnhangSigniert, aufgabeAnhangEntfernen,
   aufgabenKommentareAbrufen, aufgabenKommentarAnlegen,
   aufgabenKommentarAktualisieren, aufgabenKommentarLoeschen,
+  aufgabeLabelsSetzen,
   type AufgabePickerOptionen,
 } from '@/app/actions/aufgaben'
 import AufgabeVerknuepfungenPicker from '@/components/AufgabeVerknuepfungenPicker'
 import AufgabeAssigneePicker from '@/components/AufgabeAssigneePicker'
+import AufgabeLabelsPicker from '@/components/AufgabeLabelsPicker'
 import ConfirmModal from '@/components/ConfirmModal'
 import type {
   AufgabeMitDetails, AufgabeStatus, AufgabePrioritaet,
@@ -450,6 +452,25 @@ export default function AufgabeDetailModal({
                     raeume={pickerOptionen.raeume}
                     kompakt
                     onChange={(patch) => speichern(patch)}
+                  />
+                </div>
+              )}
+
+              {/* Labels */}
+              {pickerOptionen && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 uppercase mb-2">Labels</label>
+                  <AufgabeLabelsPicker
+                    selectedIds={aufgabe.label_ids ?? []}
+                    labels={pickerOptionen.labels}
+                    kompakt
+                    onChange={(neu) => {
+                      startTransition(async () => {
+                        const res = await aufgabeLabelsSetzen(aufgabe.id, neu)
+                        if (res.fehler) setFehler(res.fehler)
+                        else router.refresh()
+                      })
+                    }}
                   />
                 </div>
               )}

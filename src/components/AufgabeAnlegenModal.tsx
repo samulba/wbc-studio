@@ -10,6 +10,7 @@ import {
 } from '@/app/actions/aufgaben'
 import AufgabeVerknuepfungenPicker from '@/components/AufgabeVerknuepfungenPicker'
 import AufgabeAssigneePicker from '@/components/AufgabeAssigneePicker'
+import AufgabeLabelsPicker from '@/components/AufgabeLabelsPicker'
 import type { AufgabeStatus, AufgabePrioritaet } from '@/lib/supabase/types'
 
 const STATI: { id: AufgabeStatus; label: string; klasse: string }[] = [
@@ -58,6 +59,7 @@ export default function AufgabeAnlegenModal({
   const [assigneeUserId, setAssigneeUserId] = useState<string | null>(null)
   const [assigneeKunde, setAssigneeKunde] = useState(false)
   const [sichtbarKunde, setSichtbarKunde] = useState(false)
+  const [labelIds, setLabelIds] = useState<string[]>([])
   const [fehler, setFehler] = useState<string | null>(null)
 
   // Beim Oeffnen Defaults zuruecksetzen
@@ -74,6 +76,7 @@ export default function AufgabeAnlegenModal({
     setAssigneeUserId(null)
     setAssigneeKunde(false)
     setSichtbarKunde(false)
+    setLabelIds([])
     setFehler(null)
   }, [open, defaultProjektId, defaultKundeId, defaultRaumId, defaultStatus])
 
@@ -94,6 +97,7 @@ export default function AufgabeAnlegenModal({
         assignee_user_id:    assigneeUserId,
         assignee_kunde:      assigneeKunde,
         sichtbar_fuer_kunde: sichtbarKunde,
+        label_ids:           labelIds,
       })
       if (res.fehler) setFehler(res.fehler)
       else { onClose(); router.refresh() }
@@ -166,6 +170,16 @@ export default function AufgabeAnlegenModal({
                   if (patch.kunde_id   !== undefined) setKundeId(patch.kunde_id)
                   if (patch.raum_id    !== undefined) setRaumId(patch.raum_id)
                 }}
+              />
+            </div>
+
+            {/* Labels */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 uppercase mb-2">Labels</label>
+              <AufgabeLabelsPicker
+                selectedIds={labelIds}
+                labels={pickerOptionen.labels}
+                onChange={setLabelIds}
               />
             </div>
 

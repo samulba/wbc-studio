@@ -199,7 +199,7 @@ export default function AufgabenBoardClient({
       prioritaet: 'normal',
       faellig_am: null, erledigt_am: null,
       assignee_user_id: null, assignee_kunde: false,
-      sichtbar_fuer_kunde: false, tags: [],
+      sichtbar_fuer_kunde: false, tags: [], label_ids: [],
       kunde_id: null, projekt_id: null, raum_id: null,
       raum_produkte_id: null, bestellung_id: null,
       quelle: 'manuell', quelle_id: null,
@@ -300,6 +300,7 @@ export default function AufgabenBoardClient({
               spalte={spalte}
               aufgaben={spaltenInhalt[spalte.id]}
               team={pickerOptionen?.team}
+              labels={pickerOptionen?.labels}
               onCardClick={(id) => setDetailId(id)}
               quickAddOpen={neuOffen === spalte.id}
               onQuickAddOpen={() => { setNeuOffen(spalte.id); setNeuTitel('') }}
@@ -312,7 +313,7 @@ export default function AufgabenBoardClient({
         </div>
         <DragOverlay>
           {activeId ? (
-            <Karte aufgabe={aufgaben.find((a) => a.id === activeId)!} dragging team={pickerOptionen?.team} />
+            <Karte aufgabe={aufgaben.find((a) => a.id === activeId)!} dragging team={pickerOptionen?.team} labels={pickerOptionen?.labels} />
           ) : null}
         </DragOverlay>
       </DndContext>
@@ -338,13 +339,14 @@ export default function AufgabenBoardClient({
 
 // ─── Spalte ───────────────────────────────────────────────────
 function Spalte({
-  spalte, aufgaben, team, onCardClick,
+  spalte, aufgaben, team, labels, onCardClick,
   quickAddOpen, onQuickAddOpen, onQuickAddClose,
   quickAddTitel, onQuickAddTitelChange, onQuickAddSubmit,
 }: {
   spalte: { id: AufgabeStatus; label: string; farbe: string }
   aufgaben: AufgabeMitDetails[]
   team?: { user_id: string; name: string; avatarUrl: string | null }[]
+  labels?: { id: string; name: string; farbe: string }[]
   onCardClick: (id: string) => void
   quickAddOpen: boolean
   onQuickAddOpen: () => void
@@ -374,7 +376,7 @@ function Spalte({
       </div>
       <SortableContext id={spalte.id} items={ids} strategy={verticalListSortingStrategy}>
         <DroppableSpalte spalteId={spalte.id} istLeer={aufgaben.length === 0}>
-          {aufgaben.map((a) => (<KarteSortable key={a.id} aufgabe={a} team={team} onClick={() => onCardClick(a.id)} />))}
+          {aufgaben.map((a) => (<KarteSortable key={a.id} aufgabe={a} team={team} labels={labels} onClick={() => onCardClick(a.id)} />))}
           {quickAddOpen && (
             <div className="bg-white border border-wellbeing-green/40 rounded-lg p-2 shadow-sm">
               <textarea
@@ -439,9 +441,10 @@ function DroppableSpalte({
 }
 
 // ─── Karte ────────────────────────────────────────────────────
-function KarteSortable({ aufgabe, team, onClick }: {
+function KarteSortable({ aufgabe, team, labels, onClick }: {
   aufgabe: AufgabeMitDetails
   team?: { user_id: string; name: string; avatarUrl: string | null }[]
+  labels?: { id: string; name: string; farbe: string }[]
   onClick: () => void
 }) {
   const sortable = useSortable({ id: aufgabe.id })
@@ -464,15 +467,16 @@ function KarteSortable({ aufgabe, team, onClick }: {
         onClick()
       }}
     >
-      <Karte aufgabe={aufgabe} team={team} />
+      <Karte aufgabe={aufgabe} team={team} labels={labels} />
     </div>
   )
 }
 
-function Karte({ aufgabe, dragging, team }: {
+function Karte({ aufgabe, dragging, team, labels }: {
   aufgabe: AufgabeMitDetails
   dragging?: boolean
   team?: { user_id: string; name: string; avatarUrl: string | null }[]
+  labels?: { id: string; name: string; farbe: string }[]
 }) {
   const heute = new Date().toISOString().slice(0, 10)
   const ueberfaellig = aufgabe.faellig_am && aufgabe.faellig_am < heute && aufgabe.status !== 'erledigt'
@@ -484,7 +488,10 @@ function Karte({ aufgabe, dragging, team }: {
   const assignee = aufgabe.assignee_user_id
     ? team?.find((t) => t.user_id === aufgabe.assignee_user_id)
     : null
-  const hatFooter = !!aufgabe.faellig_am || checkGesamt > 0 || aufgabe.tags.length > 0
+  const aktiveLabels = (aufgabe.label_ids ?? [])
+    .map((id) => labels?.find((l) => l.id === id))
+    .filter((l): l is { id: string; name: string; farbe: string } => !!l)
+  const hatFooter = !!aufgabe.faellig_am || checkGesamt > 0
                   || istAuto || aufgabe.assignee_kunde || !!assignee
 
   return (
@@ -498,17 +505,19 @@ function Karte({ aufgabe, dragging, team }: {
     }>
       {/* Body */}
       <div className="px-3 pt-3 pb-2.5">
-        {/* Top-Row: Prio-Punkt + Auto-Badge + Tags */}
-        {(aufgabe.tags.length > 0 || istAuto) && (
+        {/* Top-Row: Labels + Auto-Badge */}
+        {(aktiveLabels.length > 0 || istAuto) && (
           <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-            {aufgabe.tags.slice(0, 3).map((tag) => (
+            {aktiveLabels.slice(0, 4).map((l) => (
               <span
-                key={tag}
-                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-wellbeing-green/10 text-wellbeing-green-dark"
-              >#{tag}</span>
+                key={l.id}
+                className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium text-white"
+                style={{ backgroundColor: l.farbe }}
+                title={l.name}
+              >{l.name}</span>
             ))}
-            {aufgabe.tags.length > 3 && (
-              <span className="text-[10px] text-gray-400">+{aufgabe.tags.length - 3}</span>
+            {aktiveLabels.length > 4 && (
+              <span className="text-[10px] text-gray-400">+{aktiveLabels.length - 4}</span>
             )}
             {istAuto && (
               <span
