@@ -12,6 +12,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 import { freigabeZuruecksetzenAdmin, freigabeBulkStatusAendernAdmin } from '@/app/actions/freigabe'
+import Checkbox from '@/components/Checkbox'
 
 // ── Typen ─────────────────────────────────────────────────────
 export type FreigabeEintrag = {
@@ -443,18 +444,14 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
       >
         <div className="flex items-start gap-3">
           {/* Checkbox */}
-          <label
-            className="flex items-center justify-center shrink-0 w-5 h-5 mt-1"
-            onClick={(ev) => ev.stopPropagation()}
-          >
-            <input
-              type="checkbox"
+          <div className="shrink-0 mt-1">
+            <Checkbox
               checked={istMarkiert}
               onChange={() => toggleSelect(e.id)}
-              className="w-4 h-4 rounded border-gray-300 text-wellbeing-green focus:ring-wellbeing-green/30 cursor-pointer"
-              aria-label={`${e.name} auswählen`}
+              ariaLabel={`${e.name} auswählen`}
+              onClick={(ev) => ev.stopPropagation()}
             />
-          </label>
+          </div>
 
           {/* Thumbnail 32px */}
           {e.bild_url ? (
@@ -709,19 +706,15 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
               return (
                 <div key={g.projektId} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                   <div className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
-                    <label
-                      className="flex items-center justify-center shrink-0 w-5 h-5"
-                      onClick={(ev) => ev.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
+                    <div className="shrink-0">
+                      <Checkbox
                         checked={alleInGruppeMarkiert}
-                        ref={(el) => { if (el) el.indeterminate = teilweiseMarkiert }}
+                        indeterminate={teilweiseMarkiert}
                         onChange={() => toggleSelectGroup(gruppeIds)}
-                        className="w-4 h-4 rounded border-gray-300 text-wellbeing-green focus:ring-wellbeing-green/30 cursor-pointer"
-                        aria-label={`Alle Produkte in ${g.projektName} auswählen`}
+                        ariaLabel={`Alle Produkte in ${g.projektName} auswählen`}
+                        onClick={(ev) => ev.stopPropagation()}
                       />
-                    </label>
+                    </div>
 
                     <button
                       type="button"
@@ -824,17 +817,17 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
 
       {/* ── Floating Bulk-Action-Bar ────────────────────────── */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 animate-fadeIn">
-          <div className="flex items-center gap-2 bg-gray-900 text-white rounded-full shadow-2xl pl-4 pr-2 py-2">
-            <span className="text-xs font-semibold tabular-nums">
+        <div className="fixed bottom-6 inset-x-0 z-40 flex justify-center pointer-events-none px-4">
+          <div className="pointer-events-auto flex items-center gap-2 bg-white border border-gray-200 rounded-2xl shadow-xl pl-4 pr-2 py-2 animate-fadeIn">
+            <span className="text-xs font-medium text-gray-700 tabular-nums">
               {selectedIds.size} ausgewählt
             </span>
-            <span className="text-gray-500 mx-1">·</span>
+            <span className="w-px h-5 bg-gray-200 mx-1" />
             <button
               type="button"
               onClick={() => handleBulk('freigegeben')}
               disabled={isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 rounded-full transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 rounded-lg transition-colors"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               Freigeben
@@ -843,7 +836,7 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
               type="button"
               onClick={() => handleBulk('abgelehnt')}
               disabled={isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-500 hover:bg-red-600 disabled:opacity-50 rounded-full transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 disabled:opacity-50 rounded-lg transition-colors"
             >
               <XCircle className="w-3.5 h-3.5" />
               Ablehnen
@@ -852,7 +845,7 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
               type="button"
               onClick={() => handleBulk('ueberarbeitung')}
               disabled={isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-violet-500 hover:bg-violet-600 disabled:opacity-50 rounded-full transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-violet-700 bg-violet-50 hover:bg-violet-100 disabled:opacity-50 rounded-lg transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               Überarbeiten
@@ -861,17 +854,17 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
               type="button"
               onClick={() => handleBulk('ausstehend')}
               disabled={isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-amber-500 hover:bg-amber-600 disabled:opacity-50 rounded-full transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 disabled:opacity-50 rounded-lg transition-colors"
             >
               <Undo2 className="w-3.5 h-3.5" />
               Zurücksetzen
             </button>
-            <span className="w-px h-5 bg-gray-700 mx-1" />
+            <span className="w-px h-5 bg-gray-200 mx-1" />
             {selectedIds.size < gefiltert.length && (
               <button
                 type="button"
                 onClick={selectAllVisible}
-                className="px-3 py-1.5 text-xs font-medium text-gray-300 hover:text-white transition-colors"
+                className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-wellbeing-green-dark hover:bg-gray-50 rounded-lg transition-colors"
               >
                 Alle sichtbaren ({gefiltert.length})
               </button>
@@ -880,7 +873,8 @@ export default function FreigabenTabelle({ eintraege }: { eintraege: FreigabeEin
               type="button"
               onClick={clearSelection}
               title="Auswahl aufheben"
-              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+              aria-label="Auswahl aufheben"
+              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
