@@ -9,6 +9,10 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - **Aktivitätslog**: Header + Filter-Leiste bleiben jetzt beim Scrollen oben fixiert — Suchfeld und Aktion-/Entitäts-Filter sind so bei langen Logs immer erreichbar.
 - **Branding Live-Vorschau**: rutschte beim Scrollen unter den Page-Header und war oben abgeschnitten. Position um 60 px nach unten angepasst, sodass die Vorschau bündig unter dem Page-Header andockt.
 
+### Aufgaben-Board: Trennung Intern / Mit Projekt
+- Zwei neue **Filter-Pills**: „Mit Projekt" (nur Aufgaben mit Projekt-/Kunden-Verknüpfung) und „Intern" (nur Aufgaben ohne) — visuell getrennt von den Zeit-Filtern durch einen kleinen Trenner.
+- Cards ohne Verknüpfung zeigen jetzt einen dezenten **„Intern"-Indikator** mit grauem Punkt — vorher waren sie kontextlos.
+
 ### Aufgaben-System massiv erweitert (Sub-Commits 11-19h)
 
 **Manuelle Verknüpfung & Zuweisung**

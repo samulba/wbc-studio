@@ -41,7 +41,7 @@ const PRIO_BORDER: Record<AufgabePrioritaet, string> = {
   dringend: 'border-l-red-500',
 }
 
-type Filter = 'alle' | 'mir' | 'heute' | 'woche' | 'ueberfaellig'
+type Filter = 'alle' | 'mir' | 'heute' | 'woche' | 'ueberfaellig' | 'mit_projekt' | 'intern'
 
 export default function AufgabenBoardClient({
   initialeAufgaben,
@@ -103,6 +103,10 @@ export default function AufgabenBoardClient({
         if (!(a.faellig_am >= heute && a.faellig_am <= inEinerWoche)) return false
       } else if (filter === 'ueberfaellig') {
         if (!(a.faellig_am && a.faellig_am < heute && a.status !== 'erledigt')) return false
+      } else if (filter === 'mit_projekt') {
+        if (!a.projekt_id && !a.kunde_id) return false
+      } else if (filter === 'intern') {
+        if (a.projekt_id || a.kunde_id) return false
       }
       // Volltext-Suche ueber Titel + Beschreibung + Tags + Projekt + Kunde
       if (sucheNorm) {
@@ -298,6 +302,27 @@ export default function AufgabenBoardClient({
             { id: 'heute', label: 'Heute' },
             { id: 'woche', label: 'Diese Woche' },
             { id: 'ueberfaellig', label: 'Überfällig' },
+          ] as { id: Filter; label: string }[]).map((p) => {
+            const aktiv = filter === p.id
+            return (
+              <button
+                key={p.id}
+                onClick={() => setFilter(p.id)}
+                className={
+                  aktiv
+                    ? 'px-3 py-1.5 rounded-full text-sm font-medium bg-wellbeing-green text-white'
+                    : 'px-3 py-1.5 rounded-full text-sm font-medium bg-white text-gray-500 border border-gray-200 hover:border-gray-300'
+                }
+              >
+                {p.label}
+              </button>
+            )
+          })}
+          {/* Visueller Trenner zur Kontext-Gruppe */}
+          <div className="w-px h-5 bg-gray-200 mx-1" aria-hidden />
+          {([
+            { id: 'mit_projekt', label: 'Mit Projekt' },
+            { id: 'intern',      label: 'Intern' },
           ] as { id: Filter; label: string }[]).map((p) => {
             const aktiv = filter === p.id
             return (
@@ -593,8 +618,8 @@ function Karte({ aufgabe, dragging, team, labels }: {
           (istErledigt ? 'line-through text-gray-500' : 'text-gray-900')
         }>{aufgabe.titel}</p>
 
-        {/* Projekt/Kunde */}
-        {(aufgabe.projekt || aufgabe.kunde) && (
+        {/* Projekt/Kunde oder Intern-Indikator */}
+        {(aufgabe.projekt || aufgabe.kunde) ? (
           <div className="text-[11px] text-gray-500 mt-1.5 flex items-center gap-1.5 truncate">
             {aufgabe.projekt && (
               <span className="inline-flex items-center gap-1 truncate">
@@ -604,6 +629,10 @@ function Karte({ aufgabe, dragging, team, labels }: {
             )}
             {aufgabe.projekt && aufgabe.kunde && <span className="text-gray-300">·</span>}
             {aufgabe.kunde && <span className="truncate">{aufgabe.kunde.name}</span>}
+          </div>
+        ) : (
+          <div className="text-[10px] text-gray-400 mt-1.5 inline-flex items-center gap-1">
+            <span className="w-1 h-1 rounded-full bg-gray-300" /> Intern
           </div>
         )}
 
