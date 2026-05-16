@@ -17,6 +17,8 @@ import KundeProjektliste from '@/components/KundeProjektliste'
 import KundeTimelineBlock from '@/components/KundeTimelineBlock'
 import KundeKontakteBlock from '@/components/KundeKontakteBlock'
 import KundeDetailTabs from '@/components/KundeDetailTabs'
+import { kundenAnzeigeName } from '@/lib/supabase/types'
+import { Building2, User } from 'lucide-react'
 
 async function getKunde(id: string) {
   const supabase = await createClient()
@@ -84,7 +86,22 @@ export default async function KundeDetailPage({ params }: { params: { id: string
             <Link href="/dashboard/kunden" className="text-xs text-gray-400 hover:text-wellbeing-green transition-colors mb-0.5 inline-block">
               ← Kunden
             </Link>
-            <h1 className="text-xl font-semibold text-gray-900">{kunde.name}</h1>
+            <h1 className="text-xl font-semibold text-gray-900">
+              {kundenAnzeigeName(kunde)}
+            </h1>
+            {/* Bei 'beide' Kunde + Firma getrennt anzeigen, sofern beide gesetzt */}
+            {kunde.kunden_typ === 'beide' && kunde.firmenname && kunde.name && kunde.name !== kunde.firmenname && (
+              <p className="text-xs text-gray-500 mt-0.5 inline-flex items-center gap-1">
+                <Building2 className="w-3 h-3 text-gray-300" />
+                {kunde.firmenname}
+              </p>
+            )}
+            {/* Bei 'privat' Privat-Hinweis */}
+            {kunde.kunden_typ === 'privat' && (
+              <p className="text-xs text-gray-400 mt-0.5 inline-flex items-center gap-1">
+                <User className="w-3 h-3" /> Privatkunde
+              </p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -106,18 +123,19 @@ export default async function KundeDetailPage({ params }: { params: { id: string
         badgeProjekte={projekteMitStats.length}
         badgeTimeline={kundeEvents.length}
         badgeKommunikation={kommunikation.length}
-        badgeNotizen={notizen.length + (kunde.notizen ? 1 : 0)}
         uebersicht={
           <div className="space-y-6">
             <KundeStatsBand stats={stats} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">Firma</h2>
+                <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
+                  {kunde.kunden_typ === 'privat' ? 'Kontakt' : 'Firma'}
+                </h2>
                 <dl className="space-y-3">
                   <InfoZeile label="Website" wert={kunde.website} link={kunde.website ?? undefined} />
                   <InfoZeile label="Adresse" wert={kunde.adresse} />
                   {!kunde.website && !kunde.adresse && (
-                    <p className="text-sm text-gray-400">Keine Firmen-Daten hinterlegt.</p>
+                    <p className="text-sm text-gray-400">Keine Daten hinterlegt.</p>
                   )}
                 </dl>
               </div>
@@ -126,6 +144,18 @@ export default async function KundeDetailPage({ params }: { params: { id: string
                 kundeName={kunde.name}
                 initialPortalUser={portalUser}
               />
+            </div>
+
+            {/* Notizen direkt in der Uebersicht */}
+            <div className="space-y-3">
+              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">Notizen</h2>
+              {kunde.notizen && (
+                <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4">
+                  <p className="text-[11px] font-medium text-amber-800 uppercase tracking-widest mb-2">Alt-Notiz (Freitext)</p>
+                  <p className="text-sm text-amber-900/90 whitespace-pre-wrap leading-relaxed">{kunde.notizen}</p>
+                </div>
+              )}
+              <NotizBlock typ="kunde" referenzId={kunde.id} initialNotizen={notizen} />
             </div>
           </div>
         }
@@ -146,20 +176,6 @@ export default async function KundeDetailPage({ params }: { params: { id: string
         }
         kommunikation={
           <KommunikationBlock kundeId={kunde.id} initialEintraege={kommunikation} />
-        }
-        notizen={
-          <div className="space-y-4">
-            {kunde.notizen && (
-              <div className="bg-amber-50/60 border border-amber-200 rounded-xl p-4">
-                <h2 className="text-xs font-semibold text-amber-800 uppercase tracking-widest mb-2">Interne Notizen (alt)</h2>
-                <p className="text-sm text-amber-900/90 whitespace-pre-wrap leading-relaxed">{kunde.notizen}</p>
-                <p className="text-[11px] text-amber-700/80 mt-2">
-                  Aus dem alten Freitext-Feld. Übernimm den Inhalt manuell als Notiz unten — das Feld wird in einer kommenden Version entfernt.
-                </p>
-              </div>
-            )}
-            <NotizBlock typ="kunde" referenzId={kunde.id} initialNotizen={notizen} />
-          </div>
         }
       />
     </div>

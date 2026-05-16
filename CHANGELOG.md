@@ -5,6 +5,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-16
 
+### Kunden-Bereich überarbeitet
+- **Privatkunde / Firma / Beides** beim Anlegen: neuer Typ-Selektor im Kundenformular, getrennte Felder „Kundenname" und „Firmenname". Mindestens eines der Felder ist erforderlich. Bestehende Kunden bleiben unverändert sichtbar (Backfill: alle alten Einträge gelten als Firma, Firmenname aus dem bisherigen Namensfeld).
+- **Kundenübersicht** zeigt Kunde und Firma getrennt — bei „Beides" mit Personen- + Firmen-Zeile, in der Listenansicht eigene Spalten. Suche umfasst jetzt auch den Firmennamen.
+- **Notizen** sind jetzt direkt auf der Kundenübersicht statt im eigenen Tab. Alte Freitext-Notizen bleiben sichtbar.
+- **Kontakt-Formular** vereinfacht: nur noch E-Mail und Mobil. Vorhandene Telefonnummern bleiben erhalten und sind weiterhin im „Telefon (alt)"-Feld einsehbar, nur bei neuen Kontakten ist das Feld weg.
+- **Kommunikations-Einträge** ohne Richtungs-Dropdown (eingehend/ausgehend). Alte Werte bleiben in der DB, werden aber nicht mehr angezeigt.
+- Migration **110** (`firmenname`, `kunden_typ` mit Backfill) muss manuell in Supabase ausgeführt werden.
+
 ### Features entfernt
 - **Raumplaner**, **Moodboards** und **Feedback** sind aus der App entfernt. Drei Navigations-Einträge in der Sidebar verschwinden, kein Floating-Feedback-Button mehr, keine zugehörigen Routen, Komponenten oder Server-Actions im Code. Alte Direktlinks liefern jetzt eine saubere 404-Seite. Datenbank-Tabellen + Storage-Buckets bleiben unverändert im Hintergrund — falls ein Feature später wieder gebraucht wird, sind die Daten noch da.
 

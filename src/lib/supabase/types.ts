@@ -81,10 +81,17 @@ export interface ProjektAktivitaet {
 
 export type KundeStatus = 'aktiv' | 'abgeschlossen' | 'pausiert'
 
+export type KundenTyp = 'privat' | 'firma' | 'beide'
+
 export interface Kunde {
   id: string
   organisation_id?: string | null
+  /** Primaerer Anzeige-Name. Bei Privatkunden = Personenname, bei Firma = Firmenname. */
   name: string
+  /** Migration 110: Firmenname (optional). Backfilled aus `name` fuer Bestandskunden. */
+  firmenname: string | null
+  /** Migration 110: Typ des Kunden. */
+  kunden_typ: KundenTyp
   ansprechpartner: string | null
   email: string | null
   telefon: string | null
@@ -96,6 +103,21 @@ export interface Kunde {
   deleted_at: string | null
   created_at: string
   updated_at: string
+}
+
+/**
+ * Liefert den Anzeige-Namen eines Kunden in der Liste/Detail.
+ * - Bei `firma` → firmenname (Fallback name)
+ * - Bei `privat` → name
+ * - Bei `beide`  → "name · firmenname" wenn beide gesetzt, sonst was vorhanden
+ */
+export function kundenAnzeigeName(k: Pick<Kunde, 'name' | 'firmenname' | 'kunden_typ'>): string {
+  if (k.kunden_typ === 'privat') return k.name || '—'
+  if (k.kunden_typ === 'beide') {
+    if (k.name && k.firmenname) return `${k.name} · ${k.firmenname}`
+    return k.firmenname || k.name || '—'
+  }
+  return k.firmenname || k.name || '—'
 }
 
 export type ServiceModell = 'pauschale' | 'stundensatz'

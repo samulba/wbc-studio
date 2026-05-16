@@ -1,10 +1,10 @@
 'use client'
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { Info, Users, FolderOpen, CalendarDays, MessageSquareText, StickyNote } from 'lucide-react'
+import { Info, Users, FolderOpen, CalendarDays, MessageSquareText } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-export type KundeTabId = 'uebersicht' | 'kontakte' | 'projekte' | 'timeline' | 'kommunikation' | 'notizen'
+export type KundeTabId = 'uebersicht' | 'kontakte' | 'projekte' | 'timeline' | 'kommunikation'
 
 const TABS: { id: KundeTabId; label: string; icon: typeof Info }[] = [
   { id: 'uebersicht',    label: 'Übersicht',     icon: Info },
@@ -12,7 +12,6 @@ const TABS: { id: KundeTabId; label: string; icon: typeof Info }[] = [
   { id: 'projekte',      label: 'Projekte',      icon: FolderOpen },
   { id: 'timeline',      label: 'Timeline',      icon: CalendarDays },
   { id: 'kommunikation', label: 'Kommunikation', icon: MessageSquareText },
-  { id: 'notizen',       label: 'Notizen',       icon: StickyNote },
 ]
 
 export default function KundeDetailTabs({
@@ -21,24 +20,20 @@ export default function KundeDetailTabs({
   projekte,
   timeline,
   kommunikation,
-  notizen,
   badgeKontakte,
   badgeProjekte,
   badgeTimeline,
   badgeKommunikation,
-  badgeNotizen,
 }: {
   uebersicht:    ReactNode
   kontakte:      ReactNode
   projekte:      ReactNode
   timeline:      ReactNode
   kommunikation: ReactNode
-  notizen:       ReactNode
   badgeKontakte?:      number
   badgeProjekte?:      number
   badgeTimeline?:      number
   badgeKommunikation?: number
-  badgeNotizen?:       number
 }) {
   const router        = useRouter()
   const pathname      = usePathname()
@@ -59,7 +54,6 @@ export default function KundeDetailTabs({
     if (id === 'projekte')      return badgeProjekte
     if (id === 'timeline')      return badgeTimeline
     if (id === 'kommunikation') return badgeKommunikation
-    if (id === 'notizen')       return badgeNotizen
     return undefined
   }
 
@@ -105,7 +99,6 @@ export default function KundeDetailTabs({
       {tabIst('projekte')      && <div>{projekte}</div>}
       {tabIst('timeline')      && <div>{timeline}</div>}
       {tabIst('kommunikation') && <div>{kommunikation}</div>}
-      {tabIst('notizen')       && <div>{notizen}</div>}
     </div>
   )
 }

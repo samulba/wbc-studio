@@ -23,6 +23,43 @@ export interface KundeImpact {
   portalUser:    number
 }
 
+/**
+ * Loest die neuen Formular-Felder kundenname + firmenname + kunden_typ in das
+ * Datenmodell (name + firmenname + kunden_typ) auf. `name` ist die NOT-NULL-
+ * Spalte und bleibt das Primaer-Anzeigefeld:
+ *  - privat:  name = kundenname,            firmenname = NULL
+ *  - firma:   name = firmenname,            firmenname = firmenname
+ *  - beide:   name = kundenname (Person),   firmenname = firmenname
+ */
+function parseKundeFelder(formData: FormData): {
+  name:       string
+  firmenname: string | null
+  kunden_typ: 'privat' | 'firma' | 'beide'
+  fehler?:    string
+} {
+  const typ        = (formData.get('kunden_typ') as 'privat' | 'firma' | 'beide') || 'firma'
+  const kundenname = ((formData.get('kundenname') as string) || '').trim()
+  const firmenname = ((formData.get('firmenname') as string) || '').trim()
+
+  if (typ === 'privat') {
+    if (!kundenname) return { name: '', firmenname: null, kunden_typ: typ, fehler: 'Kundenname ist erforderlich.' }
+    return { name: kundenname, firmenname: null, kunden_typ: typ }
+  }
+  if (typ === 'firma') {
+    if (!firmenname) return { name: '', firmenname: null, kunden_typ: typ, fehler: 'Firmenname ist erforderlich.' }
+    return { name: firmenname, firmenname, kunden_typ: typ }
+  }
+  // beide
+  if (!kundenname && !firmenname) {
+    return { name: '', firmenname: null, kunden_typ: typ, fehler: 'Bitte Kundenname oder Firmenname angeben.' }
+  }
+  return {
+    name:       kundenname || firmenname,
+    firmenname: firmenname || null,
+    kunden_typ: typ,
+  }
+}
+
 export async function kundeAnlegen(
   prevState: KundeActionState,
   formData: FormData
@@ -33,16 +70,19 @@ export async function kundeAnlegen(
   const websiteRaw = (formData.get('website') as string) || null
   const autoFavicon = ableitenFaviconUrl(websiteRaw)
 
+  const felder = parseKundeFelder(formData)
+  if (felder.fehler) return { fehler: felder.fehler }
+
   // Hinweis: ansprechpartner/email/telefon werden ab Migration 091 nicht mehr
   // direkt ueber das Formular gepflegt, sondern vom Hauptkontakt im Kontakte-
   // Block via syncKundeHauptkontakt() gespiegelt.
-  const kundeName = formData.get('name') as string
   const { data: angelegt, error } = await supabase.from('kunden').insert({
-    name: kundeName,
-    adresse: (formData.get('adresse') as string) || null,
-    website: websiteRaw,
-    logo_url: autoFavicon,
-    notizen: (formData.get('notizen') as string) || null,
+    name:        felder.name,
+    firmenname:  felder.firmenname,
+    kunden_typ:  felder.kunden_typ,
+    adresse:     (formData.get('adresse') as string) || null,
+    website:     websiteRaw,
+    logo_url:    autoFavicon,
     organisation_id: orgId,
   }).select('id').single()
 
@@ -52,7 +92,7 @@ export async function kundeAnlegen(
     aktion:        'kunde_angelegt',
     entitaet_typ:  'kunde',
     entitaet_id:   angelegt.id,
-    entitaet_name: kundeName,
+    entitaet_name: felder.name,
   })
 
   revalidatePath('/dashboard/kunden')
@@ -67,14 +107,18 @@ export async function kundeAktualisieren(
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
+  const felder = parseKundeFelder(formData)
+  if (felder.fehler) return { fehler: felder.fehler }
+
   // ansprechpartner/email/telefon kommen ueber syncKundeHauptkontakt
   const { error } = await supabase
     .from('kunden')
     .update({
-      name: formData.get('name') as string,
+      name:       felder.name,
+      firmenname: felder.firmenname,
+      kunden_typ: felder.kunden_typ,
       adresse: (formData.get('adresse') as string) || null,
       website: (formData.get('website') as string) || null,
-      notizen: (formData.get('notizen') as string) || null,
     })
     .eq('id', id)
     .eq('organisation_id', orgId)
@@ -463,7 +507,7 @@ async function syncKundeHauptkontakt(kundeId: string, orgId: string): Promise<vo
   const supabase = await createClient()
   const { data: kontakte } = await supabase
     .from('kunden_kontakte')
-    .select('name, email, telefon, ist_hauptkontakt, reihenfolge, created_at')
+    .select('name, email, telefon, mobil, ist_hauptkontakt, reihenfolge, created_at')
     .eq('kunde_id', kundeId)
     .eq('organisation_id', orgId)
     .order('ist_hauptkontakt', { ascending: false })
@@ -471,14 +515,18 @@ async function syncKundeHauptkontakt(kundeId: string, orgId: string): Promise<vo
     .order('created_at', { ascending: true })
     .limit(1)
 
-  const primaer = (kontakte ?? [])[0] as { name: string; email: string | null; telefon: string | null } | undefined
+  const primaer = (kontakte ?? [])[0] as {
+    name: string; email: string | null; telefon: string | null; mobil: string | null
+  } | undefined
 
+  // kunde.telefon-Spalte fuellen wir bevorzugt aus Mobil (neuer Standard),
+  // Fallback auf Telefon (Bestand) damit Listenanzeige bei Altdaten weiter funktioniert.
   await supabase
     .from('kunden')
     .update({
       ansprechpartner: primaer?.name ?? null,
       email:           primaer?.email ?? null,
-      telefon:         primaer?.telefon ?? null,
+      telefon:         primaer?.mobil ?? primaer?.telefon ?? null,
     })
     .eq('id', kundeId)
     .eq('organisation_id', orgId)

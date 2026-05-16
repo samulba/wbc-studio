@@ -1,8 +1,10 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
+import { useState } from 'react'
+import { User, Building2, Users as UsersIcon } from 'lucide-react'
 import type { KundeActionState } from '@/app/actions/kunden'
-import type { Kunde } from '@/lib/supabase/types'
+import type { Kunde, KundenTyp } from '@/lib/supabase/types'
 
 function SpeichernButton() {
   const { pending } = useFormStatus()
@@ -23,8 +25,20 @@ interface Props {
   abbrechen: string
 }
 
+const TYP_OPTIONEN: { id: KundenTyp; label: string; beschreibung: string; icon: typeof User }[] = [
+  { id: 'privat', label: 'Privatkunde',   beschreibung: 'Eine Person',                icon: User },
+  { id: 'firma',  label: 'Firma',         beschreibung: 'Nur Firmenname',            icon: Building2 },
+  { id: 'beide',  label: 'Kunde + Firma', beschreibung: 'Person + zugehörige Firma', icon: UsersIcon },
+]
+
 export default function KundeFormular({ aktion, initialData, abbrechen }: Props) {
   const [state, formAction] = useFormState(aktion, null)
+  const [typ, setTyp]                 = useState<KundenTyp>(initialData?.kunden_typ ?? 'firma')
+  const [kundenname, setKundenname]   = useState<string>(initialData?.kunden_typ === 'firma' ? '' : (initialData?.name ?? ''))
+  const [firmenname, setFirmenname]   = useState<string>(initialData?.firmenname ?? (initialData?.kunden_typ === 'firma' ? (initialData?.name ?? '') : ''))
+
+  const zeigeKundenname = typ === 'privat' || typ === 'beide'
+  const zeigeFirmenname = typ === 'firma'  || typ === 'beide'
 
   return (
     <form action={formAction} className="space-y-5">
@@ -34,26 +48,80 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
         </div>
       )}
 
-      {/* Firmenname */}
+      {/* Kundentyp-Auswahl */}
       <div>
-        <label htmlFor="name" className={lbl}>
-          Firmenname <span className="text-red-400">*</span>
-        </label>
-        <input
-          id="name"
-          name="name"
-          type="text"
-          required
-          defaultValue={initialData?.name ?? ''}
-          className={inp}
-          placeholder="Musterfirma GmbH"
-        />
+        <label className={lbl}>Kundentyp <span className="text-red-400">*</span></label>
+        <div className="grid grid-cols-3 gap-2">
+          {TYP_OPTIONEN.map((opt) => {
+            const aktiv = typ === opt.id
+            const Icon  = opt.icon
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setTyp(opt.id)}
+                className={`flex flex-col items-start gap-1 px-3 py-3 rounded-lg border text-left transition-all ${
+                  aktiv
+                    ? 'border-wellbeing-green bg-wellbeing-green/5'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <Icon className={`w-3.5 h-3.5 ${aktiv ? 'text-wellbeing-green' : 'text-gray-400'}`} />
+                  <span className={`text-xs font-semibold ${aktiv ? 'text-wellbeing-green-dark' : 'text-gray-700'}`}>
+                    {opt.label}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-400">{opt.beschreibung}</p>
+              </button>
+            )
+          })}
+        </div>
+        <input type="hidden" name="kunden_typ" value={typ} />
       </div>
+
+      {/* Kundenname (Privat / Beide) */}
+      {zeigeKundenname && (
+        <div>
+          <label htmlFor="kundenname" className={lbl}>
+            Kundenname {typ === 'privat' && <span className="text-red-400">*</span>}
+          </label>
+          <input
+            id="kundenname"
+            name="kundenname"
+            type="text"
+            required={typ === 'privat'}
+            value={kundenname}
+            onChange={(e) => setKundenname(e.target.value)}
+            className={inp}
+            placeholder="Max Mustermann"
+          />
+        </div>
+      )}
+
+      {/* Firmenname (Firma / Beide) */}
+      {zeigeFirmenname && (
+        <div>
+          <label htmlFor="firmenname" className={lbl}>
+            Firmenname {typ === 'firma' && <span className="text-red-400">*</span>}
+          </label>
+          <input
+            id="firmenname"
+            name="firmenname"
+            type="text"
+            required={typ === 'firma'}
+            value={firmenname}
+            onChange={(e) => setFirmenname(e.target.value)}
+            className={inp}
+            placeholder="Musterfirma GmbH"
+          />
+        </div>
+      )}
 
       {/* Hinweis: Ansprechpartner pflegt man jetzt im Kontakte-Block */}
       <div className="rounded-lg bg-wellbeing-cream/50 border border-wellbeing-green/20 px-3 py-2.5">
         <p className="text-[12px] text-wellbeing-green-dark">
-          <span className="font-medium">Ansprechpartner</span> pflegst du nach dem Speichern auf der Detailseite — pro Person mit eigener E-Mail, Telefon und Mobilnummer.
+          <span className="font-medium">Ansprechpartner</span> pflegst du nach dem Speichern auf der Detailseite — pro Person mit eigener E-Mail und Mobilnummer.
         </p>
       </div>
 
@@ -83,19 +151,6 @@ export default function KundeFormular({ aktion, initialData, abbrechen }: Props)
           defaultValue={initialData?.adresse ?? ''}
           className={inp}
           placeholder="Musterstraße 1, 12345 Berlin"
-        />
-      </div>
-
-      {/* Notizen */}
-      <div>
-        <label htmlFor="notizen" className={lbl}>Notizen</label>
-        <textarea
-          id="notizen"
-          name="notizen"
-          rows={4}
-          defaultValue={initialData?.notizen ?? ''}
-          className={`${inp} resize-none`}
-          placeholder="Interne Notizen zum Kunden…"
         />
       </div>
 

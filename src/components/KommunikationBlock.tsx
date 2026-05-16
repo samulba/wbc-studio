@@ -3,9 +3,9 @@
 import { useState, useTransition } from 'react'
 import {
   Mail, Phone, Users, FileText, MessageSquare, MapPin, Circle,
-  Plus, Trash2, CheckCircle, Clock, ChevronDown,
+  Plus, Trash2, CheckCircle, Clock,
 } from 'lucide-react'
-import type { Kommunikation, KommunikationTyp, KommunikationRichtung } from '@/lib/supabase/types'
+import type { Kommunikation, KommunikationTyp } from '@/lib/supabase/types'
 import {
   kommunikationAnlegen,
   kommunikationLoeschen,
@@ -60,7 +60,6 @@ export default function KommunikationBlock({ kundeId, initialEintraege }: Props)
 
   // Formular-State
   const [typ, setTyp] = useState<KommunikationTyp>('notiz')
-  const [richtung, setRichtung] = useState<KommunikationRichtung | ''>('')
   const [betreff, setBetreff] = useState('')
   const [inhalt, setInhalt] = useState('')
   const [kontaktperson, setKontaktperson] = useState('')
@@ -71,7 +70,7 @@ export default function KommunikationBlock({ kundeId, initialEintraege }: Props)
   const sichtbar = filter === 'alle' ? eintraege : eintraege.filter((e) => e.typ === filter)
 
   function resetForm() {
-    setTyp('notiz'); setRichtung(''); setBetreff(''); setInhalt('')
+    setTyp('notiz'); setBetreff(''); setInhalt('')
     setKontaktperson(''); setDatum(new Date().toISOString().slice(0, 16))
     setDauerMinuten(''); setFollowUpDatum(''); setFehler(null)
   }
@@ -81,7 +80,7 @@ export default function KommunikationBlock({ kundeId, initialEintraege }: Props)
     startTransition(async () => {
       const res = await kommunikationAnlegen(kundeId, {
         typ,
-        richtung: (richtung as KommunikationRichtung) || null,
+        richtung: null,
         betreff: betreff || null,
         inhalt: inhalt || null,
         kontaktperson: kontaktperson || null,
@@ -99,7 +98,7 @@ export default function KommunikationBlock({ kundeId, initialEintraege }: Props)
         kunde_id: kundeId,
         projekt_id: null,
         typ,
-        richtung: (richtung as KommunikationRichtung) || null,
+        richtung: null,
         betreff: betreff || null,
         inhalt: inhalt || null,
         kontaktperson: kontaktperson || null,
@@ -180,22 +179,9 @@ export default function KommunikationBlock({ kundeId, initialEintraege }: Props)
             })}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] text-gray-500 mb-1 font-medium">Datum & Uhrzeit</label>
-              <input type="datetime-local" value={datum} onChange={(e) => setDatum(e.target.value)} className={inp} />
-            </div>
-            <div>
-              <label className="block text-[10px] text-gray-500 mb-1 font-medium">Richtung</label>
-              <div className="relative">
-                <select value={richtung} onChange={(e) => setRichtung(e.target.value as KommunikationRichtung | '')} className={`${inp} appearance-none pr-7`}>
-                  <option value="">–</option>
-                  <option value="eingehend">Eingehend</option>
-                  <option value="ausgehend">Ausgehend</option>
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              </div>
-            </div>
+          <div>
+            <label className="block text-[10px] text-gray-500 mb-1 font-medium">Datum & Uhrzeit</label>
+            <input type="datetime-local" value={datum} onChange={(e) => setDatum(e.target.value)} className={inp} />
           </div>
 
           <div>
@@ -280,9 +266,6 @@ export default function KommunikationBlock({ kundeId, initialEintraege }: Props)
                       <p className="text-xs font-medium text-gray-800 truncate select-text">{e.betreff}</p>
                     ) : (
                       <p className="text-xs text-gray-400 italic">{typConfig[e.typ].label}</p>
-                    )}
-                    {e.richtung && (
-                      <span className="text-[10px] text-gray-400">({e.richtung})</span>
                     )}
                     {hatFollowUp && (
                       <button

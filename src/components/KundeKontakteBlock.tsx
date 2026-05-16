@@ -459,26 +459,30 @@ function KontaktModal({
                 placeholder="kontakt@beispiel.de"
               />
             </Field>
-            <Field label="Telefon">
+            <Field label="Mobil">
               <input
                 type="tel"
-                value={daten.telefon ?? ''}
-                onChange={(e) => setDaten({ ...daten, telefon: e.target.value })}
+                value={daten.mobil ?? ''}
+                onChange={(e) => setDaten({ ...daten, mobil: e.target.value })}
                 className={inp}
                 placeholder="+49 …"
               />
             </Field>
           </div>
 
-          <Field label="Mobil">
-            <input
-              type="tel"
-              value={daten.mobil ?? ''}
-              onChange={(e) => setDaten({ ...daten, mobil: e.target.value })}
-              className={inp}
-              placeholder="+49 …"
-            />
-          </Field>
+          {/* Legacy: bestehende Telefonnummern weiterhin sichtbar machen,
+              damit keine Daten verloren gehen. Neue Eintraege nutzen Mobil. */}
+          {daten.telefon && (
+            <Field label="Telefon (alt)">
+              <input
+                type="tel"
+                value={daten.telefon}
+                onChange={(e) => setDaten({ ...daten, telefon: e.target.value })}
+                className={inp}
+                placeholder="+49 …"
+              />
+            </Field>
+          )}
 
           <Field label="Notizen zur Person">
             <textarea

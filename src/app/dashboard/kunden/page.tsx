@@ -24,6 +24,8 @@ async function getKunden(): Promise<KundeKarte[]> {
   return (kundenDaten ?? []).map((k) => ({
     id: k.id,
     name: k.name,
+    firmenname: k.firmenname ?? null,
+    kunden_typ: (k.kunden_typ as 'privat' | 'firma' | 'beide') ?? 'firma',
     ansprechpartner: k.ansprechpartner ?? null,
     email: k.email ?? null,
     telefon: k.telefon ?? null,

@@ -3,12 +3,15 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Mail, Phone, FolderOpen, Search, LayoutGrid, List } from 'lucide-react'
+import { Mail, Phone, FolderOpen, Search, LayoutGrid, List, Building2, User } from 'lucide-react'
+import type { KundenTyp } from '@/lib/supabase/types'
 
 // ── Typen ─────────────────────────────────────────────────────
 export type KundeKarte = {
   id: string
   name: string
+  firmenname: string | null
+  kunden_typ: KundenTyp
   ansprechpartner: string | null
   email: string | null
   telefon: string | null
@@ -52,10 +55,12 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
   }
 
   const gefiltert = kunden.filter((k) => {
-    const matchSuche = !suche.trim() ||
-      k.name.toLowerCase().includes(suche.toLowerCase()) ||
-      k.ansprechpartner?.toLowerCase().includes(suche.toLowerCase()) ||
-      k.email?.toLowerCase().includes(suche.toLowerCase())
+    const q = suche.trim().toLowerCase()
+    const matchSuche = !q ||
+      k.name.toLowerCase().includes(q) ||
+      k.firmenname?.toLowerCase().includes(q) ||
+      k.ansprechpartner?.toLowerCase().includes(q) ||
+      k.email?.toLowerCase().includes(q)
     const matchStatus = !status || k.status === status
     return matchSuche && matchStatus
   })
@@ -114,8 +119,27 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="font-semibold text-gray-900 group-hover:text-wellbeing-green transition-colors truncate leading-tight">{kunde.name}</p>
-                    {kunde.ansprechpartner && <p className="text-xs text-gray-500 truncate mt-0.5">{kunde.ansprechpartner}</p>}
+                    {kunde.kunden_typ === 'beide' && kunde.firmenname && kunde.name && kunde.name !== kunde.firmenname ? (
+                      <>
+                        <p className="font-semibold text-gray-900 group-hover:text-wellbeing-green transition-colors truncate leading-tight inline-flex items-center gap-1">
+                          <User className="w-3 h-3 text-gray-300 shrink-0" />
+                          {kunde.name}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate mt-0.5 inline-flex items-center gap-1">
+                          <Building2 className="w-3 h-3 text-gray-300 shrink-0" />
+                          {kunde.firmenname}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-semibold text-gray-900 group-hover:text-wellbeing-green transition-colors truncate leading-tight">
+                          {kunde.firmenname || kunde.name}
+                        </p>
+                        {kunde.ansprechpartner && (
+                          <p className="text-xs text-gray-500 truncate mt-0.5">{kunde.ansprechpartner}</p>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
                 <span className={`shrink-0 ml-2 text-[10px] px-2 py-0.5 rounded-full font-medium ${statusBadge[kunde.status] ?? statusBadge.aktiv}`}>
@@ -143,9 +167,9 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className={th + ' text-left'}>Kunde</th>
-                <th className={th + ' text-left'}>Ansprechpartner</th>
+                <th className={th + ' text-left'}>Firma</th>
                 <th className={th + ' text-left'}>E-Mail</th>
-                <th className={th + ' text-left'}>Telefon</th>
+                <th className={th + ' text-left'}>Mobil</th>
                 <th className={th}>Status</th>
                 <th className={th}>Projekte</th>
                 <th className="w-16" />
@@ -163,10 +187,16 @@ export default function KundenGrid({ kunden }: { kunden: KundeKarte[] }) {
                     ) : (
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold text-white shrink-0 ${avatarFarbe(kunde.name)}`}>{initials(kunde.name)}</div>
                     )}
-                      <span className="font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors">{kunde.name}</span>
+                      <span className="font-medium text-gray-900 group-hover:text-wellbeing-green transition-colors">
+                        {kunde.kunden_typ === 'firma'
+                          ? (kunde.firmenname ?? kunde.name)
+                          : kunde.name}
+                      </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3.5 text-gray-600">{kunde.ansprechpartner ?? '–'}</td>
+                  <td className="px-4 py-3.5 text-gray-600">
+                    {kunde.kunden_typ === 'firma' ? '–' : (kunde.firmenname ?? '–')}
+                  </td>
                   <td className="px-4 py-3.5 text-gray-500">{kunde.email ?? '–'}</td>
                   <td className="px-4 py-3.5 text-gray-500">{kunde.telefon ?? '–'}</td>
                   <td className="px-4 py-3.5 text-center">
