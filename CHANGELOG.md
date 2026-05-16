@@ -5,6 +5,15 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-16
 
+### Projekte überarbeitet — Phase 1+2 (Bug-Fixes, Zusatzkosten, Service-Raten)
+- **9000→9-Bug behoben**: Eingabefelder für Budgets/Beträge erkennen deutsche Tausenderpunkte jetzt korrekt — „9.000" wird als 9000 verstanden statt fälschlich als 9. Neuer zentraler `parseGeldwert()`-Helper in `src/lib/geld.ts`, sicher gegen alle Locale-Varianten.
+- **„Erstes Produkt hinzufügen" öffnet jetzt das Modal** mit Auswahl „Aus Bibliothek" vs „Neues Produkt erstellen", statt direkt auf die Anlage-Maske zu springen.
+- **Marge + Provision als eigene Tabellen-Spalte** in der Raum-Produkttabelle (intern sichtbar, kompakt formatiert).
+- **Raum-Zusatzkosten**: Neue Pflege-Section pro Raum für Lieferung, Handwerker, Malerarbeiten, Montage und Sonstiges. Mit Kategorie, Netto-Betrag, Notiz. Fließen in die Budget-Auslastung mit ein, separat von der Servicepauschale.
+- **Service-Pauschale-Raten**: Bei Service-Modell „Pauschale" kann jetzt ein Zahlungsplan mit Raten geführt werden — Betrag, Fälligkeitsdatum, Rechnungsdatum, Status (offen/gestellt/bezahlt). Mit Fortschritts-Balken „1 von 3 Raten bezahlt".
+- **Zentrale Projekt-Kalkulation** (`src/lib/projekt-kalkulation.ts`) — eine Single-Source-of-Truth für alle Aggregationen. UI, Stats, PDF und CSV nutzen jetzt dieselbe Logik, damit die Summen überall identisch sind.
+- Migration **112** (`raum_zusatzkosten` + `service_raten`) muss manuell in Supabase ausgeführt werden — komplett additiv, keine bestehenden Daten betroffen.
+
 ### Onboarding-Bugfixes (Round 3)
 - **Datei-Upload funktioniert wieder**: Migration 111 repariert den Foreign-Key auf `onboarding_dateien` (und 9 weiteren Tabellen aus Mig 054/055), der fälschlich auf `auth.users` statt `organisationen` zeigte. Dadurch verursachte jeder Upload einen FK-Constraint-Fehler.
 - **„Bereits eingereicht" wird nicht mehr sofort nach Submit gezeigt**: Der Customer-Pfad wird nach dem Absenden nicht mehr revalidiert — der Client-State mit dem Erfolgs-Screen bleibt. Bei einem erneuten Aufruf des Links sieht der Kunde dann zu Recht "Bereits eingereicht".

@@ -27,6 +27,10 @@ import { getKategorien } from '@/app/actions/einstellungen'
 import { getZeiterfassung, getZeitSumme } from '@/app/actions/zeiterfassung'
 import { getRaumBudgetDetails } from '@/app/actions/raeume'
 import { effektiverVpNetto } from '@/lib/preise'
+import { berechneProjektKalkulation } from '@/lib/projekt-kalkulation'
+import { getMwstSatz } from '@/app/actions/einstellungen'
+import { getServiceRaten } from '@/app/actions/service-raten'
+import ServiceRatenBlock from '@/components/ServiceRatenBlock'
 import RaumBudgetGrid from '@/components/RaumBudgetGrid'
 import ChatBlock from '@/components/ChatBlock'
 import ProjektAufgabenBlock from '@/components/ProjektAufgabenBlock'
@@ -80,38 +84,25 @@ async function getAktiveTokens(projektId: string) {
   }[]
 }
 
-async function getProjektStats(projektId: string) {
+/**
+ * Wrapper um die zentrale Projekt-Kalkulation (src/lib/projekt-kalkulation.ts).
+ * Behaelt die alte Rueckgabe-Form fuer Abwaerts-Kompatibilitaet mit dem UI,
+ * fuegt aber netto/brutto/zusatzkosten/service-felder zusaetzlich an.
+ */
+async function getProjektStats(projektId: string, mwstSatz: number) {
   const supabase = await createClient()
-  const { data: raeume } = await supabase.from('raeume').select('id').eq('projekt_id', projektId).is('deleted_at', null)
-  const raumIds = (raeume ?? []).map((r) => r.id)
-  if (raumIds.length === 0) return { gesamtkosten: 0, ausstehend: 0, freigegeben: 0, abgelehnt: 0, ueberarbeitung: 0, produkteGesamt: 0 }
-
-  // freigabe_status liegt seit Migration 076 auf raum_produkte (pro Raum eigen).
-  const { data: eintraege } = await supabase
-    .from('raum_produkte')
-    .select('menge, verkaufspreis_override, rabatt_prozent, freigabe_status, produkte(id, verkaufspreis, deleted_at)')
-    .in('raum_id', raumIds)
-
-  let gesamtkosten = 0, ausstehend = 0, freigegeben = 0, abgelehnt = 0, ueberarbeitung = 0
-  const aktiveEintraege = (eintraege ?? []).filter((e) => {
-    const prod = (e.produkte as unknown) as { deleted_at: string | null } | null
-    return prod?.deleted_at == null
-  })
-
-  for (const e of aktiveEintraege) {
-    const prod = (e.produkte as unknown) as { verkaufspreis: number | null } | null
-    const vp = effektiverVpNetto(
-      { verkaufspreis_override: e.verkaufspreis_override, rabatt_prozent: e.rabatt_prozent ?? null },
-      prod?.verkaufspreis ?? null,
-    )
-    gesamtkosten += vp * e.menge
-    const s = (e.freigabe_status as string | null) ?? 'ausstehend'
-    if (s === 'ausstehend') ausstehend++
-    else if (s === 'freigegeben') freigegeben++
-    else if (s === 'abgelehnt') abgelehnt++
-    else if (s === 'ueberarbeitung') ueberarbeitung++
+  const kalk = await berechneProjektKalkulation(supabase, projektId, mwstSatz)
+  return {
+    // Legacy-Felder (UI-kompatibel)
+    gesamtkosten:  kalk.budgetVerbrauchtNetto,
+    ausstehend:    kalk.statusCounts.ausstehend,
+    freigegeben:   kalk.statusCounts.freigegeben,
+    abgelehnt:     kalk.statusCounts.abgelehnt,
+    ueberarbeitung: kalk.statusCounts.ueberarbeitung,
+    produkteGesamt: kalk.produkteAnzahl,
+    // Neue Felder
+    kalk,
   }
-  return { gesamtkosten: Math.round(gesamtkosten * 100) / 100, ausstehend, freigegeben, abgelehnt, ueberarbeitung, produkteGesamt: aktiveEintraege.length }
 }
 
 async function getRaumStats(raumIds: string[]): Promise<Record<string, RaumStat>> {
@@ -158,13 +149,14 @@ export default async function ProjektDetailPage({
   searchParams: Promise<{ tab?: string }>
 }) {
   const { tab: tabParam } = await searchParams
-  const [projekt, raeume, aktiveTokens, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten, aufgabenAlle, aufgabenPickerOptionen] = await Promise.all([
+  const mwstSatz = await getMwstSatz()
+  const [projekt, raeume, aktiveTokens, alleTokens, dateien, stats, notizen, raumtypen, kunden, zeitEintraege, zeitSumme, alleEvents, raumBudgetDetails, nachrichten, aufgabenAlle, aufgabenPickerOptionen, serviceRaten] = await Promise.all([
     getProjekt(params.id),
     getRaeume(params.id),
     getAktiveTokens(params.id),
     freigabeTokensAbrufenFuerProjekt(params.id),
     getDateien(params.id),
-    getProjektStats(params.id),
+    getProjektStats(params.id, mwstSatz),
     getNotizen(params.id),
     getKategorien('raumtyp'),
     getKunden(),
@@ -175,6 +167,7 @@ export default async function ProjektDetailPage({
     getNachrichtenFuerProjekt(params.id),
     getAufgaben({ projektId: params.id }),
     getAufgabePickerOptionen(),
+    getServiceRaten(params.id),
   ])
 
   if (!projekt) return notFound()
@@ -643,6 +636,15 @@ export default async function ProjektDetailPage({
                 projektId={projekt.id}
                 stundensatz={projekt.service_stundensatz}
                 initialEintraege={zeitEintraege}
+              />
+            )}
+
+            {/* Row 5: Service-Raten (nur bei Pauschale-Modell) */}
+            {projekt.service_modell === 'pauschale' && (
+              <ServiceRatenBlock
+                projektId={projekt.id}
+                initial={serviceRaten}
+                servicePauschale={projekt.service_pauschale ?? null}
               />
             )}
           </div>

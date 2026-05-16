@@ -17,6 +17,8 @@ import type { Partner, RaumProduktMitDetails } from '@/lib/supabase/types'
 import ProduktHinzufuegenModal from '@/components/ProduktHinzufuegenModal'
 import RaumEventButton from '@/components/RaumEventButton'
 import TimelineSyncButton from '@/components/TimelineSyncButton'
+import RaumZusatzkostenBlock from '@/components/RaumZusatzkostenBlock'
+import { getRaumZusatzkosten } from '@/app/actions/raum-zusatzkosten'
 
 async function getPartner(): Promise<Pick<Partner, 'id' | 'name'>[]> {
   const supabase = await createClient()
@@ -71,13 +73,14 @@ export default async function RaumDetailPage({
   params: { id: string; raumId: string }
   searchParams: SearchParams
 }) {
-  const [raum, alleEintraege, MWST, timelineEvents, kategorienDB, partnerListe] = await Promise.all([
+  const [raum, alleEintraege, MWST, timelineEvents, kategorienDB, partnerListe, zusatzkosten] = await Promise.all([
     getRaum(params.raumId, params.id),
     getRaumProdukte(params.raumId),
     getMwstSatz(),
     raumEventsAbrufen(params.raumId),
     getKategorien('produktkategorie'),
     getPartner(),
+    getRaumZusatzkosten(params.raumId),
   ])
 
   if (!raum) notFound()
@@ -237,6 +240,15 @@ export default async function RaumDetailPage({
         </>
       )}
 
+      {/* Zusatzkosten (Lieferung, Handwerker, Montage, ...) */}
+      <div className="mt-6">
+        <RaumZusatzkostenBlock
+          raumId={params.raumId}
+          projektId={params.id}
+          mwstSatz={MWST}
+          initial={zusatzkosten}
+        />
+      </div>
     </div>
   )
 }

@@ -160,6 +160,41 @@ export interface Zeiterfassung {
   created_at: string
 }
 
+// ── Raum-Zusatzkosten (Migration 112) ─────────────────────────
+export type RaumZusatzkostenKategorie = 'lieferung' | 'handwerker' | 'malerarbeiten' | 'montage' | 'sonstiges'
+
+export interface RaumZusatzkosten {
+  id: string
+  organisation_id: string
+  raum_id: string
+  titel: string
+  kategorie: RaumZusatzkostenKategorie
+  /** Netto-Betrag. MwSt wird zentral aus getMwstSatz() angewendet. */
+  betrag_netto: number
+  notiz: string | null
+  reihenfolge: number
+  created_at: string
+  updated_at: string
+}
+
+// ── Service-Pauschale-Raten (Migration 112) ───────────────────
+export type ServiceRateStatus = 'offen' | 'gestellt' | 'bezahlt' | 'storniert'
+
+export interface ServiceRate {
+  id: string
+  organisation_id: string
+  projekt_id: string
+  betrag: number
+  faellig_am: string | null
+  rechnungsdatum: string | null
+  bezahlt_am: string | null
+  status: ServiceRateStatus
+  notiz: string | null
+  reihenfolge: number
+  created_at: string
+  updated_at: string
+}
+
 export type ProjektMitKunde = Projekt & {
   kunden: { id: string; name: string; email: string | null; telefon: string | null; ansprechpartner: string | null } | null
 }
