@@ -335,10 +335,10 @@ export async function onboardingAbsendenV2(
 
   if (error) return { erfolg: false, fehler: 'Fehler beim Speichern: ' + error.message }
 
-  // Cache invalidieren — damit Admin-Liste + Customer-Page sofort den
-  // neuen Status sehen.
+  // Admin-Cache invalidieren. Customer-Page (/onboarding/[token])
+  // NICHT revalidieren — sonst wuerde RSC sofort 'Bereits eingereicht'
+  // rendern und den lokalen ErfolgScreen-State des Kunden ueberschreiben.
   revalidatePath('/dashboard/onboarding')
-  revalidatePath(`/onboarding/${token}`)
 
   // Auto-Sync: Aufgabe „Onboarding pruefen" anlegen
   try {
@@ -391,6 +391,9 @@ export async function onboardingDateiSpeichern(
     .single()
 
   if (!anfrage) return { fehler: 'Anfrage nicht gefunden.' }
+  if (!anfrage.organisation_id) {
+    return { fehler: 'Anfrage hat keine Organisation — Migration 111 ausgefuehrt?' }
+  }
 
   const { data, error } = await supabase
     .from('onboarding_dateien')

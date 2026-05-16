@@ -5,6 +5,19 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-16
 
+### Onboarding-Bugfixes (Round 3)
+- **Datei-Upload funktioniert wieder**: Migration 111 repariert den Foreign-Key auf `onboarding_dateien` (und 9 weiteren Tabellen aus Mig 054/055), der fälschlich auf `auth.users` statt `organisationen` zeigte. Dadurch verursachte jeder Upload einen FK-Constraint-Fehler.
+- **„Bereits eingereicht" wird nicht mehr sofort nach Submit gezeigt**: Der Customer-Pfad wird nach dem Absenden nicht mehr revalidiert — der Client-State mit dem Erfolgs-Screen bleibt. Bei einem erneuten Aufruf des Links sieht der Kunde dann zu Recht "Bereits eingereicht".
+- **Sektion-Header im Customer-Formular**: Wenn die Vorlage in Sektionen unterteilt ist, werden die Section-Headings („Wohnort", „Rechnungsadresse", etc.) jetzt auch im Live-Link angezeigt — vorher waren alle Fragen flach untereinander, was bei wiederkehrenden Feldern wie Adressen verwirrend war.
+- **„Wohnort übernehmen"-Button**: Wenn der Kunde in einer zweiten Adress-Sektion landet (z.B. abweichende Rechnungsadresse), erscheint ein Übernehmen-Button, der Straße/PLZ/Ort aus der ersten Adress-Sektion vorausfüllt.
+- **Auto-Save-Indikator**: Oben im Formular zeigt jetzt ein kleines „Speichert…" / „✓ Gespeichert"-Label, dass die Eingaben zwischengespeichert werden.
+- **Pflichtfeld-Counter pro Sektion**: Sektion-Header zeigt „3/5 ausgefüllt" — gibt Orientierung in langen Formularen.
+- **Vorlage-Editor: White-Label und E-Mail-Tab entfernt**: Es bleiben nur die zwei Tabs „Felder" und „Einstellungen". Bestehende DB-Werte (Akzentfarbe, Logo-URL, E-Mail-Texte) bleiben unverändert erhalten — keine destruktive Migration.
+- **„Als Kunde anlegen"-Button bleibt sichtbar**, bis der Kunde wirklich angelegt wurde. Vorher verschwand er nach Submit, weil die Anfrage nicht mehr „offen" war.
+- **Conditional-Logic im Editor** sauberer Card-Style mit klarem Abstand und Schließen-Button rechts oben — kein Überlappen mehr mit benachbarten Fragen.
+- **Vorschau-Modus für Admin**: Mit `?vorschau=1` an der Onboarding-URL kann ein eingereichtes Formular trotzdem zur Anschauung geöffnet werden.
+- Migration **111** muss manuell in Supabase ausgeführt werden.
+
 ### Kunden-Bereich überarbeitet
 - **Privatkunde / Firma / Beides** beim Anlegen: neuer Typ-Selektor im Kundenformular, getrennte Felder „Kundenname" und „Firmenname". Mindestens eines der Felder ist erforderlich. Bestehende Kunden bleiben unverändert sichtbar (Backfill: alle alten Einträge gelten als Firma, Firmenname aus dem bisherigen Namensfeld).
 - **Kundenübersicht** zeigt Kunde und Firma getrennt — bei „Beides" mit Personen- + Firmen-Zeile, in der Listenansicht eigene Spalten. Suche umfasst jetzt auch den Firmennamen.

@@ -11,10 +11,12 @@ export const revalidate = 0
 
 interface Props {
   params: { token: string }
+  searchParams: { vorschau?: string }
 }
 
-export default async function OnboardingPage({ params }: Props) {
+export default async function OnboardingPage({ params, searchParams }: Props) {
   const supabase = createAdminClient()
+  const vorschauModus = searchParams?.vorschau === '1'
 
   const { data: anfrage } = await supabase
     .from('onboarding_anfragen')
@@ -37,7 +39,9 @@ export default async function OnboardingPage({ params }: Props) {
   // onboardingAbsendenV2/onboardingAbsenden) bzw. dass antworten gesetzt
   // wurde. kunde_name allein blockiert hier nicht mehr (kann durch
   // Prefill bei verknuepftem Kunden gesetzt sein), Bug 1.
-  if (anfrage.status === 'abgeschlossen' || anfrage.antworten) {
+  // Im Vorschau-Modus (?vorschau=1) wird das Formular trotzdem gerendert,
+  // damit Admin abgeschlossene Anfragen einsehen kann.
+  if (!vorschauModus && (anfrage.status === 'abgeschlossen' || anfrage.antworten)) {
     const br = await brandingFuerToken()
     return <BereitsAusgefuellt branding={br} />
   }

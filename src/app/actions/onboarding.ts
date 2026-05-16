@@ -158,10 +158,10 @@ export async function onboardingAbsenden(
 
   if (error) return { erfolg: false, fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
 
-  // Cache invalidieren — damit Admin-Liste + Customer-Page sofort den
-  // neuen Status sehen.
+  // Admin-Cache invalidieren. Customer-Page (/onboarding/[token])
+  // NICHT revalidieren — sonst wuerde RSC sofort 'Bereits eingereicht'
+  // rendern und den lokalen ErfolgScreen-State des Kunden ueberschreiben.
   revalidatePath('/dashboard/onboarding')
-  revalidatePath(`/onboarding/${token}`)
 
   // Auto-Sync: Aufgabe „Onboarding pruefen" anlegen
   try {

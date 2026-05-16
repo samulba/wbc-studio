@@ -434,6 +434,9 @@ function AnfrageDetail({
   const offen = anfrage.status === 'offen' || anfrage.status === 'in_bearbeitung'
   const hatDaten = istEingereicht(anfrage)
   const hatProjektName = !!anfrage.projekt_name
+  // Buttons sichtbar bis der Kunde wirklich angelegt wurde — nicht nur
+  // solange offen. Sonst verschwinden sie nach Submit (Bug 4).
+  const darfAnlegen = hatDaten && !anfrage.kunde_id
 
   function handleStatus(status: OnboardingStatus) {
     startTransition(async () => {
@@ -627,7 +630,7 @@ function AnfrageDetail({
 
       {/* Aktionen */}
       <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-200">
-        {hatDaten && offen && hatProjektName && (
+        {darfAnlegen && hatProjektName && (
           <button
             onClick={handleKundeUndProjektAnlegen}
             disabled={isPending}
@@ -637,7 +640,7 @@ function AnfrageDetail({
             {isPending ? 'Wird angelegt…' : 'Kunde + Projekt anlegen'}
           </button>
         )}
-        {hatDaten && offen && !hatProjektName && (
+        {darfAnlegen && !hatProjektName && (
           <button
             onClick={handleKundeAnlegen}
             disabled={isPending}

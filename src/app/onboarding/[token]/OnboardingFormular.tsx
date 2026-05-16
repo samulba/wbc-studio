@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { Check, ChevronRight, ChevronLeft, CheckCircle2, Plus, X, Clock } from 'lucide-react'
+import { Check, ChevronRight, ChevronLeft, CheckCircle2, Plus, X, Clock, Copy } from 'lucide-react'
 import { onboardingAbsenden } from '@/app/actions/onboarding'
+import { onboardingAutoSave } from '@/app/actions/onboarding-erweitert'
 import OnboardingUploadFeld from '@/components/onboarding/OnboardingUploadFeld'
 import OnboardingLinkListeFeld from '@/components/onboarding/OnboardingLinkListeFeld'
 import { sichtbareFragen, antwortenFiltern } from '@/lib/onboarding-bedingungen'
-import type { OnboardingVorlage, OnboardingFrage, Branding, OnboardingDatei, OnboardingLinkEintrag } from '@/lib/supabase/types'
+import type { OnboardingVorlage, OnboardingFrage, OnboardingSektion, Branding, OnboardingDatei, OnboardingLinkEintrag } from '@/lib/supabase/types'
 
 // ── Konstanten (Standard-Vorlage) ─────────────────────────────
 const RAUMTYPEN = [
@@ -295,6 +296,8 @@ function StandardFormular({ token, branding }: { token: string; branding?: Brand
 }
 
 // ── Dynamisches Formular (custom Vorlage) ─────────────────────
+type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error'
+
 function DynamischesFormular({ token, vorlage, branding }: { token: string; vorlage: OnboardingVorlage; branding?: Branding | null }) {
   const prim       = branding?.primary_color    ?? '#445c49'
   const bg         = branding?.background_color ?? '#f6ede2'
@@ -304,10 +307,13 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
   const [fehlerMsg, setFehlerMsg]     = useState<string | null>(null)
   const [feldFehler, setFeldFehler]   = useState<Record<string, string>>({})
   const [isPending, startTransition]  = useTransition()
+  const [autoSave, setAutoSave]       = useState<AutoSaveStatus>('idle')
+  const ersteAenderung                = useRef(false)
 
   function setAntwort(id: string, value: unknown) {
     setAntworten((a) => ({ ...a, [id]: value }))
     setFeldFehler((e) => { const copy = { ...e }; delete copy[id]; return copy })
+    ersteAenderung.current = true
   }
 
   function toggleOption(id: string, opt: string, mehrfach: boolean) {
@@ -324,6 +330,85 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
 
   // Sichtbare Fragen unter Beruecksichtigung Conditional Logic
   const sichtbar = sichtbareFragen(vorlage.fragen, antworten)
+
+  // ── Auto-Save (debounced 2s nach letzter Eingabe) ──────────
+  useEffect(() => {
+    if (!ersteAenderung.current) return
+    setAutoSave('saving')
+    const handle = setTimeout(async () => {
+      try {
+        const res = await onboardingAutoSave(token, antworten, 0, 0)
+        setAutoSave(res.ok ? 'saved' : 'error')
+      } catch {
+        setAutoSave('error')
+      }
+    }, 2000)
+    return () => clearTimeout(handle)
+  }, [antworten, token])
+
+  // ── Sektion-Gruppierung der sichtbaren Fragen ──────────────
+  const sektionen: OnboardingSektion[] = vorlage.sektionen ?? []
+  const ohneSektion = sichtbar.filter((f) => !f.sektion_id)
+  const sektionenMitFragen: { sektion: OnboardingSektion; fragen: OnboardingFrage[] }[] = []
+  for (const s of sektionen) {
+    const fragenS = sichtbar.filter((f) => f.sektion_id === s.id)
+    if (fragenS.length > 0) sektionenMitFragen.push({ sektion: s, fragen: fragenS })
+  }
+
+  // ── Hilfsfunktion: Pflichtfeld-Status pro Sektion ──────────
+  function pflichtCount(fragen: OnboardingFrage[]): { erfuellt: number; gesamt: number } {
+    const pflicht = fragen.filter((f) => f.pflichtfeld)
+    const erfuellt = pflicht.filter((f) => {
+      const v = antworten[f.id]
+      if (v === undefined || v === null || v === '') return false
+      if (Array.isArray(v) && v.length === 0) return false
+      return true
+    }).length
+    return { erfuellt, gesamt: pflicht.length }
+  }
+
+  // ── Heuristik: Adress-Sektionen erkennen + Wohnort uebernehmen ──
+  // Eine Sektion gilt als Adress-Sektion, wenn ihre frage-IDs auf
+  // 'adresse'/'strasse'/'plz'/'ort' enden bzw. enthalten.
+  function adressFragen(fragen: OnboardingFrage[]): { strasse?: OnboardingFrage; plz?: OnboardingFrage; ort?: OnboardingFrage } {
+    const r: { strasse?: OnboardingFrage; plz?: OnboardingFrage; ort?: OnboardingFrage } = {}
+    for (const f of fragen) {
+      const id = f.id.toLowerCase()
+      if (!r.strasse && /strasse|straße|str(\b|_)/.test(id)) r.strasse = f
+      else if (!r.plz && /(plz|postleit|zip)/.test(id))     r.plz = f
+      else if (!r.ort && /(\bort\b|stadt|city|wohnort)/.test(id)) r.ort = f
+    }
+    return r
+  }
+
+  function uebernehmenWohnort(zielFragen: OnboardingFrage[]) {
+    // Suche eine andere Sektion, die Adressfelder hat — die erste mit
+    // ausgefuellten Werten dient als Quelle.
+    for (const grp of sektionenMitFragen) {
+      if (grp.fragen === zielFragen) continue
+      const q = adressFragen(grp.fragen)
+      if (!q.strasse && !q.plz && !q.ort) continue
+      const z = adressFragen(zielFragen)
+      if (q.strasse && z.strasse && antworten[q.strasse.id]) setAntwort(z.strasse.id, antworten[q.strasse.id])
+      if (q.plz && z.plz && antworten[q.plz.id])             setAntwort(z.plz.id, antworten[q.plz.id])
+      if (q.ort && z.ort && antworten[q.ort.id])             setAntwort(z.ort.id, antworten[q.ort.id])
+      return
+    }
+  }
+
+  // Eine Sektion zaehlt als 'Adress-Ziel', wenn sie mind. ein Adressfeld
+  // enthaelt UND es eine andere Adress-Sektion mit ausgefuelltem Wert gibt.
+  function kannWohnortUebernehmen(fragen: OnboardingFrage[]): boolean {
+    const z = adressFragen(fragen)
+    if (!z.strasse && !z.plz && !z.ort) return false
+    for (const grp of sektionenMitFragen) {
+      if (grp.fragen === fragen) continue
+      const q = adressFragen(grp.fragen)
+      const hatWert = (f?: OnboardingFrage) => f && antworten[f.id]
+      if (hatWert(q.strasse) || hatWert(q.plz) || hatWert(q.ort)) return true
+    }
+    return false
+  }
 
   function validieren(): boolean {
     const e: Record<string, string> = {}
@@ -398,10 +483,22 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
             <rect x="8" y="8" width="10" height="10" rx="2" fill={prim} />
           </svg>
           )}
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-[11px] text-gray-400 leading-none">Projekt-Anfrage · {vorlage.name}</p>
-            <p className="text-sm font-semibold font-syne leading-tight" style={{ color: prim }}>{firmenname}</p>
+            <p className="text-sm font-semibold font-syne leading-tight truncate" style={{ color: prim }}>{firmenname}</p>
           </div>
+          {/* Auto-Save-Indikator */}
+          {autoSave !== 'idle' && (
+            <span className={`text-[10px] font-medium tabular-nums shrink-0 ${
+              autoSave === 'saved' ? 'text-wellbeing-green' :
+              autoSave === 'error' ? 'text-red-500' :
+              'text-gray-400'
+            }`}>
+              {autoSave === 'saving' && 'Speichert …'}
+              {autoSave === 'saved'  && '✓ Gespeichert'}
+              {autoSave === 'error'  && '⚠ Nicht gespeichert'}
+            </span>
+          )}
         </div>
       </header>
 
@@ -421,7 +518,8 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
               )}
             </div>
 
-            {sichtbar.map((frage) => (
+            {/* Fragen OHNE Sektion zuerst */}
+            {ohneSektion.map((frage) => (
               <div key={frage.id} id={`frage-${frage.id}`}>
                 <DynamischesFeld
                   token={token}
@@ -434,6 +532,62 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
               </div>
             ))}
           </div>
+
+          {/* Fragen MIT Sektion gruppiert — jede Sektion als eigene Card */}
+          {sektionenMitFragen.map(({ sektion, fragen }) => {
+            const counter = pflichtCount(fragen)
+            const adressOk = kannWohnortUebernehmen(fragen)
+            return (
+              <div
+                key={sektion.id}
+                className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5"
+              >
+                <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold text-gray-900">{sektion.name}</h3>
+                    {sektion.beschreibung && (
+                      <p className="text-xs text-gray-500 mt-1 leading-relaxed">{sektion.beschreibung}</p>
+                    )}
+                  </div>
+                  {counter.gesamt > 0 && (
+                    <span
+                      className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 tabular-nums ${
+                        counter.erfuellt === counter.gesamt
+                          ? 'bg-wellbeing-green/10 text-wellbeing-green'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}
+                    >
+                      {counter.erfuellt}/{counter.gesamt} ausgefüllt
+                    </span>
+                  )}
+                </div>
+
+                {adressOk && (
+                  <button
+                    type="button"
+                    onClick={() => uebernehmenWohnort(fragen)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-wellbeing-green border border-wellbeing-green/30 hover:bg-wellbeing-green/5 rounded-lg transition-colors"
+                  >
+                    <Copy className="w-3 h-3" />
+                    Wohnort-Adresse uebernehmen
+                  </button>
+                )}
+
+                {fragen.map((frage) => (
+                  <div key={frage.id} id={`frage-${frage.id}`}>
+                    <DynamischesFeld
+                      token={token}
+                      frage={frage}
+                      wert={antworten[frage.id]}
+                      fehler={feldFehler[frage.id]}
+                      onChange={(v) => setAntwort(frage.id, v)}
+                      onToggle={(opt) => toggleOption(frage.id, opt, frage.typ === 'mehrfachauswahl')}
+                    />
+                  </div>
+                ))}
+              </div>
+            )
+          })}
 
           {fehlerMsg && (
             <p className="text-sm text-red-600 text-center bg-red-50 border border-red-200 rounded-xl px-4 py-3">

@@ -7,7 +7,7 @@ import {
   Type, AlignLeft, Mail, Phone, Globe, Hash, Calendar,
   Sliders, List, CheckSquare, ToggleLeft, FolderPlus,
   Upload, Package, BarChart2, Layers, Clock, Users,
-  ClipboardList, ArrowUpDown, GitBranch, Palette, Link,
+  ClipboardList, ArrowUpDown, GitBranch, Link,
   Euro, Sparkles,
 } from 'lucide-react'
 import {
@@ -360,25 +360,28 @@ function ConditionalLogicEditor({
   }
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold text-amber-700 flex items-center gap-1.5">
-          <GitBranch className="w-3 h-3" /> Conditional Logic
-        </p>
+    <div className="mt-3 bg-amber-50/70 border border-amber-200 rounded-xl p-4 space-y-3 relative">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold text-amber-800 flex items-center gap-1.5">
+            <GitBranch className="w-3 h-3" /> Conditional Logic
+          </p>
+          <p className="text-[10px] text-amber-600 mt-0.5">Dieses Feld nur zeigen, wenn:</p>
+        </div>
         <button
           type="button"
           onClick={() => { setOffen(false); onChange({ ...frage, bedingt_von: undefined }) }}
-          className="text-amber-400 hover:text-amber-600"
+          className="text-amber-400 hover:text-amber-700 transition-colors shrink-0 -mt-0.5 -mr-1 p-1"
+          aria-label="Conditional Logic entfernen"
         >
           <X className="w-3.5 h-3.5" />
         </button>
       </div>
-      <p className="text-[10px] text-amber-600">Dieses Feld nur zeigen, wenn:</p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <select
           value={frage.bedingt_von?.frage_id ?? ''}
           onChange={(e) => updateLogic({ frage_id: e.target.value })}
-          className="col-span-1 px-2 py-1.5 text-xs border border-amber-200 rounded-lg bg-white focus:outline-none"
+          className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
         >
           <option value="">Frage wählen…</option>
           {quellFragen.map((q) => (
@@ -388,7 +391,7 @@ function ConditionalLogicEditor({
         <select
           value={frage.bedingt_von?.operator ?? 'gleich'}
           onChange={(e) => updateLogic({ operator: e.target.value as OnboardingBedingtVon['operator'] })}
-          className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg bg-white focus:outline-none"
+          className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
         >
           <option value="gleich">ist gleich</option>
           <option value="nicht_gleich">ist nicht</option>
@@ -402,7 +405,7 @@ function ConditionalLogicEditor({
             placeholder="Wert…"
             value={frage.bedingt_von?.wert ?? ''}
             onChange={(e) => updateLogic({ wert: e.target.value })}
-            className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg bg-white focus:outline-none"
+            className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-200"
           />
         )}
       </div>
@@ -1092,16 +1095,20 @@ function VorlageEditorModal({
   onClose: () => void
 }) {
   const [schritt, setSchritt]         = useState<'picker' | 'editor'>(vorlage ? 'editor' : 'picker')
-  const [tab, setTab]                 = useState<'felder' | 'einstellungen' | 'whitelabel'>('felder')
+  const [tab, setTab]                 = useState<'felder' | 'einstellungen'>('felder')
   const [name, setName]               = useState(vorlage?.name ?? '')
   const [beschreibung, setBeschreibung] = useState(vorlage?.beschreibung ?? '')
   const [typ, setTyp]                 = useState<OnboardingTyp>(vorlage?.typ ?? 'neukunde')
   const [einleitungText, setEinleitungText] = useState(vorlage?.einleitung_text ?? '')
   const [abschlussText, setAbschlussText]   = useState(vorlage?.abschluss_text ?? '')
-  const [akzentFarbe, setAkzentFarbe]       = useState(vorlage?.akzent_farbe ?? '#445c49')
-  const [logoUrl, setLogoUrl]               = useState(vorlage?.logo_url ?? '')
-  const [emailBetreff, setEmailBetreff]     = useState(vorlage?.email_betreff ?? '')
-  const [emailText, setEmailText]           = useState(vorlage?.email_text ?? '')
+  // White-Label + E-Mail sind UI-seitig entfernt, die DB-Werte bleiben aber
+  // unangetastet. Wir lesen sie hier nur einmal und schreiben sie 1:1
+  // zurueck (siehe Submit weiter unten), damit eine spaetere Reaktivierung
+  // nicht den alten Wert verliert.
+  const akzentFarbe = vorlage?.akzent_farbe ?? null
+  const logoUrl     = vorlage?.logo_url     ?? null
+  const emailBetreff = vorlage?.email_betreff ?? null
+  const emailText    = vorlage?.email_text    ?? null
   const [deadlineTage, setDeadlineTage]     = useState<number | ''>(vorlage?.deadline_tage ?? '')
   const [geschaetzteMinuten, setGeschaetzteMinuten] = useState<number | ''>(vorlage?.geschaetzte_minuten ?? '')
   const [fragen, setFragen]           = useState<OnboardingFrage[]>(vorlage?.fragen ?? [])
@@ -1282,7 +1289,7 @@ function VorlageEditorModal({
 
           {/* Tabs */}
           <div className="flex border-b border-gray-100 shrink-0 px-6">
-            {([['felder', 'Felder'], ['einstellungen', 'Einstellungen'], ['whitelabel', 'White-Label']] as const).map(([t, label]) => (
+            {([['felder', 'Felder'], ['einstellungen', 'Einstellungen']] as const).map(([t, label]) => (
               <button key={t} type="button" onClick={() => setTab(t)}
                 className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${tab === t ? 'border-wellbeing-green text-wellbeing-green' : 'border-transparent text-gray-400 hover:text-gray-600'}`}>
                 {label}
@@ -1393,73 +1400,6 @@ function VorlageEditorModal({
                       onChange={(e) => setGeschaetzteMinuten(e.target.value ? Number(e.target.value) : '')}
                       className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20" />
                     <p className="text-[10px] text-gray-400 mt-1">Wird dem Kunden oben angezeigt.</p>
-                  </div>
-                </div>
-                <div className="border-t border-gray-100 pt-4">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">E-Mail-Benachrichtigung</p>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Betreff</label>
-                      <input type="text" placeholder="Neue Onboarding-Anfrage eingegangen" value={emailBetreff}
-                        onChange={(e) => setEmailBetreff(e.target.value)}
-                        className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Nachricht</label>
-                      <textarea rows={4} placeholder="Benachrichtigungstext…" value={emailText}
-                        onChange={(e) => setEmailText(e.target.value)}
-                        className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none resize-none focus:ring-2 focus:ring-wellbeing-green/20" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {tab === 'whitelabel' && (
-              <div className="space-y-5">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                  <p className="text-xs text-blue-700">White-Label-Einstellungen überschreiben die globalen Branding-Einstellungen für dieses Formular.</p>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Logo-URL (optional)</label>
-                  <div className="flex gap-2">
-                    <input type="url" placeholder="https://…" value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)}
-                      className="flex-1 px-3 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20" />
-                    <Link className="w-4 h-4 text-gray-400 my-auto shrink-0" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-2">Akzentfarbe</label>
-                  <div className="flex items-center gap-3">
-                    <input type="color" value={akzentFarbe} onChange={(e) => setAkzentFarbe(e.target.value)}
-                      className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5 bg-white" />
-                    <div className="flex gap-1.5">
-                      {['#445c49','#2d3e31','#94c1a4','#823509','#cba178','#1e293b','#6366f1'].map((c) => (
-                        <button key={c} type="button" onClick={() => setAkzentFarbe(c)}
-                          className="w-6 h-6 rounded-full border-2 transition-all hover:scale-110"
-                          style={{ background: c, borderColor: akzentFarbe === c ? '#374151' : 'transparent' }} />
-                      ))}
-                    </div>
-                    <input type="text" value={akzentFarbe} onChange={(e) => setAkzentFarbe(e.target.value)}
-                      className="w-24 px-2 py-1.5 text-xs border border-gray-200 rounded-lg bg-gray-50 font-mono focus:outline-none" />
-                  </div>
-                </div>
-                <div className="border rounded-xl p-4" style={{ borderColor: akzentFarbe + '40' }}>
-                  <p className="text-xs text-gray-500 mb-2">Vorschau</p>
-                  <div className="flex items-center gap-3">
-                    {logoUrl
-                      // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={logoUrl} alt="" className="h-8 object-contain" />
-                      : <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: akzentFarbe }}>
-                          <Palette className="w-4 h-4 text-white" />
-                        </div>
-                    }
-                    <button className="px-4 py-2 text-xs font-semibold text-white rounded-lg" style={{ background: akzentFarbe }}>
-                      Weiter →
-                    </button>
-                    <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                      <div className="h-full rounded-full w-1/3" style={{ background: akzentFarbe }} />
-                    </div>
                   </div>
                 </div>
               </div>
