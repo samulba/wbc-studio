@@ -309,6 +309,26 @@ function SortableProduktZeile({
           {hasEffektivVP ? eur(gesamtBrutto) : <span className="text-gray-300">–</span>}
         </td>
 
+        {/* Marge / Provision (intern, kompakt) */}
+        <td className={`${td} text-center whitespace-nowrap`} title="Marge · Provision (nur intern sichtbar)">
+          {(p.marge_prozent != null || p.provision_prozent != null) ? (
+            <div className="inline-flex flex-col items-center gap-0.5 leading-tight">
+              <span className="text-[11px] text-gray-600 font-mono tabular-nums">
+                {p.marge_prozent != null ? `${p.marge_prozent}%` : '–'}
+                <span className="mx-1 text-gray-300">·</span>
+                {p.provision_prozent != null ? `${p.provision_prozent}%` : '–'}
+              </span>
+              {hasEffektivVP && p.provision_prozent != null && (
+                <span className="text-[10px] text-gray-400 font-mono tabular-nums">
+                  {eur(provisionEur)}
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="text-gray-300">–</span>
+          )}
+        </td>
+
         {/* Freigabe */}
         <td className="px-3 py-3.5 text-center align-middle">
           <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap ${statusBadge[status] ?? 'bg-gray-100 text-gray-500'}`}>
@@ -378,7 +398,7 @@ function SortableProduktZeile({
 
       {expanded && (
         <tr className={`bg-gray-50/60 ${!isLast ? 'border-b border-gray-100' : ''}`}>
-          <td colSpan={10} className="px-6 py-5 space-y-4">
+          <td colSpan={11} className="px-6 py-5 space-y-4">
 
             {p.hinweis_extern && (
               <HinweisBanner
@@ -884,6 +904,7 @@ export default function SortableProduktTabelle({
                   <th className={`${th} text-center`}>Menge</th>
                   <th className={`${th} text-right`}>VP brutto</th>
                   <th className={`${th} text-right`}>Gesamt brutto</th>
+                  <th className={`${th} text-center`} title="Nur intern sichtbar">Marge · Prov.</th>
                   <th className={`${th} text-center`}>Freigabe</th>
                   <th className={`${th} text-center`}>Bestellung</th>
                   <th className="w-20" />

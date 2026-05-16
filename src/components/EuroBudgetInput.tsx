@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { parseGeldwert } from '@/lib/geld'
 
 /**
  * Eingabefeld für Euro-Budgets mit automatischem Tausenderpunkt.
@@ -12,6 +13,9 @@ import { useState, useEffect } from 'react'
  * runde Beträge. Live-Formatierung mit Komma + Punkt zusammen ist
  * fehleranfällig (Cursor-Sprünge bei Backspace, halbe Eingaben).
  * Falls Cents irgendwann nötig: separates Feld mit anderer Logik.
+ *
+ * 9000-zu-9-Bug: parseGeldwert() aus @/lib/geld erkennt deutsche
+ * Tausenderpunkte und vermeidet parseFloat("9.000")=9.
  */
 export default function EuroBudgetInput({
   name,
@@ -26,19 +30,16 @@ export default function EuroBudgetInput({
   className?:    string
   id?:           string
 }) {
-  const initialNum = typeof defaultValue === 'number'
-    ? defaultValue
-    : typeof defaultValue === 'string' && defaultValue.trim() !== ''
-      ? parseFloat(defaultValue)
-      : null
+  const initialNum = parseGeldwert(defaultValue)
 
-  const [raw, setRaw]         = useState<string>(initialNum != null && !isNaN(initialNum) ? String(Math.round(initialNum)) : '')
-  const [display, setDisplay] = useState<string>(initialNum != null && !isNaN(initialNum) ? Math.round(initialNum).toLocaleString('de-DE') : '')
+  const [raw, setRaw]         = useState<string>(initialNum != null ? String(Math.round(initialNum)) : '')
+  const [display, setDisplay] = useState<string>(initialNum != null ? Math.round(initialNum).toLocaleString('de-DE') : '')
 
   // Wenn der Form-Reset oder ein externer Default-Wechsel kommt, mitziehen.
   useEffect(() => {
-    if (initialNum != null && !isNaN(initialNum) && raw === '') {
-      const rounded = Math.round(initialNum)
+    const n = parseGeldwert(defaultValue)
+    if (n != null && raw === '') {
+      const rounded = Math.round(n)
       setRaw(String(rounded))
       setDisplay(rounded.toLocaleString('de-DE'))
     }

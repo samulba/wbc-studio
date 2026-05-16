@@ -189,16 +189,13 @@ export default async function RaumDetailPage({
         </div>
       )}
 
-      {/* Leerzustand */}
+      {/* Leerzustand — oeffnet das ProduktHinzufuegenModal mit Bibliothek/Neu-Auswahl */}
       {alleEintraege.length === 0 && (
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl shadow-sm">
-          <p className="text-gray-500 text-sm">Noch keine Produkte in diesem Raum.</p>
-          <Link
-            href={`/dashboard/projekte/${params.id}/raeume/${params.raumId}/produkte/neu`}
-            className="inline-block mt-3 text-sm text-wellbeing-green underline underline-offset-2"
-          >
-            Erstes Produkt hinzufügen
-          </Link>
+          <p className="text-gray-500 text-sm mb-4">Noch keine Produkte in diesem Raum.</p>
+          <div className="inline-flex">
+            <ProduktHinzufuegenModal raumId={params.raumId} projektId={params.id} />
+          </div>
         </div>
       )}
 
