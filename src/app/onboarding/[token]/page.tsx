@@ -13,17 +13,26 @@ export default async function OnboardingPage({ params }: Props) {
 
   const { data: anfrage } = await supabase
     .from('onboarding_anfragen')
-    .select('id, status, kunde_name, vorlage_id')
+    .select('id, status, antworten, vorlage_id, gueltig_bis')
     .eq('token', params.token)
-    .single()
+    .maybeSingle()
 
   if (!anfrage || anfrage.status === 'abgelehnt') {
     const br = await brandingFuerToken()
     return <Fehlerseite branding={br} />
   }
 
-  // Bereits ausgefüllt (Kunde hat Formular abgesendet)
-  if (anfrage.kunde_name) {
+  // Abgelaufen
+  if (anfrage.gueltig_bis && new Date(anfrage.gueltig_bis) < new Date()) {
+    const br = await brandingFuerToken()
+    return <Fehlerseite branding={br} title="Link abgelaufen" text="Dieser Onboarding-Link ist nicht mehr gueltig. Bitte wende dich an deinen Innenarchitekten." />
+  }
+
+  // Bereits ausgefuellt — entscheidend ist der Status (gesetzt durch
+  // onboardingAbsendenV2/onboardingAbsenden) bzw. dass antworten gesetzt
+  // wurde. kunde_name allein blockiert hier nicht mehr (kann durch
+  // Prefill bei verknuepftem Kunden gesetzt sein), Bug 1.
+  if (anfrage.status === 'abgeschlossen' || anfrage.antworten) {
     const br = await brandingFuerToken()
     return <BereitsAusgefuellt branding={br} />
   }
@@ -38,17 +47,22 @@ export default async function OnboardingPage({ params }: Props) {
 }
 
 // ── Fehler-Seite ──────────────────────────────────────────────
-function Fehlerseite({ branding }: { branding: Branding | null }) {
+function Fehlerseite({
+  branding,
+  title = 'Link nicht verfügbar',
+  text = 'Dieser Onboarding-Link ist ungültig oder wurde deaktiviert. Bitte wende dich an deinen Innenarchitekten.',
+}: {
+  branding: Branding | null
+  title?: string
+  text?:  string
+}) {
   const bg = branding?.background_color ?? '#f6ede2'
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: bg }}>
       <div className="max-w-sm text-center">
         <LogoKlein branding={branding} />
-        <h1 className="text-xl font-semibold text-gray-900 mb-2 mt-6">Link nicht verfügbar</h1>
-        <p className="text-sm text-gray-500 leading-relaxed">
-          Dieser Onboarding-Link ist ungültig oder wurde deaktiviert.
-          Bitte wende dich an deinen Innenarchitekten.
-        </p>
+        <h1 className="text-xl font-semibold text-gray-900 mb-2 mt-6">{title}</h1>
+        <p className="text-sm text-gray-500 leading-relaxed">{text}</p>
       </div>
     </div>
   )

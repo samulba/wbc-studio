@@ -2,9 +2,12 @@
 
 import { useState, useTransition } from 'react'
 import Image from 'next/image'
-import { Check, ChevronRight, ChevronLeft, CheckCircle2 } from 'lucide-react'
+import { Check, ChevronRight, ChevronLeft, CheckCircle2, Plus, X } from 'lucide-react'
 import { onboardingAbsenden } from '@/app/actions/onboarding'
-import type { OnboardingVorlage, OnboardingFrage, Branding } from '@/lib/supabase/types'
+import OnboardingUploadFeld from '@/components/onboarding/OnboardingUploadFeld'
+import OnboardingLinkListeFeld from '@/components/onboarding/OnboardingLinkListeFeld'
+import { sichtbareFragen, antwortenFiltern } from '@/lib/onboarding-bedingungen'
+import type { OnboardingVorlage, OnboardingFrage, Branding, OnboardingDatei, OnboardingLinkEintrag } from '@/lib/supabase/types'
 
 // ── Konstanten (Standard-Vorlage) ─────────────────────────────
 const RAUMTYPEN = [
@@ -319,9 +322,12 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
     }
   }
 
+  // Sichtbare Fragen unter Beruecksichtigung Conditional Logic
+  const sichtbar = sichtbareFragen(vorlage.fragen, antworten)
+
   function validieren(): boolean {
     const e: Record<string, string> = {}
-    for (const f of vorlage.fragen) {
+    for (const f of sichtbar) {
       if (!f.pflichtfeld) continue
       const val = antworten[f.id]
       const leer =
@@ -352,6 +358,9 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
     startTransition(async () => {
       // Versuche Standard-Felder aus bekannten IDs zu extrahieren
       const get = (id: string) => (antworten[id] as string | undefined) ?? null
+      // Antworten auf sichtbare Fragen reduzieren (versteckte Felder
+      // sollen nicht persistiert werden — Bug 6 Conditional Logic).
+      const gefiltert = antwortenFiltern(vorlage.fragen, antworten)
       const result = await onboardingAbsenden(token, {
         kunde_name:        get('kontakt_name'),
         kunde_email:       get('kontakt_email'),
@@ -364,7 +373,7 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
           ? (antworten['stil'] as string[]).join(', ')
           : get('stil'),
         notizen:           get('notizen'),
-        antworten,
+        antworten: gefiltert,
       })
       if (result.erfolg) {
         setErfolg(true)
@@ -406,9 +415,10 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
               )}
             </div>
 
-            {vorlage.fragen.map((frage) => (
+            {sichtbar.map((frage) => (
               <div key={frage.id} id={`frage-${frage.id}`}>
                 <DynamischesFeld
+                  token={token}
                   frage={frage}
                   wert={antworten[frage.id]}
                   fehler={feldFehler[frage.id]}
@@ -442,12 +452,14 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
 
 // ── Dynamisches Einzelfeld ────────────────────────────────────
 function DynamischesFeld({
+  token,
   frage,
   wert,
   fehler,
   onChange,
   onToggle,
 }: {
+  token: string
   frage: OnboardingFrage
   wert: unknown
   fehler?: string
@@ -559,21 +571,25 @@ function DynamischesFeld({
   }
 
   if (frage.typ === 'skala' || frage.typ === 'slider') {
+    const min  = frage.typ === 'slider' ? (frage.slider_min ?? 0) : 1
+    const max  = frage.typ === 'slider' ? (frage.slider_max ?? 100) : 10
+    const step = frage.typ === 'slider' ? (frage.slider_schritt ?? 1) : 1
+    const einheit = frage.slider_einheit ?? ''
     const val = Number(wert)
-    const anzeige = Number.isFinite(val) ? val : 5
+    const anzeige = Number.isFinite(val) ? val : Math.round((min + max) / 2)
     return (
       <FormFeld label={label} fehler={fehler} hilfe={hilfe}>
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-gray-500">
-            <span>1</span>
-            <span className="text-sm font-semibold text-wellbeing-green-dark">{anzeige}</span>
-            <span>10</span>
+            <span>{min}{einheit}</span>
+            <span className="text-sm font-semibold text-wellbeing-green-dark">{anzeige}{einheit}</span>
+            <span>{max}{einheit}</span>
           </div>
           <input
             type="range"
-            min={1}
-            max={10}
-            step={1}
+            min={min}
+            max={max}
+            step={step}
             value={anzeige}
             onChange={(e) => onChange(Number(e.target.value))}
             className="w-full accent-wellbeing-green"
@@ -585,6 +601,7 @@ function DynamischesFeld({
 
   if (frage.typ === 'auswahl' || frage.typ === 'mehrfachauswahl') {
     const mehrfach = frage.typ === 'mehrfachauswahl'
+    const maxAuswahl = frage.max_auswahl
     const ausgewaehlt = mehrfach
       ? ((wert as string[]) ?? [])
       : wert as string | undefined
@@ -596,14 +613,21 @@ function DynamischesFeld({
             const aktiv = mehrfach
               ? (ausgewaehlt as string[]).includes(opt)
               : ausgewaehlt === opt
+            const limitErreicht = mehrfach
+              && !aktiv
+              && maxAuswahl != null
+              && (ausgewaehlt as string[]).length >= maxAuswahl
             return (
               <button
                 key={opt}
                 type="button"
+                disabled={limitErreicht}
                 onClick={() => onToggle(opt)}
                 className={`px-4 py-2 text-sm rounded-full border font-medium transition-all ${
                   aktiv
                     ? 'bg-wellbeing-green/10 border-wellbeing-green text-wellbeing-green-dark'
+                    : limitErreicht
+                    ? 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
                     : 'bg-gray-50 border-gray-200 text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -612,27 +636,237 @@ function DynamischesFeld({
             )
           })}
         </div>
+        {mehrfach && maxAuswahl != null && (
+          <p className="text-[11px] text-gray-400 mt-1.5">
+            Maximal {maxAuswahl} Auswahl{maxAuswahl === 1 ? '' : 'en'} ({(ausgewaehlt as string[]).length}/{maxAuswahl})
+          </p>
+        )}
       </FormFeld>
     )
   }
 
-  // Fallback für komplexere Typen (upload/inventar/prioritaeten/budget_verteilung/…):
-  // Textarea mit Hinweis, damit der Kunde die Frage trotzdem beantworten kann
-  // statt dass der Button nur "nichts tut".
+  if (frage.typ === 'upload') {
+    return (
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe}>
+        <OnboardingUploadFeld
+          token={token}
+          frageId={frage.id}
+          wert={(wert as OnboardingDatei[]) ?? []}
+          onChange={(next) => onChange(next)}
+          erlaubteTypen={frage.upload_typen}
+          maxMb={frage.upload_max_mb ?? 25}
+          maxDateien={frage.upload_max_dateien ?? 5}
+        />
+      </FormFeld>
+    )
+  }
+
+  if (frage.typ === 'link_liste') {
+    return (
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe}>
+        <OnboardingLinkListeFeld
+          wert={(wert as OnboardingLinkEintrag[]) ?? []}
+          onChange={(next) => onChange(next)}
+        />
+      </FormFeld>
+    )
+  }
+
+  if (frage.typ === 'checkliste') {
+    const optionen = frage.optionen ?? []
+    const aktiv = (wert as string[]) ?? []
+    return (
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe}>
+        <div className="space-y-1.5">
+          {optionen.map((opt) => {
+            const checked = aktiv.includes(opt)
+            return (
+              <label
+                key={opt}
+                className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:border-gray-300"
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onToggle(opt)}
+                  className="accent-wellbeing-green"
+                />
+                <span className="text-sm text-gray-700">{opt}</span>
+              </label>
+            )
+          })}
+        </div>
+      </FormFeld>
+    )
+  }
+
+  if (frage.typ === 'rangfolge' || frage.typ === 'prioritaeten') {
+    // Einfache Up/Down-Reorder-Liste (Drag&Drop waere overkill fuer das MVP).
+    const optionen = frage.optionen ?? []
+    const reihenfolge = (wert as string[] | undefined) ?? optionen
+    const move = (i: number, delta: number) => {
+      const next = [...reihenfolge]
+      const j = i + delta
+      if (j < 0 || j >= next.length) return
+      ;[next[i], next[j]] = [next[j], next[i]]
+      onChange(next)
+    }
+    return (
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe ?? 'Sortieren Sie nach Wichtigkeit (oben = wichtigster).'}>
+        <ul className="space-y-1.5">
+          {reihenfolge.map((opt, i) => (
+            <li
+              key={`${i}-${opt}`}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg"
+            >
+              <span className="text-xs font-bold text-gray-400 w-5">{i + 1}.</span>
+              <span className="flex-1 text-sm text-gray-700">{opt}</span>
+              <button
+                type="button"
+                onClick={() => move(i, -1)}
+                disabled={i === 0}
+                className="text-gray-400 hover:text-wellbeing-green disabled:opacity-30"
+                aria-label="Nach oben"
+              >▲</button>
+              <button
+                type="button"
+                onClick={() => move(i, 1)}
+                disabled={i === reihenfolge.length - 1}
+                className="text-gray-400 hover:text-wellbeing-green disabled:opacity-30"
+                aria-label="Nach unten"
+              >▼</button>
+            </li>
+          ))}
+        </ul>
+      </FormFeld>
+    )
+  }
+
+  if (frage.typ === 'budget_verteilung') {
+    const kategorien = frage.budget_kategorien ?? []
+    const verteilung = (wert as Record<string, number> | undefined) ?? {}
+    const summe = Object.values(verteilung).reduce((s, v) => s + (Number(v) || 0), 0)
+    const update = (kat: string, v: string) => {
+      const num = Number(v) || 0
+      onChange({ ...verteilung, [kat]: num })
+    }
+    return (
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe ?? 'Verteilung in % — Summe sollte 100 ergeben.'}>
+        <div className="space-y-2">
+          {kategorien.map((kat) => (
+            <div key={kat} className="flex items-center gap-2">
+              <span className="flex-1 text-sm text-gray-700">{kat}</span>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={verteilung[kat] ?? ''}
+                onChange={(e) => update(kat, e.target.value)}
+                className="w-20 px-2 py-1.5 text-sm border border-gray-200 rounded-lg bg-gray-50 text-right"
+              />
+              <span className="text-xs text-gray-400">%</span>
+            </div>
+          ))}
+          <div className={`text-xs text-right ${summe === 100 ? 'text-wellbeing-green' : 'text-gray-500'}`}>
+            Summe: {summe}%
+          </div>
+        </div>
+      </FormFeld>
+    )
+  }
+
+  if (frage.typ === 'datum_rechner') {
+    const v = (wert as { startdatum?: string; tage?: number } | undefined) ?? {}
+    return (
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe ?? 'Startdatum + gewuenschte Frist in Tagen.'}>
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            type="date"
+            value={v.startdatum ?? ''}
+            onChange={(e) => onChange({ ...v, startdatum: e.target.value })}
+            className={inputCls(false)}
+          />
+          <input
+            type="number"
+            min={1}
+            placeholder="Tage"
+            value={v.tage ?? ''}
+            onChange={(e) => onChange({ ...v, tage: Number(e.target.value) || 0 })}
+            className={inputCls(false)}
+          />
+        </div>
+      </FormFeld>
+    )
+  }
+
+  if (frage.typ === 'inventar' || frage.typ === 'entscheider_matrix') {
+    // Diese Typen sind komplexe Tabellen mit eigener Persistierung
+    // (Mig. 054/055). Im Customer-Form bieten wir hier eine kompakte
+    // dynamische Liste, die als JSON gespeichert wird — die richtige
+    // Tabellenrepresentation passiert via separate Actions.
+    const eintraege = (wert as string[]) ?? []
+    const add = (v: string) => {
+      if (!v.trim()) return
+      onChange([...eintraege, v.trim()])
+    }
+    const remove = (i: number) => {
+      onChange(eintraege.filter((_, idx) => idx !== i))
+    }
+    return (
+      <FormFeld
+        label={label}
+        fehler={fehler}
+        hilfe={hilfe ?? (frage.typ === 'inventar'
+          ? 'Listen Sie Ihre Bestands-Moebel auf (eine Zeile pro Eintrag).'
+          : 'Listen Sie auf, wer welche Entscheidung trifft.')}
+      >
+        <ul className="space-y-1.5 mb-2">
+          {eintraege.map((eintrag, i) => (
+            <li key={`${i}-${eintrag}`} className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg">
+              <span className="flex-1 text-sm text-gray-700">{eintrag}</span>
+              <button type="button" onClick={() => remove(i)} className="text-gray-400 hover:text-red-500" aria-label="Entfernen">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </li>
+          ))}
+        </ul>
+        <EintragHinzufuegen onAdd={add} placeholder={frage.placeholder ?? 'Eintrag hinzufuegen'} />
+      </FormFeld>
+    )
+  }
+
+  // Sollte nicht erreicht werden — sichtbarer Hinweis statt stillem Fallback.
   return (
-    <FormFeld label={label} fehler={fehler} hilfe={hilfe ?? 'Bitte beantworten Sie diese Frage im Freitext.'}>
-      <textarea
-        rows={3}
-        placeholder={frage.placeholder ?? 'Ihre Antwort…'}
-        value={(wert as string) ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-        className={`w-full px-4 py-3 text-sm border rounded-xl text-gray-900 placeholder:text-gray-300 focus:outline-none focus:ring-2 transition bg-gray-50 resize-none ${
-          fehler
-            ? 'border-red-300 focus:ring-red-200 focus:border-red-400'
-            : 'border-gray-200 focus:ring-wellbeing-green/20 focus:border-wellbeing-green-light'
-        }`}
-      />
+    <FormFeld label={label} fehler={fehler} hilfe="Dieser Fragetyp wird nicht unterstuetzt.">
+      <div className="px-3 py-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg">
+        Unbekannter Fragetyp: {frage.typ}
+      </div>
     </FormFeld>
+  )
+}
+
+function EintragHinzufuegen({ onAdd, placeholder }: { onAdd: (v: string) => void; placeholder?: string }) {
+  const [v, setV] = useState('')
+  return (
+    <div className="flex gap-2">
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={v}
+        onChange={(e) => setV(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); onAdd(v); setV('') }
+        }}
+        className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-wellbeing-green/20"
+      />
+      <button
+        type="button"
+        onClick={() => { onAdd(v); setV('') }}
+        className="px-3 py-2 text-sm font-medium text-white bg-wellbeing-green hover:bg-wellbeing-green-dark rounded-lg inline-flex items-center gap-1.5"
+      >
+        <Plus className="w-3.5 h-3.5" /> Hinzufuegen
+      </button>
+    </div>
   )
 }
 
