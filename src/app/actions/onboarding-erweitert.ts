@@ -58,17 +58,29 @@ export async function onboardingLinkErstellenV2(
       }
     }
 
-    // Persistenten Titel bestimmen (Bug 1): aus Eingabe oder Kunden-Name
-    let resolvedTitel = titel?.trim() || null
-    if (!resolvedTitel && kunde_id) {
+    // Kunden-Prefill (Stammdaten) bei verknuepftem Kunde — analog V1.
+    // Damit der Kunde Name/Email/Telefon nicht erneut eintippen muss.
+    let kundePrefill: { kunde_name?: string | null; kunde_email?: string | null; kunde_telefon?: string | null } = {}
+    let kundeName: string | null = null
+    if (kunde_id) {
       const { data: k } = await supabase
         .from('kunden')
-        .select('name')
+        .select('name, email, telefon')
         .eq('id', kunde_id)
+        .eq('organisation_id', orgId)
         .maybeSingle()
-      resolvedTitel = k?.name ?? null
+      if (k) {
+        kundePrefill = {
+          kunde_name:    k.name as string | null,
+          kunde_email:   k.email as string | null,
+          kunde_telefon: k.telefon as string | null,
+        }
+        kundeName = (k.name as string | null) ?? null
+      }
     }
-    if (!resolvedTitel) resolvedTitel = 'Onboarding-Link'
+
+    // Persistenten Titel bestimmen (Bug 1): Eingabe > Kundenname > Fallback
+    const resolvedTitel = (titel?.trim() || kundeName || 'Onboarding-Link')
 
     const { data, error } = await supabase
       .from('onboarding_anfragen')
@@ -82,7 +94,10 @@ export async function onboardingLinkErstellenV2(
         gueltig_bis,
         titel:            resolvedTitel,
         vorlage_snapshot: snapshot,
-        kunde_name:       resolvedTitel === 'Onboarding-Link' ? null : resolvedTitel,
+        // kunde_name aus Prefill bevorzugen, sonst aus Titel ableiten
+        kunde_name:       kundePrefill.kunde_name ?? (resolvedTitel === 'Onboarding-Link' ? null : resolvedTitel),
+        kunde_email:      kundePrefill.kunde_email ?? null,
+        kunde_telefon:    kundePrefill.kunde_telefon ?? null,
       })
       .select('token')
       .single()
