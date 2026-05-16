@@ -6,7 +6,6 @@ import {
   ChevronDown,
   User, Building2, Scale, Palette, SlidersHorizontal, FileCode,
   CheckSquare, Bell, Users, CreditCard, BookOpen, Sparkles, Activity,
-  MessageSquare,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -38,7 +37,6 @@ import HandbuchClient from '@/app/dashboard/einstellungen/handbuch/HandbuchClien
 import BrandingEditor from '@/components/BrandingEditor'
 import FirmenLogoUpload from '@/components/FirmenLogoUpload'
 import VertragsVorlagenVerwaltung from '@/components/VertragsVorlagenVerwaltung'
-import MeinFeedbackTab from '@/components/MeinFeedbackTab'
 import type { VertragsVorlage } from '@/lib/supabase/types'
 import { ConfirmModal } from '@/components/ConfirmModal'
 import ChangelogTab from '@/components/ChangelogTab'
@@ -64,7 +62,6 @@ const TAB_GROUPS: { label: string; items: TabItem[] }[] = [
     label: 'Persönlich',
     items: [
       { key: 'profil',           label: 'Profil',          icon: User },
-      { key: 'mein_feedback',    label: 'Mein Feedback',   icon: MessageSquare },
     ],
   },
   {
@@ -1598,7 +1595,6 @@ export default function EinstellungenTabs({
       {/* ── Content-Bereich ────────────────────────────────── */}
       <div className="flex-1 min-w-0 py-4">
         {aktuellerTab === 'profil'             && <ProfilTab userEmail={userEmail} userAvatarUrl={userAvatarUrl} userVorname={userVorname} userNachname={userNachname} lastSignIn={lastSignIn} sessions={sessions} />}
-        {aktuellerTab === 'mein_feedback'      && <MeinFeedbackTab />}
         {aktuellerTab === 'firma'              && <FirmaTab organisation={organisation} istAdmin={istAdmin} />}
         {aktuellerTab === 'workspace'          && <WorkspaceTab einstellungen={einstellungen} organisation={organisation} istAdmin={istAdmin} />}
         {aktuellerTab === 'branding'           && istAdmin && FEATURE_FLAGS.branding && <BrandingTab branding={branding} />}
