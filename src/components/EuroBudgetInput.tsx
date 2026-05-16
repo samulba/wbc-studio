@@ -23,12 +23,17 @@ export default function EuroBudgetInput({
   placeholder,
   className,
   id,
+  onValueChange,
 }: {
   name:          string
   defaultValue?: number | string | null
   placeholder?:  string
   className?:    string
   id?:           string
+  /** Optional: wird mit dem parsed Zahlenwert (oder null) aufgerufen, sobald
+   *  der Nutzer tippt. Hilfreich fuer Live-Berechnung im Parent (z.B.
+   *  Gesamtbudget = Produkt + Service). */
+  onValueChange?: (n: number | null) => void
 }) {
   const initialNum = parseGeldwert(defaultValue)
 
@@ -49,11 +54,12 @@ export default function EuroBudgetInput({
   function onChange(e: React.ChangeEvent<HTMLInputElement>) {
     // Nur Ziffern aus der Eingabe ziehen, alles andere weg
     const onlyDigits = e.target.value.replace(/\D/g, '')
-    if (!onlyDigits) { setRaw(''); setDisplay(''); return }
+    if (!onlyDigits) { setRaw(''); setDisplay(''); onValueChange?.(null); return }
     const num = parseInt(onlyDigits, 10)
-    if (isNaN(num)) { setRaw(''); setDisplay(''); return }
+    if (isNaN(num)) { setRaw(''); setDisplay(''); onValueChange?.(null); return }
     setRaw(String(num))
     setDisplay(num.toLocaleString('de-DE'))
+    onValueChange?.(num)
   }
 
   return (

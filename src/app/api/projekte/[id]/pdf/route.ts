@@ -82,6 +82,39 @@ export async function GET(req: NextRequest, { params }: Params) {
   const budgetDetails = await getRaumBudgetDetails(id)
   const budgetByRaum = new Map(budgetDetails.map((d) => [d.raumId, d]))
 
+  // Raum-Zusatzkosten (Mig 112) + Service-Raten (Mig 112)
+  const [{ data: zkRaw }, { data: srRaw }] = await Promise.all([
+    raumIds.length > 0
+      ? supabase
+          .from('raum_zusatzkosten')
+          .select('raum_id, titel, kategorie, betrag_netto')
+          .in('raum_id', raumIds)
+      : Promise.resolve({ data: [] as Array<{ raum_id: string; titel: string; kategorie: string; betrag_netto: number }> }),
+    supabase
+      .from('service_raten')
+      .select('betrag, faellig_am, status')
+      .eq('projekt_id', id)
+      .eq('organisation_id', orgId)
+      .order('reihenfolge', { ascending: true })
+      .order('faellig_am',  { ascending: true, nullsFirst: false }),
+  ])
+
+  const zusatzkosten = (zkRaw ?? []) as Array<{ raum_id: string; titel: string; kategorie: string; betrag_netto: number }>
+  const serviceRaten = (srRaw ?? []) as Array<{ betrag: number; faellig_am: string | null; status: string }>
+
+  const zkByRaum = new Map<string, Array<{ titel: string; kategorie: string; betrag_netto: number }>>()
+  let zkSumNetto = 0
+  for (const zk of zusatzkosten) {
+    zkSumNetto += zk.betrag_netto
+    const list = zkByRaum.get(zk.raum_id) ?? []
+    list.push({ titel: zk.titel, kategorie: zk.kategorie, betrag_netto: zk.betrag_netto })
+    zkByRaum.set(zk.raum_id, list)
+  }
+
+  // Service-Pauschale + Modell aus Projekt
+  const servicePauschale = (projekt as { service_pauschale: number | null }).service_pauschale ?? 0
+  const serviceModell    = (projekt as { service_modell: string | null }).service_modell ?? null
+
   // Gesamtsummen
   const produkteGesamt = rps.length
   let sumNetto = 0
@@ -92,7 +125,8 @@ export async function GET(req: NextRequest, { params }: Params) {
     )
     sumNetto += vp * rp.menge
   }
-  const sumBrutto = sumNetto * (1 + mwstSatz)
+  // sumBrutto = nur Produkte (ohne Zusatzkosten + Service). Wird in dieser
+  // Version nicht direkt verwendet — siehe coverSummeBruttoEinfach + gesamtBrutto.
 
   // ── jsPDF laden ───────────────────────────────────────────
   const { default: jsPDF } = await import('jspdf')
@@ -183,10 +217,13 @@ export async function GET(req: NextRequest, { params }: Params) {
   const boxW = (COL_W - 10) / 3
   const boxY = y
   const boxH = 22
+  // Cover-Boxen: Summe brutto = Produkte + Zusatzkosten + Service (gesamtBrutto wird unten berechnet).
+  // Wir nehmen die Variante mit allem drin, damit die Zahl auf der Coverseite mit dem Gesamtbetrag der letzten Seite uebereinstimmt.
+  const coverSummeBruttoEinfach = (sumNetto + zkSumNetto + (serviceModell === 'pauschale' ? servicePauschale : 0)) * (1 + mwstSatz)
   const boxes: [string, string][] = [
     ['Produkte', String(produkteGesamt)],
     ['Räume', String(raeume?.length ?? 0)],
-    ['Summe brutto', pdfEur(sumBrutto)],
+    ['Summe brutto', pdfEur(coverSummeBruttoEinfach)],
   ]
   boxes.forEach(([label, wert], i) => {
     const x = MARGIN + i * (boxW + 5)
@@ -338,12 +375,32 @@ export async function GET(req: NextRequest, { params }: Params) {
     }
     doc.setPage(currentPage)
 
-    // Raum-Summe
+    // Raum-Zusatzkosten (Lieferung, Handwerker, etc.) — falls vorhanden
     const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4
+    let raumY = finalY
+    const raumZk = zkByRaum.get(raum.id) ?? []
+    let raumZkNetto = 0
+    if (raumZk.length > 0) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(8)
+      doc.setTextColor(...GRAY_600)
+      doc.text('Zusatzkosten:', MARGIN, raumY + 4)
+      raumY += 6
+      doc.setFont('helvetica', 'normal')
+      for (const zk of raumZk) {
+        raumZkNetto += zk.betrag_netto
+        doc.text(`• ${zk.titel} (${zk.kategorie})`, MARGIN + 4, raumY)
+        doc.text(pdfEur(zk.betrag_netto), PAGE_W - MARGIN, raumY, { align: 'right' })
+        raumY += 4
+      }
+    }
+
+    // Raum-Summe (Produkte + Zusatzkosten)
+    const raumSummeNetto = raumNetto + raumZkNetto
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(9)
     doc.setTextColor(...WB_GREEN)
-    doc.text(`Raum-Summe netto: ${pdfEur(raumNetto)}`, PAGE_W - MARGIN, finalY, { align: 'right' })
+    doc.text(`Raum-Summe netto: ${pdfEur(raumSummeNetto)}`, PAGE_W - MARGIN, raumY + 4, { align: 'right' })
   }
 
   // ── GESAMT-SEITE ──────────────────────────────────────────
@@ -356,11 +413,26 @@ export async function GET(req: NextRequest, { params }: Params) {
   doc.text('Gesamtsumme', MARGIN, y + 8)
   y += 18
 
+  // Gesamtsummen-Berechnung inkl. Zusatzkosten + Service (Mig 112)
+  const budgetVerbrauchtNetto  = sumNetto + zkSumNetto                           // Produkte + Zusatzkosten
+  const serviceNetto           = serviceModell === 'pauschale' ? servicePauschale : 0
+  const gesamtNetto            = budgetVerbrauchtNetto + serviceNetto
+  const gesamtBrutto           = gesamtNetto * (1 + mwstSatz)
+
   const summenLines: { label: string; wert: string; bold?: boolean; gross?: boolean }[] = [
     { label: 'Produkte netto:', wert: pdfEur(sumNetto) },
-    { label: `MwSt. (${Math.round(mwstSatz * 100)}%):`, wert: pdfEur(sumNetto * mwstSatz) },
-    { label: 'Gesamtbetrag brutto:', wert: pdfEur(sumBrutto), bold: true, gross: true },
   ]
+  if (zkSumNetto > 0) {
+    summenLines.push({ label: 'Zusatzkosten netto:', wert: pdfEur(zkSumNetto) })
+    summenLines.push({ label: 'Zwischensumme netto:', wert: pdfEur(budgetVerbrauchtNetto), bold: true })
+  }
+  if (serviceNetto > 0) {
+    summenLines.push({ label: 'Service-Pauschale netto:', wert: pdfEur(serviceNetto) })
+  }
+  summenLines.push(
+    { label: `MwSt. (${Math.round(mwstSatz * 100)}%):`, wert: pdfEur(gesamtNetto * mwstSatz) },
+    { label: 'Gesamtbetrag brutto:', wert: pdfEur(gesamtBrutto), bold: true, gross: true },
+  )
 
   const sumW  = 100
   const sumX  = PAGE_W - MARGIN - sumW
@@ -379,6 +451,41 @@ export async function GET(req: NextRequest, { params }: Params) {
     doc.text(s.wert, PAGE_W - MARGIN, y, { align: 'right' })
     y += lineH
   })
+
+  // ── Service-Raten-Plan (falls vorhanden) ───────────────────
+  const aktiveRaten = serviceRaten.filter((r) => r.status !== 'storniert')
+  if (aktiveRaten.length > 0) {
+    y += 8
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(11)
+    doc.setTextColor(...GRAY_900)
+    doc.text('Zahlungsplan Service-Pauschale', MARGIN, y)
+    y += 6
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.5)
+    const bezahlt   = aktiveRaten.filter((r) => r.status === 'bezahlt').reduce((s, r) => s + r.betrag, 0)
+    const geplant   = aktiveRaten.reduce((s, r) => s + r.betrag, 0)
+    doc.setTextColor(...GRAY_600)
+    doc.text(`${aktiveRaten.length} Raten · ${pdfEur(bezahlt)} von ${pdfEur(geplant)} bezahlt`, MARGIN, y)
+    y += 6
+
+    for (const r of aktiveRaten) {
+      const fmtDate = r.faellig_am
+        ? new Date(r.faellig_am).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : 'ohne Faelligkeit'
+      const statusLabel =
+        r.status === 'bezahlt' ? 'bezahlt' :
+        r.status === 'gestellt' ? 'Rechnung gestellt' :
+        'offen'
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(...GRAY_600)
+      doc.text(`• ${fmtDate}  ·  ${statusLabel}`, MARGIN + 2, y)
+      doc.text(pdfEur(r.betrag), PAGE_W - MARGIN, y, { align: 'right' })
+      y += 4.5
+    }
+  }
 
   // ── Footer mit Seitenzahlen ────────────────────────────────
   const pageCount = (doc.internal as unknown as { getNumberOfPages: () => number }).getNumberOfPages()

@@ -47,7 +47,13 @@ export default function ProjektFormular({
   vorausgewaehlterKundeId,
 }: Props) {
   const [state, formAction] = useFormState(aktion, null)
-  const [serviceModell, setServiceModell] = useState<string>(initialData?.service_modell ?? '')
+  const [serviceModell, setServiceModell]     = useState<string>(initialData?.service_modell ?? '')
+  const [produktBudget, setProduktBudget]     = useState<number | null>(initialData?.produkt_budget ?? null)
+  const [servicePauschale, setServicePauschale] = useState<number | null>(initialData?.service_pauschale ?? null)
+
+  // Auto-berechneter Gesamtwert = Produkt-Budget + Service-Pauschale (Netto).
+  const autoGesamt = (produktBudget ?? 0) + (servicePauschale ?? 0)
+  const eurFmt = (n: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
 
   return (
     <form action={formAction} className="space-y-5">
@@ -127,21 +133,6 @@ export default function ProjektFormular({
         </div>
       </div>
 
-      {/* Gesamtbudget */}
-      <div>
-        <label htmlFor="gesamtbudget" className={lbl}>
-          Gesamtbudget (€){' '}
-          <span className="text-gray-400 normal-case font-normal">(intern, inkl. Service)</span>
-        </label>
-        <EuroBudgetInput
-          id="gesamtbudget"
-          name="gesamtbudget"
-          defaultValue={initialData?.gesamtbudget ?? null}
-          className={`${inp} font-mono`}
-          placeholder="z. B. 25.000"
-        />
-      </div>
-
       {/* Status (nur beim Bearbeiten) */}
       {istBearbeiten && (
         <div>
@@ -162,10 +153,29 @@ export default function ProjektFormular({
         </div>
       )}
 
-      {/* ── Service & Abrechnung ───────────────────────────────── */}
+      {/* ── Budget & Abrechnung ──────────────────────────────── */}
       <div className="border-t border-gray-100 pt-1">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-5">
-          Service & Abrechnung
+          Budget & Abrechnung
+        </p>
+      </div>
+
+      {/* Produkt-Budget — Hauptfeld, klientenseitig sichtbar */}
+      <div>
+        <label htmlFor="produkt_budget" className={lbl}>
+          Produkt-Budget netto (€){' '}
+          <span className="text-wellbeing-green/70 normal-case font-normal">(klientenseitig sichtbar)</span>
+        </label>
+        <EuroBudgetInput
+          id="produkt_budget"
+          name="produkt_budget"
+          defaultValue={initialData?.produkt_budget ?? null}
+          className={`${inp} font-mono`}
+          placeholder="z. B. 18.000"
+          onValueChange={setProduktBudget}
+        />
+        <p className="text-xs text-gray-400 mt-1">
+          Brutto bei 19 % MwSt: <span className="font-mono">{eurFmt((produktBudget ?? 0) * 1.19)}</span> · Basis für die Budget-Auslastung (ohne Service).
         </p>
       </div>
 
@@ -191,20 +201,21 @@ export default function ProjektFormular({
 
         {serviceModell === 'pauschale' && (
           <div>
-            <label htmlFor="service_pauschale" className={lbl}>Pauschale (€)</label>
+            <label htmlFor="service_pauschale" className={lbl}>Pauschale netto (€)</label>
             <EuroBudgetInput
               id="service_pauschale"
               name="service_pauschale"
               defaultValue={initialData?.service_pauschale ?? null}
               className={`${inp} font-mono`}
               placeholder="z. B. 5.000"
+              onValueChange={setServicePauschale}
             />
           </div>
         )}
 
         {serviceModell === 'stundensatz' && (
           <div>
-            <label htmlFor="service_stundensatz" className={lbl}>Stundensatz (€/h)</label>
+            <label htmlFor="service_stundensatz" className={lbl}>Stundensatz netto (€/h)</label>
             <EuroBudgetInput
               id="service_stundensatz"
               name="service_stundensatz"
@@ -216,23 +227,43 @@ export default function ProjektFormular({
         )}
       </div>
 
-      {/* Produkt-Budget */}
-      <div>
-        <label htmlFor="produkt_budget" className={lbl}>
-          Produkt-Budget (€){' '}
-          <span className="text-wellbeing-green/70 normal-case font-normal">(klientenseitig sichtbar)</span>
-        </label>
-        <EuroBudgetInput
-          id="produkt_budget"
-          name="produkt_budget"
-          defaultValue={initialData?.produkt_budget ?? null}
-          className={`${inp} font-mono`}
-          placeholder="z. B. 18.000"
-        />
-        <p className="text-xs text-gray-400 mt-1">
-          Das Budget, das dem Klienten für Einrichtungsprodukte mitgeteilt wird.
+      {/* Auto-berechneter Gesamtwert (read-only, Hint fuer User) */}
+      <div className="rounded-lg bg-wellbeing-cream/40 border border-wellbeing-green/15 px-4 py-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-xs font-medium text-wellbeing-green-dark">
+            Gesamtprojekt-Wert (Produkt + Service)
+          </p>
+          <p className="font-mono text-base font-semibold text-wellbeing-green-dark tabular-nums">
+            {eurFmt(autoGesamt)} <span className="text-[10px] text-gray-500 font-normal">netto</span>
+          </p>
+        </div>
+        <p className="text-[11px] text-gray-500 mt-1">
+          Wird automatisch berechnet — kein manuelles Feld mehr nötig. Brutto bei 19 %: {eurFmt(autoGesamt * 1.19)}.
         </p>
       </div>
+
+      {/* Legacy: manuelles Gesamtbudget (additiv, fuer Sonderfaelle) */}
+      <details className="group">
+        <summary className="cursor-pointer text-[11px] text-gray-400 hover:text-gray-600 transition-colors inline-flex items-center gap-1">
+          <ChevronDown className="w-3 h-3 group-open:rotate-180 transition-transform" />
+          Manuelles Gesamtbudget eingeben (Legacy)
+        </summary>
+        <div className="mt-2 pl-4">
+          <label htmlFor="gesamtbudget" className={lbl}>
+            Gesamtbudget netto (€)
+          </label>
+          <EuroBudgetInput
+            id="gesamtbudget"
+            name="gesamtbudget"
+            defaultValue={initialData?.gesamtbudget ?? null}
+            className={`${inp} font-mono`}
+            placeholder="z. B. 25.000"
+          />
+          <p className="text-[11px] text-gray-400 mt-1">
+            Optional — überschreibt den auto-berechneten Wert oben. Bei bestehenden Projekten weiter erhalten.
+          </p>
+        </div>
+      </details>
 
       {/* Notizen */}
       <div>

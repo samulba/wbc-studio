@@ -5,6 +5,12 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-16
 
+### Projekte überarbeitet — Phase 3 (Brutto-Default, Räume-Übersicht, PDF, Formular)
+- **Brutto als Default im Budget-Ring**: Die große Summe oben in der Projekt-Übersicht zeigt jetzt den Bruttowert, der Netto-Wert erscheint im Tooltip beim Hover.
+- **Projekt-Übersichts-Card im Räume-Tab**: Ausklappbare Card oben auf dem Räume-Tab — Produkt-Summen, Zusatzkosten, Service-Pauschale, Gesamt, Aufteilung pro Raum und Freigabe-Status. Werte stimmen mit PDF und Detail-Seite überein.
+- **PDF-Export erweitert**: Pro Raum erscheinen Zusatzkosten als Aufzählung vor der Raum-Summe. Die Gesamtsumme enthält jetzt Produkte + Zusatzkosten + Service-Pauschale und schließt mit dem Zahlungsplan ab (alle Raten mit Status und Fälligkeitsdatum).
+- **Projektformular vereinfacht**: Produkt-Budget rückt nach oben mit klarem „netto"-Label und Brutto-Hint darunter. Gesamtprojekt-Wert (Produkt + Service) wird live darunter berechnet — kein widersprüchliches manuelles Feld mehr. Das alte Gesamtbudget bleibt als ausklappbares „Legacy"-Feld erhalten, damit bestehende Projekte unverändert funktionieren.
+
 ### Projekte überarbeitet — Phase 1+2 (Bug-Fixes, Zusatzkosten, Service-Raten)
 - **9000→9-Bug behoben**: Eingabefelder für Budgets/Beträge erkennen deutsche Tausenderpunkte jetzt korrekt — „9.000" wird als 9000 verstanden statt fälschlich als 9. Neuer zentraler `parseGeldwert()`-Helper in `src/lib/geld.ts`, sicher gegen alle Locale-Varianten.
 - **„Erstes Produkt hinzufügen" öffnet jetzt das Modal** mit Auswahl „Aus Bibliothek" vs „Neues Produkt erstellen", statt direkt auf die Anlage-Maske zu springen.

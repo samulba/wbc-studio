@@ -28,6 +28,7 @@ import { getZeiterfassung, getZeitSumme } from '@/app/actions/zeiterfassung'
 import { getRaumBudgetDetails } from '@/app/actions/raeume'
 import { effektiverVpNetto } from '@/lib/preise'
 import { berechneProjektKalkulation } from '@/lib/projekt-kalkulation'
+import ProjektGesamtuebersicht from '@/components/ProjektGesamtuebersicht'
 import { getMwstSatz } from '@/app/actions/einstellungen'
 import { getServiceRaten } from '@/app/actions/service-raten'
 import ServiceRatenBlock from '@/components/ServiceRatenBlock'
@@ -485,13 +486,19 @@ export default async function ProjektDetailPage({
                   )}
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Budget-Auslastung</p>
-                    <p className="text-2xl font-bold text-gray-900 font-mono leading-tight">{eur(stats.gesamtkosten + (serviceKosten ?? 0))}</p>
+                    <p
+                      className="text-2xl font-bold text-gray-900 font-mono leading-tight"
+                      title={`Netto: ${eur(stats.gesamtkosten + (serviceKosten ?? 0))}`}
+                    >
+                      {eur((stats.gesamtkosten + (serviceKosten ?? 0)) * (1 + mwstSatz))}
+                      <span className="text-[10px] text-gray-400 ml-1.5 font-normal align-middle">brutto</span>
+                    </p>
                     {produktBudget != null && produktBudget > 0 ? (
-                      <p className="text-xs text-gray-400 mt-1">
-                        von {eur(produktBudget)} · <span className={budgetPct! >= 100 ? 'text-red-500 font-medium' : budgetPct! >= 80 ? 'text-amber-500 font-medium' : 'text-emerald-600 font-medium'}>
+                      <p className="text-xs text-gray-400 mt-1" title={`Produktbudget netto: ${eur(produktBudget)}`}>
+                        von {eur(produktBudget * (1 + mwstSatz))} brutto · <span className={budgetPct! >= 100 ? 'text-red-500 font-medium' : budgetPct! >= 80 ? 'text-amber-500 font-medium' : 'text-emerald-600 font-medium'}>
                           {budgetPct! >= 100
-                            ? `${eur(stats.gesamtkosten - produktBudget)} über Budget`
-                            : `${eur(produktBudget - stats.gesamtkosten)} verbleibend`
+                            ? `${eur((stats.gesamtkosten - produktBudget) * (1 + mwstSatz))} über Budget`
+                            : `${eur((produktBudget - stats.gesamtkosten) * (1 + mwstSatz))} verbleibend`
                           }
                         </span>
                       </p>
@@ -507,13 +514,14 @@ export default async function ProjektDetailPage({
                   </div>
                 </div>
 
-                {/* Progress-Bars */}
+                {/* Progress-Bars (Anzeige brutto, Tooltip netto) */}
                 <div className="space-y-3 min-w-0">
                   <BudgetBar
-                    label="Produkt-Kosten"
+                    label="Produkt-Kosten + Zusatzkosten"
                     wert={stats.gesamtkosten}
                     budget={produktBudget}
                     farbeName="wellbeing"
+                    mwstSatz={mwstSatz}
                   />
                   {serviceKosten != null && (
                     <BudgetBar
@@ -521,6 +529,7 @@ export default async function ProjektDetailPage({
                       wert={serviceKosten}
                       budget={null}
                       farbeName="amber"
+                      mwstSatz={mwstSatz}
                     />
                   )}
                   {projekt.gesamtbudget != null && projekt.gesamtbudget > 0 && (
@@ -529,6 +538,7 @@ export default async function ProjektDetailPage({
                       wert={stats.gesamtkosten + (serviceKosten ?? 0)}
                       budget={projekt.gesamtbudget}
                       farbeName="green"
+                      mwstSatz={mwstSatz}
                     />
                   )}
                 </div>
@@ -652,7 +662,16 @@ export default async function ProjektDetailPage({
 
         {/* ── RÄUME ──────────────────────────────────────────────── */}
         {tabParam === 'raeume' && (
-          <div>
+          <div className="space-y-4">
+            {/* Projekt-Gesamtuebersicht: Anzahl, Mengen, Summen, Budgetauslastung */}
+            {stats.kalk.raeume.length > 0 && (
+              <ProjektGesamtuebersicht
+                kalk={stats.kalk}
+                serviceKostenNetto={serviceKosten}
+                produktBudget={produktBudget}
+              />
+            )}
+
             <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
               <RaumHinzufuegen
                 aktion={raumHinzufuegenAktion}
@@ -792,14 +811,19 @@ function StatStripCell({
 
 // ── Budget-Progress-Bar mit 80%/100% Markern ───────────────
 function BudgetBar({
-  label, wert, budget, farbeName,
+  label, wert, budget, farbeName, mwstSatz,
 }: {
   label: string
+  /** Wert NETTO — Anzeige wird brutto, Netto als title-Tooltip. */
   wert: number
   budget: number | null
   farbeName: 'wellbeing' | 'amber' | 'green'
+  mwstSatz?: number  // default 0 = nur Netto
 }) {
   const eurFmt = (n: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n)
+  const mwst = mwstSatz ?? 0
+  const wertBrutto = wert * (1 + mwst)
+  const budgetBrutto = budget != null ? budget * (1 + mwst) : null
   const pct = budget && budget > 0 ? Math.min((wert / budget) * 100, 100) : null
   const exakt = budget && budget > 0 ? Math.round((wert / budget) * 100) : null
   const ueber = pct === 100 && budget !== null && wert > budget
@@ -814,14 +838,18 @@ function BudgetBar({
     ? 'bg-wellbeing-cream border border-wellbeing-sand'
     : 'bg-wellbeing-green-light'
 
+  const tooltip = mwst > 0
+    ? `Netto: ${eurFmt(wert)}${budget != null ? ` / ${eurFmt(budget)}` : ''}`
+    : undefined
+
   return (
     <div>
       <div className="flex items-baseline justify-between gap-3 mb-1">
         <span className="text-xs text-gray-600 truncate">{label}</span>
-        <span className="text-xs font-mono shrink-0">
-          <span className="font-semibold text-gray-900">{eurFmt(wert)}</span>
-          {budget != null && (
-            <span className="text-gray-400"> / {eurFmt(budget)}</span>
+        <span className="text-xs font-mono shrink-0" title={tooltip}>
+          <span className="font-semibold text-gray-900">{eurFmt(wertBrutto)}</span>
+          {budgetBrutto != null && (
+            <span className="text-gray-400"> / {eurFmt(budgetBrutto)}</span>
           )}
           {exakt != null && (
             <span className={`ml-2 font-semibold ${ueber ? 'text-red-500' : exakt >= 80 ? 'text-amber-500' : 'text-gray-400'}`}>
