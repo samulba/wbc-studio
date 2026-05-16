@@ -37,8 +37,7 @@ Farbpalette: wellbeing-green (#445c49), wellbeing-green-light (#94c1a4), wellbei
 → Wenn eine neue Übersichtsseite gebaut wird: erst Projekte-Page anschauen, dann 1:1 dieses Pattern verwenden. Nicht "kreativ werden". User hat ausdrücklich gefordert, dass alle Dashboards einheitlich aussehen müssen.
 
 ## Offen
-- Migrations 038–045 müssen noch manuell in Supabase SQL-Editor ausgeführt werden
-- Migrationen 068/069/070/071/072/073/074/075/086/087/088/089/090/091/092/093/094/095/096/097/098/099/100/101/102/103/104/105/106/107/108 müssen manuell in Supabase SQL-Editor ausgeführt werden
+- **Migrations-Status:** alle bis 108 in Production eingespielt. Workflow ab jetzt: neue Migrationen liegen direkt in `supabase/migrations/`, nach erfolgreichem Einspielen in Supabase per `git mv` in `supabase/migrations/applied/`. Siehe `supabase/migrations/README.md`.
 - **Auto-Deletion archivierter Kunden nach 30 Tagen** (Cron-Job via Supabase Edge Function oder Vercel Cron): `deleted_at < now() - interval '30 days'` → Hard-Delete. Aktuell nur manuell möglich.
 - **Raumplaner-Reduktion Phase 2+** (siehe Plan-Datei): Datei-Split (5535 → ~1500 Core + Module), Touch-Gesten (Pinch-Zoom, 1-Finger-Pan, Long-Press), Responsive-Layout (Bottom-Sheet Möbel, Drawer Eigenschaften, Phone-Blocker), Render-Batching (scheduleRender-Helper), Grid-Pattern auf Canvas-Background, Möbel-Suche mit fuse.js, Elektro-Schnellleiste.
 

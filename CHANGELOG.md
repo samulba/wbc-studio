@@ -5,6 +5,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
 ## 2026-05-16
 
+### Migrations-Organisation
+- **Migrationen 1-108 ins `applied/`-Unterverzeichnis verschoben** — alle sind in Production eingespielt und liegen jetzt unter `supabase/migrations/applied/`. Neue Migrationen kommen direkt in `supabase/migrations/`. Workflow ist in `supabase/migrations/README.md` dokumentiert: nach erfolgreichem Ausführen in Supabase per `git mv` ins applied-Verzeichnis. So sieht man in GitHub auf einen Blick, welche Migrationen noch offen sind.
+
 ### Onboarding-Komplettüberarbeitung
 - **Kundenname bleibt sichtbar**: Beim Erstellen eines Onboarding-Links wird jetzt ein dauerhafter Titel (z.B. „Frau Müller") gesetzt, der nach Einreichung NICHT mehr überschrieben wird. Vorher verschwand der Name aus der Übersicht.
 - **E-Mail-Versand entfernt**: Das Erstellen-Modal hat keine Empfänger-Email-Felder mehr. Statt automatischem Versand: nach Klick auf „Anlegen" erscheint ein Erfolgs-Screen mit dem Link, großem „Link kopieren"-Button und „Vorschau"-Link.
