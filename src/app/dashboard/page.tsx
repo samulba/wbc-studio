@@ -315,8 +315,11 @@ async function getDashboardData() {
     // Migration 102 fehlt -> Button wird ausgeblendet
   }
 
-  // ── Meine Aufgaben (Migration 102) ──────────────────────────
+  // ── Meine Aufgaben + Alle Aufgaben (Migration 102) ─────────
+  // Zwei separate Listen, damit der User im Widget zwischen den beiden
+  // umschalten kann. Beide auf 8 limitiert, sortiert nach Faelligkeit.
   let meineAufgaben: MeineAufgabe[] = []
+  let alleAufgaben:  MeineAufgabe[] = []
   try {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
@@ -329,24 +332,35 @@ async function getDashboardData() {
         projekt: { name: string | null } | null
         kunde:   { name: string | null } | null
       }
-      const r = await supabase
-        .from('aufgaben')
-        .select('id, titel, status, prioritaet, faellig_am, projekt:projekte(name), kunde:kunden(name)')
-        .eq('assignee_user_id', user.id)
-        .neq('status', 'erledigt')
-        .order('faellig_am', { ascending: true, nullsFirst: false })
-        .limit(8)
-      const rows = ((r.data ?? []) as unknown as AufgabeRaw[])
-      meineAufgaben = rows.map((a) => ({
-        id:           a.id,
-        titel:        a.titel,
-        status:       a.status,
-        prioritaet:   a.prioritaet,
-        faellig_am:   a.faellig_am,
-        projektName:  a.projekt?.name ?? null,
-        kundeName:    a.kunde?.name ?? null,
-        tageVerbleibend: a.faellig_am ? tageDiff(a.faellig_am) : 999,
-      }))
+      const baseSelect = 'id, titel, status, prioritaet, faellig_am, projekt:projekte(name), kunde:kunden(name)'
+      const [meineRes, alleRes] = await Promise.all([
+        supabase
+          .from('aufgaben')
+          .select(baseSelect)
+          .eq('assignee_user_id', user.id)
+          .neq('status', 'erledigt')
+          .order('faellig_am', { ascending: true, nullsFirst: false })
+          .limit(8),
+        supabase
+          .from('aufgaben')
+          .select(baseSelect)
+          .neq('status', 'erledigt')
+          .order('faellig_am', { ascending: true, nullsFirst: false })
+          .limit(8),
+      ])
+      const mapRows = (data: unknown): MeineAufgabe[] =>
+        ((data ?? []) as AufgabeRaw[]).map((a) => ({
+          id:           a.id,
+          titel:        a.titel,
+          status:       a.status,
+          prioritaet:   a.prioritaet,
+          faellig_am:   a.faellig_am,
+          projektName:  a.projekt?.name ?? null,
+          kundeName:    a.kunde?.name ?? null,
+          tageVerbleibend: a.faellig_am ? tageDiff(a.faellig_am) : 999,
+        }))
+      meineAufgaben = mapRows(meineRes.data)
+      alleAufgaben  = mapRows(alleRes.data)
     }
   } catch {
     // Migration 102 evtl. nicht ausgefuehrt — leeres Array akzeptiert
@@ -367,6 +381,7 @@ async function getDashboardData() {
     anstehend7Tage,
     offeneReklamationen,
     meineAufgaben,
+    alleAufgaben,
     aufgabenPickerOptionen,
   }
 }
@@ -380,7 +395,7 @@ export default async function DashboardPage() {
     budgetProjekte,
     letzteProjekte,
     zuBestellen, unterwegs, anstehend7Tage, offeneReklamationen,
-    meineAufgaben, aufgabenPickerOptionen,
+    meineAufgaben, alleAufgaben, aufgabenPickerOptionen,
   } = await getDashboardData()
 
   return (
@@ -437,7 +452,11 @@ export default async function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 min-h-[220px] xl:flex-1 xl:min-h-0">
           <NaechsteDeadlines projekte={naechsteDeadlines} events={anstehendeEvents} />
           <OffeneFollowUps eintraege={followUpEintraege} />
-          <MeineAufgabenWidget aufgaben={meineAufgaben} pickerOptionen={aufgabenPickerOptionen ?? undefined} />
+          <MeineAufgabenWidget
+            meineAufgaben={meineAufgaben}
+            alleAufgaben={alleAufgaben}
+            pickerOptionen={aufgabenPickerOptionen ?? undefined}
+          />
         </div>
 
         {/* ROW 3: Budget + Letzte Projekte (nebeneinander, fluid rest of viewport) */}

@@ -642,18 +642,22 @@ const PRIO_PUNKT: Record<MeineAufgabe['prioritaet'], string> = {
 }
 
 export function MeineAufgabenWidget({
-  aufgaben,
+  meineAufgaben,
+  alleAufgaben,
   pickerOptionen,
 }: {
-  aufgaben: MeineAufgabe[]
+  meineAufgaben: MeineAufgabe[]
+  alleAufgaben:  MeineAufgabe[]
   pickerOptionen?: AufgabePickerOptionen
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [erledigtIds, setErledigtIds] = useState<Set<string>>(new Set())
   const [anlegenOffen, setAnlegenOffen] = useState(false)
+  const [filter, setFilter] = useState<'meine' | 'alle'>('meine')
 
-  const sichtbar = aufgaben.filter((a) => !erledigtIds.has(a.id))
+  const quelle = filter === 'meine' ? meineAufgaben : alleAufgaben
+  const sichtbar = quelle.filter((a) => !erledigtIds.has(a.id))
 
   function abhaken(id: string) {
     setErledigtIds((prev) => {
@@ -678,15 +682,50 @@ export function MeineAufgabenWidget({
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
-      <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+      <div className="shrink-0 flex items-center justify-between px-5 py-3.5 border-b border-gray-100 gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <ListChecks className="w-4 h-4 text-wellbeing-green" />
-          <h2 className="text-sm font-semibold text-gray-900">Meine Aufgaben</h2>
+          <h2 className="text-sm font-semibold text-gray-900">Aufgaben</h2>
           {sichtbar.length > 0 && (
             <span className="text-xs text-gray-400 tabular-nums">({sichtbar.length})</span>
           )}
         </div>
         <div className="flex items-center gap-3">
+          {/* Filter-Toggle: Meine / Alle */}
+          <div className="inline-flex items-center border border-gray-200 rounded-md overflow-hidden text-[11px] font-medium">
+            <button
+              type="button"
+              onClick={() => setFilter('meine')}
+              className={`px-2.5 py-1 transition-colors ${
+                filter === 'meine'
+                  ? 'bg-wellbeing-green text-white'
+                  : 'bg-white text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              Meine
+              {meineAufgaben.length > 0 && (
+                <span className={`ml-1.5 tabular-nums ${filter === 'meine' ? 'text-white/80' : 'text-gray-400'}`}>
+                  {meineAufgaben.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilter('alle')}
+              className={`px-2.5 py-1 border-l border-gray-200 transition-colors ${
+                filter === 'alle'
+                  ? 'bg-wellbeing-green text-white'
+                  : 'bg-white text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              Alle
+              {alleAufgaben.length > 0 && (
+                <span className={`ml-1.5 tabular-nums ${filter === 'alle' ? 'text-white/80' : 'text-gray-400'}`}>
+                  {alleAufgaben.length}
+                </span>
+              )}
+            </button>
+          </div>
           {pickerOptionen && (
             <button
               onClick={() => setAnlegenOffen(true)}
@@ -699,7 +738,7 @@ export function MeineAufgabenWidget({
           <Link
             href="/dashboard/aufgaben"
             className="text-xs text-wellbeing-green hover:text-wellbeing-green-dark transition-colors font-medium"
-          >Alle →</Link>
+          >Board →</Link>
         </div>
       </div>
       {sichtbar.length === 0 ? (
@@ -707,7 +746,22 @@ export function MeineAufgabenWidget({
           <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
             <CheckCircle2 className="w-5 h-5 text-emerald-400" />
           </div>
-          <p className="text-xs text-gray-400">Alles erledigt für heute.</p>
+          {filter === 'meine' ? (
+            <>
+              <p className="text-xs text-gray-400">Du hast keine offenen Aufgaben.</p>
+              {alleAufgaben.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setFilter('alle')}
+                  className="text-[11px] text-wellbeing-green hover:underline"
+                >
+                  {alleAufgaben.length} offene Aufgabe{alleAufgaben.length === 1 ? '' : 'n'} im Team anzeigen →
+                </button>
+              )}
+            </>
+          ) : (
+            <p className="text-xs text-gray-400">Keine offenen Aufgaben im Team.</p>
+          )}
         </div>
       ) : (
         <ul className="flex-1 overflow-y-auto divide-y divide-gray-50">
