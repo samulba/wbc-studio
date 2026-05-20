@@ -118,13 +118,23 @@ export async function onboardingAbsenden(
 
   const { data: anfrage } = await supabase
     .from('onboarding_anfragen')
-    .select('id, status, antworten, kunde_name, projekt_name')
+    .select('id, status, antworten, kunde_name, projekt_name, gueltig_bis')
     .eq('token', token)
     .single()
 
   if (!anfrage) return { erfolg: false, fehler: 'Dieser Link ist ungültig.' }
   if (anfrage.status !== 'offen' && anfrage.status !== 'in_bearbeitung') {
     return { erfolg: false, fehler: 'Dieses Formular wurde bereits ausgefüllt oder deaktiviert.' }
+  }
+  // Server-seitige Re-Validierung von gueltig_bis — verhindert dass ein
+  // Tab, der seit Stunden offen ist und den Ablauf-Check beim Laden
+  // gepasst hat, jetzt trotzdem submittet.
+  if (anfrage.gueltig_bis && new Date(anfrage.gueltig_bis) < new Date()) {
+    await supabase
+      .from('onboarding_anfragen')
+      .update({ status: 'abgelaufen' })
+      .eq('token', token)
+    return { erfolg: false, fehler: 'Dieser Onboarding-Link ist abgelaufen.' }
   }
   // Hinweis: kunde_name darf bereits vorgefüllt sein (bei verknüpftem Kunden).
   // Echter "schon ausgefüllt"-Indikator ist `antworten`.
@@ -142,13 +152,17 @@ export async function onboardingAbsenden(
     ? anfrage.projekt_name
     : (projekt_name?.trim() || null)
 
-  const { error } = await supabase
+  // Race-Condition-Schutz: nur updaten, wenn der Status noch offen/in_bearbeitung
+  // ist. Bei zwei parallelen Submits gewinnt der erste, der zweite kriegt 0 Rows
+  // affected zurück und sieht den „bereits abgeschickt"-Fehler.
+  const { data: updated, error } = await supabase
     .from('onboarding_anfragen')
     .update({
       ...standardDaten,
       kunde_name:       finalKundeName,
       projekt_name:     finalProjektName,
       antworten:        antworten ?? null,
+      auto_save:        null,
       // 'eingereicht' = Kunde hat abgeschickt; 'abgeschlossen' setzt
       // erst der Admin, wenn er Kunde+Projekt aus der Anfrage anlegt.
       status:           'eingereicht',
@@ -157,8 +171,13 @@ export async function onboardingAbsenden(
       updated_at:       new Date().toISOString(),
     })
     .eq('token', token)
+    .in('status', ['offen', 'in_bearbeitung'])
+    .select('id')
 
   if (error) return { erfolg: false, fehler: 'Fehler beim Speichern. Bitte erneut versuchen.' }
+  if (!updated || updated.length === 0) {
+    return { erfolg: false, fehler: 'Dieses Formular wurde gerade in einem anderen Fenster abgeschickt.' }
+  }
 
   // Admin-Cache invalidieren. Customer-Page (/onboarding/[token])
   // NICHT revalidieren — sonst wuerde RSC sofort 'Bereits eingereicht'
@@ -237,73 +256,17 @@ export async function onboardingLinkLoeschen(id: string): Promise<void> {
 }
 
 /**
- * Kunden (+ optional Projekt) aus Onboarding-Anfrage anlegen.
- * Markiert die Anfrage als abgeschlossen und leitet zum neuen Kunden weiter.
+ * Kunden (+ optional Projekt) aus Onboarding-Anfrage anlegen und
+ * direkt weiterleiten. Thin-Wrapper um die robuste V2-Funktion
+ * `kundeUndProjektAusOnboarding` aus onboarding-erweitert.ts —
+ * dadurch profitiert auch dieser Pfad von Email-Dup-Check,
+ * Atomarität und Räume-Best-Effort.
  */
 export async function kundeAusOnboardingAnlegen(anfrageId: string): Promise<void> {
-  const supabase = await createClient()
-
-  const { data: anfrage } = await supabase
-    .from('onboarding_anfragen')
-    .select('*')
-    .eq('id', anfrageId)
-    .single()
-
-  if (!anfrage || !anfrage.kunde_name) throw new Error('Anfrage nicht gefunden oder unvollständig')
-
-  const orgId = await getOrganisationId()
-
-  // Kunden anlegen
-  const { data: kunde, error: kundeError } = await supabase
-    .from('kunden')
-    .insert({
-      name:            anfrage.kunde_name,
-      ansprechpartner: anfrage.kunde_name,
-      email:           anfrage.kunde_email,
-      telefon:         anfrage.kunde_telefon,
-      adresse:         anfrage.projekt_adresse,
-      notizen:         anfrage.notizen,
-      status:          'aktiv',
-      organisation_id: orgId,
-    })
-    .select('id')
-    .single()
-
-  if (kundeError || !kunde) throw new Error('Fehler beim Anlegen des Kunden')
-
-  // Projekt anlegen (wenn Name vorhanden)
-  if (anfrage.projekt_name) {
-    await supabase.from('projekte').insert({
-      kunde_id:        kunde.id,
-      name:            anfrage.projekt_name,
-      standort:        anfrage.projekt_adresse,
-      gesamtbudget:    anfrage.budget_max,
-      status:          'offen',
-      organisation_id: orgId,
-    })
-  }
-
-  // Anfrage abschließen
-  await supabase
-    .from('onboarding_anfragen')
-    .update({ status: 'abgeschlossen' })
-    .eq('id', anfrageId)
-    .eq('organisation_id', orgId)
-
-  // Auto-Sync: Aufgabe als erledigt markieren
-  try {
-    await supabase
-      .from('aufgaben')
-      .update({ status: 'erledigt', erledigt_am: new Date().toISOString() })
-      .eq('organisation_id', orgId)
-      .eq('quelle', 'onboarding')
-      .eq('quelle_id', anfrageId)
-  } catch (e) { console.error('[syncAufgabe:onboarding:kundeAnlegen]', e) }
-
-  revalidatePath('/dashboard/onboarding')
-  revalidatePath('/dashboard/kunden')
-  revalidatePath('/dashboard/aufgaben')
-  redirect(`/dashboard/kunden/${kunde.id}`)
+  const { kundeUndProjektAusOnboarding } = await import('@/app/actions/onboarding-erweitert')
+  const res = await kundeUndProjektAusOnboarding(anfrageId, { raeume_erstellen: false })
+  if (res.projekt_id) redirect(`/dashboard/projekte/${res.projekt_id}`)
+  else                redirect(`/dashboard/kunden/${res.kunde_id}`)
 }
 
 // ── Vorlagen-CRUD ─────────────────────────────────────────────
@@ -330,16 +293,25 @@ export async function vorlageLaden(id: string): Promise<OnboardingVorlage | null
   return data as OnboardingVorlage | null
 }
 
-/** Vorlage mit Token öffentlich laden (kein Login). */
+/**
+ * Vorlage mit Token öffentlich laden (kein Login).
+ *
+ * Priorität auf `vorlage_snapshot` (zum Erstellungszeitpunkt eingefroren),
+ * Fallback auf die aktuelle Vorlage. Damit sieht der Kunde immer die
+ * Frage-Sets, die zum Zeitpunkt der Link-Erstellung galten — selbst
+ * wenn der Admin die Vorlage zwischenzeitlich editiert oder löscht.
+ */
 export async function vorlageZuTokenLaden(token: string): Promise<OnboardingVorlage | null> {
   const supabase = createAdminClient()
   const { data: anfrage } = await supabase
     .from('onboarding_anfragen')
-    .select('vorlage_id')
+    .select('vorlage_id, vorlage_snapshot')
     .eq('token', token)
     .single()
 
-  if (!anfrage?.vorlage_id) return null
+  if (!anfrage) return null
+  if (anfrage.vorlage_snapshot) return anfrage.vorlage_snapshot as OnboardingVorlage
+  if (!anfrage.vorlage_id) return null
 
   const { data: vorlage } = await supabase
     .from('onboarding_vorlagen')

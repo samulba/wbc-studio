@@ -195,15 +195,17 @@ export async function getOnboardingAnfragen(filter?: {
   })) as (OnboardingAnfrage & { vorlage_name?: string })[]
 }
 
-/** Einzelne Anfrage laden (Admin). */
+/** Einzelne Anfrage laden (Admin). Mit Org-Filter — Multi-Tenancy-Schutz. */
 export async function getOnboardingAnfrage(id: string): Promise<OnboardingAnfrage | null> {
   const supabase = await createClient()
+  const orgId    = await getOrganisationId()
   const { data } = await supabase
     .from('onboarding_anfragen')
     .select('*')
     .eq('id', id)
-    .single()
-  return data as OnboardingAnfrage | null
+    .eq('organisation_id', orgId)
+    .maybeSingle()
+  return (data ?? null) as OnboardingAnfrage | null
 }
 
 /** Anfrage per Token öffentlich laden (Kunden-Formular). */
@@ -229,8 +231,15 @@ export async function getAnfrageByToken(
     return { anfrage: { ...anfrage, status: 'abgelaufen' }, vorlage: null }
   }
 
+  // Vorlage laden: Priorität auf `vorlage_snapshot` (eingefroren zum
+  // Zeitpunkt der Link-Erstellung), Fallback auf aktuelle Vorlage. So
+  // sieht der Kunde immer die Fragen-Sets, die zum Erstellungszeitpunkt
+  // galten — selbst wenn Admin die Vorlage zwischenzeitlich ändert oder
+  // löscht.
   let vorlage: OnboardingVorlage | null = null
-  if (anfrage.vorlage_id) {
+  if (anfrage.vorlage_snapshot) {
+    vorlage = anfrage.vorlage_snapshot as OnboardingVorlage
+  } else if (anfrage.vorlage_id) {
     const { data: v } = await supabase
       .from('onboarding_vorlagen')
       .select('*')
@@ -279,103 +288,10 @@ export async function onboardingAutoSave(
 }
 
 // ─────────────────────────────────────────────────────────────
-// FINALES ABSENDEN
+// FINALES ABSENDEN — Dead Code entfernt. Customer-Form ruft V1
+// `onboardingAbsenden` aus `@/app/actions/onboarding`. V2 wurde
+// nirgends mehr referenziert.
 // ─────────────────────────────────────────────────────────────
-
-export interface OnboardingAbsendenDaten {
-  kunde_name: string
-  kunde_email: string
-  kunde_telefon?: string | null
-  projekt_name?: string | null
-  projekt_adresse?: string | null
-  raumtypen?: string[] | null
-  budget_min?: number | null
-  budget_max?: number | null
-  stil_praeferenzen?: string | null
-  zeitrahmen?: string | null
-  notizen?: string | null
-  antworten?: Record<string, unknown> | null
-}
-
-/** Finales Absenden des Onboarding-Formulars durch den Kunden. */
-export async function onboardingAbsendenV2(
-  token: string,
-  daten: OnboardingAbsendenDaten,
-): Promise<{ erfolg: boolean; fehler?: string }> {
-  const supabase = createAdminClient()
-
-  // Vollstaendige Anfrage laden, um vorausgefuellte Felder zu erhalten (Bug 1)
-  const { data: anfrage } = await supabase
-    .from('onboarding_anfragen')
-    .select('id, status, kunde_name, projekt_name, titel')
-    .eq('token', token)
-    .single()
-
-  if (!anfrage) return { erfolg: false, fehler: 'Dieser Link ist ungültig.' }
-  if (!['offen', 'in_bearbeitung'].includes(anfrage.status)) {
-    return { erfolg: false, fehler: 'Dieses Formular wurde bereits abgeschlossen.' }
-  }
-
-  const { antworten, kunde_name, projekt_name, ...rest } = daten
-
-  // Bug 1: Vorausgefuellte kunde_name/projekt_name NIE durch leere Submit-
-  // Werte ueberschreiben — und wenn DB bereits einen Wert hat, behalten.
-  const finalKundeName   = (anfrage.kunde_name && anfrage.kunde_name.trim().length > 0)
-    ? anfrage.kunde_name
-    : (kunde_name?.trim() || null)
-  const finalProjektName = (anfrage.projekt_name && anfrage.projekt_name.trim().length > 0)
-    ? anfrage.projekt_name
-    : (projekt_name?.trim() || null)
-
-  const { error } = await supabase
-    .from('onboarding_anfragen')
-    .update({
-      ...rest,
-      kunde_name:       finalKundeName,
-      projekt_name:     finalProjektName,
-      antworten:        antworten ?? null,
-      auto_save:        null,         // Entwurf löschen
-      // 'eingereicht' = Kunde hat abgeschickt; 'abgeschlossen' setzt
-      // erst der Admin, wenn er Kunde+Projekt aus der Anfrage anlegt.
-      status:           'eingereicht',
-      fortschritt:      100,
-      abgeschlossen_am: new Date().toISOString(),
-      // titel wird bewusst NICHT geschrieben — bleibt aus Erstellungszeitpunkt
-    })
-    .eq('token', token)
-
-  if (error) return { erfolg: false, fehler: 'Fehler beim Speichern: ' + error.message }
-
-  // Admin-Cache invalidieren. Customer-Page (/onboarding/[token])
-  // NICHT revalidieren — sonst wuerde RSC sofort 'Bereits eingereicht'
-  // rendern und den lokalen ErfolgScreen-State des Kunden ueberschreiben.
-  revalidatePath('/dashboard/onboarding')
-
-  // Auto-Sync: Aufgabe „Onboarding pruefen" anlegen
-  try {
-    const { data: voll } = await supabase
-      .from('onboarding_anfragen')
-      .select('id, organisation_id, kunde_name, projekt_name, kunde_id, projekt_id')
-      .eq('token', token)
-      .maybeSingle()
-    if (voll?.organisation_id) {
-      const titel = voll.kunde_name
-        ? `Onboarding pruefen: ${voll.kunde_name}${voll.projekt_name ? ' / ' + voll.projekt_name : ''}`
-        : 'Onboarding pruefen'
-      const { syncAufgabeAusQuelleAdmin } = await import('@/app/actions/aufgaben')
-      await syncAufgabeAusQuelleAdmin(voll.organisation_id, 'onboarding', voll.id, {
-        titel,
-        status:             'in_arbeit',
-        prioritaet:         'normal',
-        kunde_id:           (voll.kunde_id as string | null) ?? null,
-        projekt_id:         (voll.projekt_id as string | null) ?? null,
-        sichtbar_fuer_kunde: false,
-      })
-    }
-  } catch (e) { console.error('[syncAufgabe:onboardingV2:absenden]', e) }
-
-  return { erfolg: true }
-}
 
 // ─────────────────────────────────────────────────────────────
 // DATEI-UPLOADS
@@ -840,13 +756,29 @@ export async function anfrageZuProjektVerknuepfen(
   revalidatePath('/dashboard/onboarding')
 }
 
-/** Kunden + Projekt aus Onboarding-Anfrage automatisch anlegen. */
+/**
+ * Kunden + Projekt aus Onboarding-Anfrage automatisch anlegen.
+ *
+ * Atomar-ish: bei Projekt-Fail wird der frisch angelegte Kunde wieder
+ * gelöscht. Räume werden best-effort via Promise.allSettled angelegt —
+ * Teilausfälle blockieren den Workflow nicht, sondern werden in
+ * `raeume_warnung` zurückgegeben.
+ *
+ * Email-Dup-Check: existiert in derselben Org bereits ein nicht-gelöschter
+ * Kunde mit der angegebenen Email, wird KEIN neuer Kunde angelegt; der
+ * bestehende wird zurückgegeben mit `kunde_war_dup=true`.
+ */
 export async function kundeUndProjektAusOnboarding(
   anfrageId: string,
   optionen?: {
-    raeume_erstellen?: boolean   // Räume aus raumtypen automatisch anlegen
+    raeume_erstellen?: boolean
   }
-): Promise<{ kunde_id: string; projekt_id: string | null }> {
+): Promise<{
+  kunde_id: string
+  projekt_id: string | null
+  kunde_war_dup: boolean
+  raeume_warnung?: string
+}> {
   const supabase = await createClient()
   const orgId    = await getOrganisationId()
 
@@ -859,32 +791,55 @@ export async function kundeUndProjektAusOnboarding(
 
   if (!anfrage?.kunde_name) throw new Error('Anfrage unvollständig.')
 
-  // Kunden anlegen
-  const { data: kunde, error: kErr } = await supabase
-    .from('kunden')
-    .insert({
-      name:            anfrage.kunde_name,
-      ansprechpartner: anfrage.kunde_name,
-      email:           anfrage.kunde_email,
-      telefon:         anfrage.kunde_telefon,
-      adresse:         anfrage.projekt_adresse,
-      notizen:         anfrage.notizen,
-      status:          'aktiv',
-      organisation_id: orgId,
-    })
-    .select('id')
-    .single()
+  // ── Email-Dup-Check ──────────────────────────────────────────
+  let kundeId: string | null = null
+  let kundeWarDup = false
+  if (anfrage.kunde_email) {
+    const { data: existing } = await supabase
+      .from('kunden')
+      .select('id')
+      .eq('organisation_id', orgId)
+      .eq('email', anfrage.kunde_email)
+      .is('deleted_at', null)
+      .maybeSingle()
+    if (existing) {
+      kundeId = existing.id
+      kundeWarDup = true
+    }
+  }
 
-  if (kErr || !kunde) throw new Error('Fehler beim Anlegen des Kunden: ' + kErr?.message)
+  // ── Kunden anlegen (falls kein Duplikat) ─────────────────────
+  if (!kundeId) {
+    const { data: kunde, error: kErr } = await supabase
+      .from('kunden')
+      .insert({
+        name:            anfrage.kunde_name,
+        ansprechpartner: anfrage.kunde_name,
+        email:           anfrage.kunde_email,
+        telefon:         anfrage.kunde_telefon,
+        adresse:         anfrage.projekt_adresse,
+        notizen:         anfrage.notizen,
+        status:          'aktiv',
+        organisation_id: orgId,
+      })
+      .select('id')
+      .single()
+
+    if (kErr || !kunde) throw new Error('Fehler beim Anlegen des Kunden: ' + kErr?.message)
+    kundeId = kunde.id as string
+  }
+  if (!kundeId) throw new Error('Konnte Kunden-ID nicht ermitteln.')
+  const finalKundeId: string = kundeId
 
   let projektId: string | null = null
+  let raeumeWarnung: string | undefined
 
-  // Projekt anlegen
+  // ── Projekt anlegen (mit Rollback bei Fail) ──────────────────
   if (anfrage.projekt_name) {
-    const { data: projekt } = await supabase
+    const { data: projekt, error: pErr } = await supabase
       .from('projekte')
       .insert({
-        kunde_id:        kunde.id,
+        kunde_id:        finalKundeId,
         name:            anfrage.projekt_name,
         standort:        anfrage.projekt_adresse,
         gesamtbudget:    anfrage.budget_max,
@@ -894,11 +849,23 @@ export async function kundeUndProjektAusOnboarding(
       .select('id')
       .single()
 
-    projektId = projekt?.id ?? null
+    if (pErr || !projekt) {
+      // Rollback: nur den frisch angelegten Kunden löschen, niemals
+      // den Duplikat-Kunden — der existierte schon vorher.
+      if (!kundeWarDup) {
+        await supabase
+          .from('kunden')
+          .delete()
+          .eq('id', finalKundeId)
+          .eq('organisation_id', orgId)
+      }
+      throw new Error('Fehler beim Anlegen des Projekts: ' + pErr?.message)
+    }
+    projektId = projekt.id
 
-    // Optional: Räume aus raumtypen erstellen
+    // Räume anlegen (Best-Effort)
     if (projektId && optionen?.raeume_erstellen && anfrage.raumtypen?.length) {
-      await Promise.all(
+      const results = await Promise.allSettled(
         anfrage.raumtypen.map((raumtyp: string, i: number) =>
           supabase.from('raeume').insert({
             projekt_id:      projektId,
@@ -908,15 +875,19 @@ export async function kundeUndProjektAusOnboarding(
           })
         )
       )
+      const fails = results.filter((r) => r.status === 'rejected').length
+      if (fails > 0) {
+        raeumeWarnung = `${fails} von ${anfrage.raumtypen.length} Räumen konnten nicht angelegt werden.`
+      }
     }
   }
 
-  // Anfrage abschließen + verknüpfen
+  // ── Anfrage abschließen + verknüpfen ─────────────────────────
   await supabase
     .from('onboarding_anfragen')
     .update({
       status:          'abgeschlossen',
-      kunde_id:        kunde.id,
+      kunde_id:        kundeId,
       projekt_id:      projektId,
       abgeschlossen_am: new Date().toISOString(),
     })
@@ -925,7 +896,9 @@ export async function kundeUndProjektAusOnboarding(
 
   revalidatePath('/dashboard/onboarding')
   revalidatePath('/dashboard/kunden')
-  return { kunde_id: kunde.id, projekt_id: projektId }
+  if (projektId) revalidatePath(`/dashboard/projekte/${projektId}`)
+
+  return { kunde_id: finalKundeId, projekt_id: projektId, kunde_war_dup: kundeWarDup, raeume_warnung: raeumeWarnung }
 }
 
 /** Anfrage löschen. */

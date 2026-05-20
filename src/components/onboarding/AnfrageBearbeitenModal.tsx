@@ -138,9 +138,13 @@ export default function AnfrageBearbeitenModal({ anfrage, vorlage, onClose }: Pr
         // nur wenn projekt_name gesetzt ist — funktioniert also fuer
         // beide Faelle (mit/ohne Projekt) ohne Server-Side-Redirect.
         const res = await kundeUndProjektAusOnboarding(anfrage.id, { raeume_erstellen: raeumeErstellen })
+        const hinweise: string[] = []
+        if (res.kunde_war_dup) hinweise.push('Bestehender Kunde verknüpft (Email-Treffer).')
+        if (res.raeume_warnung)  hinweise.push(res.raeume_warnung)
+        const q = hinweise.length > 0 ? `?hinweis=${encodeURIComponent(hinweise.join(' · '))}` : ''
         onClose()
-        if (res.projekt_id) router.push(`/dashboard/projekte/${res.projekt_id}`)
-        else                router.push(`/dashboard/kunden/${res.kunde_id}`)
+        if (res.projekt_id) router.push(`/dashboard/projekte/${res.projekt_id}${q}`)
+        else                router.push(`/dashboard/kunden/${res.kunde_id}${q}`)
       } catch (e) {
         setFehler(e instanceof Error ? e.message : 'Anlegen fehlgeschlagen.')
       }

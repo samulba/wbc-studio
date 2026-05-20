@@ -460,10 +460,17 @@ function AnfrageDetail({
     startTransition(async () => {
       try {
         const res = await kundeUndProjektAusOnboarding(anfrage.id, { raeume_erstellen: true })
+        // Hinweise stapeln (Duplikat + Räume-Warnung), als Query-Param
+        // an die Ziel-Seite mitgeben — die Detail-Page kann sie als Toast
+        // anzeigen.
+        const hinweise: string[] = []
+        if (res.kunde_war_dup) hinweise.push('Bestehender Kunde verknüpft (Email-Treffer).')
+        if (res.raeume_warnung)  hinweise.push(res.raeume_warnung)
+        const q = hinweise.length > 0 ? `?hinweis=${encodeURIComponent(hinweise.join(' · '))}` : ''
         if (res.projekt_id) {
-          router.push(`/dashboard/projekte/${res.projekt_id}`)
+          router.push(`/dashboard/projekte/${res.projekt_id}${q}`)
         } else {
-          router.push(`/dashboard/kunden/${res.kunde_id}`)
+          router.push(`/dashboard/kunden/${res.kunde_id}${q}`)
         }
       } catch (e) {
         setFehler(e instanceof Error ? e.message : 'Fehler beim Anlegen.')
