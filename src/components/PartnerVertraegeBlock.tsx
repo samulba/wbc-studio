@@ -3,8 +3,8 @@
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  FileText, FileImage, FileSpreadsheet, File as FileIcon,
-  Upload, Download, Trash2, X, Calendar, AlertTriangle, Loader2, Plus, Check,
+  FileText,
+  Upload, Download, Trash2, X, Calendar, AlertTriangle, Loader2, Plus, Check, Eye,
 } from 'lucide-react'
 import {
   vertragHochladen,
@@ -13,6 +13,8 @@ import {
 } from '@/app/actions/partner-vertraege'
 import type { PartnerVertrag } from '@/lib/supabase/types'
 import { ConfirmModal } from '@/components/ConfirmModal'
+import FilePreviewModal from '@/components/FilePreviewModal'
+import { ikonFuerMime, farbeFuerMime, kannInlineVorschau } from '@/lib/file-mime'
 
 const VERTRAGS_TYPEN = [
   'Rahmenvertrag',
@@ -27,21 +29,6 @@ function dateigroesseKurz(bytes: number): string {
   if (bytes < 1024)         return `${bytes} B`
   if (bytes < 1024 * 1024)  return `${(bytes / 1024).toFixed(0)} KB`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-}
-
-function ikonFuerTyp(mime: string): React.ComponentType<{ className?: string }> {
-  if (mime === 'application/pdf')                       return FileText
-  if (mime.startsWith('image/'))                        return FileImage
-  if (mime.includes('sheet') || mime.includes('excel')) return FileSpreadsheet
-  return FileIcon
-}
-
-function farbeFuerTyp(mime: string): string {
-  if (mime === 'application/pdf')                       return 'bg-red-50 text-red-600'
-  if (mime.startsWith('image/'))                        return 'bg-purple-50 text-purple-600'
-  if (mime.includes('sheet') || mime.includes('excel')) return 'bg-emerald-50 text-emerald-600'
-  if (mime.includes('word'))                            return 'bg-blue-50 text-blue-600'
-  return 'bg-gray-100 text-gray-500'
 }
 
 function formatDatum(iso: string): string {
@@ -73,6 +60,7 @@ export default function PartnerVertraegeBlock({
   const [uploadOffen, setUploadOffen] = useState(false)
   const [loeschenId, setLoeschenId]   = useState<string | null>(null)
   const [downloadFehler, setDownloadFehler] = useState<string | null>(null)
+  const [preview, setPreview] = useState<PartnerVertrag | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function handleUploadFertig(neu: PartnerVertrag) {
@@ -152,20 +140,32 @@ export default function PartnerVertraegeBlock({
         ) : (
           <div className="divide-y divide-gray-100">
             {vertraege.map((v) => {
-              const Icon = ikonFuerTyp(v.dateityp)
-              const farbe = farbeFuerTyp(v.dateityp)
+              const Icon = ikonFuerMime(v.dateityp)
+              const farbe = farbeFuerMime(v.dateityp)
               const abgelaufen = istAbgelaufen(v.gueltig_bis)
               const baldFaellig = !abgelaufen && istBald(v.gueltig_bis)
+              const vorschauOk = kannInlineVorschau(v.dateityp)
               return (
                 <div key={v.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${farbe}`}>
+                  <button
+                    type="button"
+                    onClick={() => vorschauOk && setPreview(v)}
+                    disabled={!vorschauOk}
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${farbe} ${vorschauOk ? 'cursor-pointer hover:ring-2 hover:ring-wellbeing-green/30' : 'cursor-default'}`}
+                    aria-label={vorschauOk ? 'Vorschau' : undefined}
+                  >
                     <Icon className="w-5 h-5" />
-                  </div>
+                  </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="text-sm font-medium text-gray-900 truncate select-text">
+                      <button
+                        type="button"
+                        onClick={() => vorschauOk && setPreview(v)}
+                        disabled={!vorschauOk}
+                        className={`text-sm font-medium text-gray-900 truncate select-text text-left ${vorschauOk ? 'hover:text-wellbeing-green cursor-pointer' : 'cursor-default'}`}
+                      >
                         {v.titel ?? v.dateiname}
-                      </p>
+                      </button>
                       {v.vertragstyp && (
                         <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
                           {v.vertragstyp}
@@ -200,6 +200,16 @@ export default function PartnerVertraegeBlock({
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {vorschauOk && (
+                      <button
+                        type="button"
+                        onClick={() => setPreview(v)}
+                        className="p-1.5 text-gray-400 hover:text-wellbeing-green rounded-lg hover:bg-wellbeing-green/10 transition-colors"
+                        title="Vorschau"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleDownload(v.id)}
@@ -237,6 +247,16 @@ export default function PartnerVertraegeBlock({
           partnerId={partnerId}
           onClose={() => setUploadOffen(false)}
           onUpload={handleUploadFertig}
+        />
+      )}
+
+      {preview && (
+        <FilePreviewModal
+          dateiname={preview.titel ?? preview.dateiname}
+          mimeType={preview.dateityp}
+          groesse={preview.dateigroesse}
+          urlFetcher={() => vertragHerunterladenUrl(preview.id).then((r) => r.fehler ? null : (r.url ?? null))}
+          onClose={() => setPreview(null)}
         />
       )}
     </>
