@@ -3,7 +3,9 @@
 import { useState, useCallback, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { dateiEintragen, dateiLoeschen } from '@/app/actions/dateien'
-import { Upload, File, FileImage, Trash2, Loader2, ExternalLink } from 'lucide-react'
+import { Upload, File, FileImage, Trash2, Loader2, ExternalLink, Eye } from 'lucide-react'
+import FilePreviewModal from '@/components/FilePreviewModal'
+import { kannInlineVorschau } from '@/lib/file-mime'
 
 export type DateiItem = {
   id: string
@@ -34,6 +36,7 @@ export default function DateiUpload({ projektId, initialDateien }: Props) {
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
+  const [preview, setPreview] = useState<DateiItem | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const uploadDatei = useCallback(async (file: File) => {
@@ -160,38 +163,69 @@ export default function DateiUpload({ projektId, initialDateien }: Props) {
       {/* Dateiliste */}
       {dateien.length > 0 && (
         <ul className="mt-3 space-y-1.5">
-          {dateien.map((datei) => (
-            <li
-              key={datei.id}
-              className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-100 group"
-            >
-              <DateiIcon typ={datei.datei_typ} />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-700 truncate leading-snug">
-                  {datei.datei_name}
-                </p>
-                <p className="text-[10px] text-gray-400">{formatSize(datei.dateigroesse)}</p>
-              </div>
-              <a
-                href={datei.datei_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-300 hover:text-wellbeing-green transition-colors shrink-0"
-                onClick={(e) => e.stopPropagation()}
+          {dateien.map((datei) => {
+            const vorschauOk = kannInlineVorschau(datei.datei_typ)
+            return (
+              <li
+                key={datei.id}
+                className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-lg border border-gray-100 group"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-              <button
-                type="button"
-                onClick={() => handleLoeschen(datei)}
-                className="text-gray-300 hover:text-red-500 transition-colors shrink-0"
-                aria-label="Löschen"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </li>
-          ))}
+                <button
+                  type="button"
+                  onClick={() => vorschauOk && setPreview(datei)}
+                  disabled={!vorschauOk}
+                  className={`flex items-center gap-3 flex-1 min-w-0 text-left ${vorschauOk ? 'cursor-pointer' : 'cursor-default'}`}
+                >
+                  <DateiIcon typ={datei.datei_typ} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-medium text-gray-700 truncate leading-snug ${vorschauOk ? 'group-hover:text-wellbeing-green' : ''}`}>
+                      {datei.datei_name}
+                    </p>
+                    <p className="text-[10px] text-gray-400">{formatSize(datei.dateigroesse)}</p>
+                  </div>
+                </button>
+                {vorschauOk && (
+                  <button
+                    type="button"
+                    onClick={() => setPreview(datei)}
+                    className="text-gray-300 hover:text-wellbeing-green transition-colors shrink-0"
+                    aria-label="Vorschau"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <a
+                  href={datei.datei_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-300 hover:text-wellbeing-green transition-colors shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label="In neuem Tab öffnen"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => handleLoeschen(datei)}
+                  className="text-gray-300 hover:text-red-500 transition-colors shrink-0"
+                  aria-label="Löschen"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </li>
+            )
+          })}
         </ul>
+      )}
+
+      {preview && (
+        <FilePreviewModal
+          dateiname={preview.datei_name}
+          mimeType={preview.datei_typ}
+          url={preview.datei_url}
+          groesse={preview.dateigroesse}
+          onClose={() => setPreview(null)}
+        />
       )}
     </div>
   )
