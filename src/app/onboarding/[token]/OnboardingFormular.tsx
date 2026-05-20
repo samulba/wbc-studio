@@ -815,7 +815,7 @@ function DynamischesFeld({
           onChange={(next) => onChange(next)}
           erlaubteTypen={frage.upload_typen}
           maxMb={frage.upload_max_mb ?? 50}
-          maxDateien={frage.upload_max_dateien ?? 5}
+          maxDateien={frage.upload_max_dateien ?? 10}
         />
       </FormFeld>
     )

@@ -597,7 +597,7 @@ export interface OnboardingFrage {
   // Upload
   upload_typen?: string[]      // z. B. ['image/*']
   upload_max_mb?: number
-  upload_max_dateien?: number  // Default 5
+  upload_max_dateien?: number  // Default 10
   // Mehrfachauswahl-Limit
   max_auswahl?: number
   // Budget-Verteilung

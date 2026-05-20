@@ -203,7 +203,7 @@ export async function onboardingDateiSignierteUrl(
       .from('onboarding_dateien')
       .select('storage_pfad')
       .eq('id', dateiId)
-      .eq('organisation_id', orgId)
+      .or(`organisation_id.eq.${orgId},organisation_id.is.null`)
       .maybeSingle()
     if (!datei) return { fehler: 'Datei nicht gefunden.' }
 
@@ -226,11 +226,14 @@ export async function getAnfrageDateien(anfrageId: string): Promise<OnboardingDa
   const supabase = await createClient()
   const orgId = await getOrganisationId()
 
+  // anfrage_id ist bereits org-gescopet (RLS auf onboarding_anfragen).
+  // organisation_id kann NULL sein, falls Migration 111 noch nicht
+  // eingespielt war beim Upload — daher zusaetzlich .or() statt strict eq.
   const { data } = await supabase
     .from('onboarding_dateien')
     .select('*')
     .eq('anfrage_id', anfrageId)
-    .eq('organisation_id', orgId)
+    .or(`organisation_id.eq.${orgId},organisation_id.is.null`)
     .order('created_at', { ascending: false })
   return (data ?? []) as OnboardingDatei[]
 }

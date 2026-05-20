@@ -12,7 +12,7 @@ interface Props {
   onChange:    (next: OnboardingDatei[]) => void
   erlaubteTypen?: string[]                  // z.B. ['image/*','application/pdf']
   maxMb?:        number                      // Default 25
-  maxDateien?:   number                      // Default 5
+  maxDateien?:   number                      // Default 10
   fehler?:       string
 }
 
@@ -28,7 +28,7 @@ function istBild(mime: string): boolean {
 
 export default function OnboardingUploadFeld({
   token, frageId, wert, onChange,
-  erlaubteTypen, maxMb = 50, maxDateien = 5, fehler,
+  erlaubteTypen, maxMb = 50, maxDateien = 10, fehler,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)

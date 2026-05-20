@@ -3,6 +3,12 @@
 Alle wichtigen Änderungen an Wellbeing Spaces, chronologisch rückwärts.
 Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 
+## 2026-05-20
+
+### Onboarding-Datei-Upload
+- **Bilder-Upload funktioniert wieder**, auch wenn Migration 111 noch nicht in Supabase eingespielt wurde. Bei einem Foreign-Key-Fehler auf `organisation_id` wird der Datei-Eintrag jetzt als Fallback ohne `organisation_id` gespeichert — der Upload geht durch, statt mit einer roten Fehlermeldung abzubrechen.
+- **Limit erhöht: jetzt bis zu 10 Dateien** pro Upload-Feld (vorher 5). Pro-Vorlage kann das Limit weiterhin im Editor überschrieben werden.
+
 ## 2026-05-16
 
 ### Projekte überarbeitet — Phase 3 (Brutto-Default, Räume-Übersicht, PDF, Formular)
