@@ -108,7 +108,7 @@ export default function OnboardingLinkListeFeld({ wert, onChange, fehler }: Prop
           onClick={hinzufuegen}
           className="px-3 py-2 text-sm font-medium text-white bg-wellbeing-green hover:bg-wellbeing-green-dark rounded-lg inline-flex items-center gap-1.5 transition-colors"
         >
-          <Plus className="w-3.5 h-3.5" /> Link hinzufuegen
+          <Plus className="w-3.5 h-3.5" /> Link hinzufügen
         </button>
       </div>
 

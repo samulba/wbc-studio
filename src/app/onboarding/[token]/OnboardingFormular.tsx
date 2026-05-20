@@ -8,6 +8,7 @@ import { onboardingAutoSave } from '@/app/actions/onboarding-erweitert'
 import DynamischesFeld, { FormFeld, inputCls } from '@/components/onboarding/DynamischesFeld'
 import OnboardingReviewModal from '@/components/onboarding/OnboardingReviewModal'
 import { sichtbareFragen, antwortenFiltern } from '@/lib/onboarding-bedingungen'
+import { extrahiereStammdatenAusAntworten } from '@/lib/onboarding-stammdaten'
 import type { OnboardingVorlage, OnboardingFrage, OnboardingSektion, Branding } from '@/lib/supabase/types'
 
 // ── Konstanten (Standard-Vorlage) ─────────────────────────────
@@ -466,23 +467,25 @@ function DynamischesFormular({ token, vorlage, branding }: { token: string; vorl
     return Object.keys(e).length === 0
   }
 
-  // Helper: Stammdaten aus bekannten IDs ableiten — wird sowohl im
-  // Review-Modal als auch beim wirklichen Submit benutzt, damit beide
-  // dieselbe Quelle der Wahrheit haben.
+  // Helper: Stammdaten aus den Antworten extrahieren — wird sowohl
+  // im Review-Modal als auch beim wirklichen Submit benutzt, damit
+  // beide dieselbe Quelle der Wahrheit haben. Nutzt den geteilten
+  // Extraktor, der mit allen Vorlagen-ID-Konventionen (kontakt_*,
+  // nk_*, pv_*, projekt_*) klarkommt.
   function stammdatenAusAntworten() {
-    const get = (id: string) => (antworten[id] as string | undefined) ?? null
+    const extracted = extrahiereStammdatenAusAntworten(vorlage, antworten)
     return {
-      kunde_name:        get('kontakt_name'),
-      kunde_email:       get('kontakt_email'),
-      kunde_telefon:     get('kontakt_telefon'),
-      projekt_name:      get('projekt_name'),
-      projekt_adresse:   get('projekt_adresse'),
-      raumtypen:         (antworten['raumtypen'] as string[] | null) ?? null,
-      zeitrahmen:        get('zeitrahmen'),
-      stil_praeferenzen: Array.isArray(antworten['stil'])
-        ? (antworten['stil'] as string[]).join(', ')
-        : get('stil'),
-      notizen:           get('notizen'),
+      kunde_name:        extracted.kunde_name        ?? null,
+      kunde_email:       extracted.kunde_email       ?? null,
+      kunde_telefon:     extracted.kunde_telefon     ?? null,
+      projekt_name:      extracted.projekt_name      ?? null,
+      projekt_adresse:   extracted.projekt_adresse   ?? null,
+      raumtypen:         extracted.raumtypen         ?? null,
+      budget_min:        extracted.budget_min        ?? null,
+      budget_max:        extracted.budget_max        ?? null,
+      zeitrahmen:        extracted.zeitrahmen        ?? null,
+      stil_praeferenzen: extracted.stil_praeferenzen ?? null,
+      notizen:           extracted.notizen           ?? null,
     }
   }
 

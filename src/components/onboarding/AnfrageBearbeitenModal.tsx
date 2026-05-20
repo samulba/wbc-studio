@@ -11,6 +11,7 @@ import {
   kundeUndProjektAusOnboarding,
 } from '@/app/actions/onboarding-erweitert'
 import { getAnfrageDateien, onboardingDateiSignierteUrl } from '@/app/actions/onboarding-uploads'
+import { extrahiereStammdatenAusAntworten } from '@/lib/onboarding-stammdaten'
 import type { OnboardingAnfrage, OnboardingVorlage, OnboardingDatei } from '@/lib/supabase/types'
 
 interface Props {
@@ -28,25 +29,35 @@ export default function AnfrageBearbeitenModal({ anfrage, vorlage, onClose }: Pr
   const [isPending, startTransition] = useTransition()
   const [fehler, setFehler] = useState<string | null>(null)
 
-  // Stammdaten-State — Initial aus Anfrage
-  const [stamm, setStamm] = useState({
-    kunde_name:        anfrage.kunde_name ?? '',
-    kunde_email:       anfrage.kunde_email ?? '',
-    kunde_telefon:     anfrage.kunde_telefon ?? '',
-    projekt_name:      anfrage.projekt_name ?? '',
-    projekt_adresse:   anfrage.projekt_adresse ?? '',
-    raumtypen:         (anfrage.raumtypen ?? []) as string[],
-    budget_min:        anfrage.budget_min,
-    budget_max:        anfrage.budget_max,
-    zeitrahmen:        anfrage.zeitrahmen ?? '',
-    stil_praeferenzen: anfrage.stil_praeferenzen ?? '',
-    notizen:           anfrage.notizen ?? '',
-  })
-
   // Antworten-State — Initial aus JSONB
   const [antworten, setAntworten] = useState<Record<string, unknown>>(
     (anfrage.antworten as Record<string, unknown>) ?? {},
   )
+
+  // Stammdaten-State — Initial aus den Top-Level-Spalten der Anfrage,
+  // und falls leer, automatisch aus den Antworten extrahiert (z.B. wenn
+  // die Vorlage andere Frage-IDs als kontakt_* benutzt — passiert bei
+  // 'nk_*', 'pv_*', 'projekt_*'-Vorlagen). Bestehende Werte werden NIE
+  // überschrieben.
+  const [stamm, setStamm] = useState(() => {
+    const ausAntworten = extrahiereStammdatenAusAntworten(
+      vorlage,
+      (anfrage.antworten as Record<string, unknown>) ?? null,
+    )
+    return {
+      kunde_name:        anfrage.kunde_name        ?? ausAntworten.kunde_name        ?? '',
+      kunde_email:       anfrage.kunde_email       ?? ausAntworten.kunde_email       ?? '',
+      kunde_telefon:     anfrage.kunde_telefon     ?? ausAntworten.kunde_telefon     ?? '',
+      projekt_name:      anfrage.projekt_name      ?? ausAntworten.projekt_name      ?? '',
+      projekt_adresse:   anfrage.projekt_adresse   ?? ausAntworten.projekt_adresse   ?? '',
+      raumtypen:         (anfrage.raumtypen ?? ausAntworten.raumtypen ?? []) as string[],
+      budget_min:        anfrage.budget_min        ?? ausAntworten.budget_min        ?? null,
+      budget_max:        anfrage.budget_max        ?? ausAntworten.budget_max        ?? null,
+      zeitrahmen:        anfrage.zeitrahmen        ?? ausAntworten.zeitrahmen        ?? '',
+      stil_praeferenzen: anfrage.stil_praeferenzen ?? ausAntworten.stil_praeferenzen ?? '',
+      notizen:           anfrage.notizen           ?? ausAntworten.notizen           ?? '',
+    }
+  })
 
   // Dateien — async laden
   const [dateien, setDateien] = useState<OnboardingDatei[]>([])
@@ -141,7 +152,7 @@ export default function AnfrageBearbeitenModal({ anfrage, vorlage, onClose }: Pr
     const res = await onboardingDateiEntfernenAdmin(dateiId)
     if (!res.erfolg) {
       setDateien(vorher)
-      setFehler(res.fehler ?? 'Datei konnte nicht geloescht werden.')
+      setFehler(res.fehler ?? 'Datei konnte nicht gelöscht werden.')
     }
   }
 
@@ -163,17 +174,17 @@ export default function AnfrageBearbeitenModal({ anfrage, vorlage, onClose }: Pr
         <div className="shrink-0 px-5 sm:px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 id="edit-titel" className="text-base sm:text-lg font-semibold text-gray-900 leading-tight">
-              Daten pruefen &amp; bearbeiten
+              Daten prüfen &amp; bearbeiten
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Korrigiere Kunden-Angaben vor &bdquo;Kunde + Projekt anlegen&ldquo;. Der Status bleibt unveraendert auf <span className="font-medium">Eingereicht</span>.
+              Korrigiere Kunden-Angaben vor &bdquo;Kunde + Projekt anlegen&ldquo;. Der Status bleibt unverändert auf <span className="font-medium">Eingereicht</span>.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={isPending}
-            aria-label="Schliessen"
+            aria-label="Schließen"
             className="text-gray-400 hover:text-gray-600 p-1 -m-1 disabled:opacity-50"
           >
             <X className="w-5 h-5" />
@@ -235,7 +246,7 @@ export default function AnfrageBearbeitenModal({ anfrage, vorlage, onClose }: Pr
               className="accent-wellbeing-green"
             />
             <label htmlFor="raeume-erstellen" className="cursor-pointer">
-              Raeume aus Raumtypen erstellen
+              Räume aus Raumtypen erstellen
             </label>
           </div>
           <button
@@ -326,7 +337,7 @@ function StammdatenForm({
           <input type="text" value={stamm.projekt_name} onChange={(e) => setField('projekt_name', e.target.value)} className={inputCls(false)} placeholder="z. B. Umbau Wohnung" />
         </FormFeld>
         <FormFeld label="Projekt-Adresse / Standort">
-          <input type="text" value={stamm.projekt_adresse} onChange={(e) => setField('projekt_adresse', e.target.value)} className={inputCls(false)} placeholder="Strasse, PLZ, Ort" />
+          <input type="text" value={stamm.projekt_adresse} onChange={(e) => setField('projekt_adresse', e.target.value)} className={inputCls(false)} placeholder="Straße, PLZ, Ort" />
         </FormFeld>
       </div>
 
@@ -351,11 +362,11 @@ function StammdatenForm({
         </FormFeld>
       </div>
 
-      <FormFeld label="Raeume (Tag-Liste)" hilfe="Enter druecken zum Hinzufuegen, X-Icon zum Entfernen.">
+      <FormFeld label="Räume (Tag-Liste)" hilfe="Enter drücken zum Hinzufügen, X-Icon zum Entfernen.">
         <TagInput werte={stamm.raumtypen} onChange={(v) => setField('raumtypen', v)} placeholder="Raumtyp eingeben + Enter" />
       </FormFeld>
 
-      <FormFeld label="Stil & Wuensche">
+      <FormFeld label="Stil & Wünsche">
         <input type="text" value={stamm.stil_praeferenzen} onChange={(e) => setField('stil_praeferenzen', e.target.value)} className={inputCls(false)} placeholder="z. B. modern, skandinavisch" />
       </FormFeld>
 
@@ -403,7 +414,7 @@ function TagInput({ werte, onChange, placeholder }: { werte: string[]; onChange:
           className={inputCls(false)}
         />
         <button type="button" onClick={add} className="px-3 py-2 text-sm font-medium text-white bg-wellbeing-green hover:bg-wellbeing-green-dark rounded-lg inline-flex items-center gap-1.5 shrink-0">
-          <Plus className="w-3.5 h-3.5" /> Hinzufuegen
+          <Plus className="w-3.5 h-3.5" /> Hinzufügen
         </button>
       </div>
     </div>
@@ -440,7 +451,7 @@ function AntwortenEditor({
   if (!vorlage) {
     return (
       <p className="text-sm text-gray-500 text-center py-8">
-        Keine Vorlage verknuepft — Antworten als JSONB editieren ist nicht moeglich.
+        Keine Vorlage verknüpft — Antworten als JSONB editieren ist nicht möglich.
       </p>
     )
   }
@@ -542,7 +553,7 @@ function DateienListe({
               onClick={() => oeffnen(d.id)}
               disabled={oeffneId === d.id}
               className="text-gray-400 hover:text-wellbeing-green p-1.5 rounded disabled:opacity-50"
-              aria-label="Oeffnen"
+              aria-label="Öffnen"
             >
               <Download className="w-3.5 h-3.5" />
             </button>
@@ -551,7 +562,7 @@ function DateienListe({
               onClick={() => onLoeschen(d.id)}
               disabled={istPending}
               className="text-gray-400 hover:text-red-500 p-1.5 rounded disabled:opacity-50"
-              aria-label="Loeschen"
+              aria-label="Löschen"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>

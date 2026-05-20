@@ -130,7 +130,7 @@ export default function OnboardingUploadFeld({
           <>
             <Upload className="w-5 h-5 mx-auto text-gray-400 mb-1" />
             <p className="text-sm text-gray-700">
-              <span className="font-medium text-wellbeing-green">Dateien auswaehlen</span> oder hierher ziehen
+              <span className="font-medium text-wellbeing-green">Dateien auswählen</span> oder hierher ziehen
             </p>
             <p className="text-xs text-gray-400 mt-1">
               {liste.length}/{limit} Dateien · max. {maxMb} MB pro Datei

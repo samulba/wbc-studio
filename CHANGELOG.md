@@ -25,7 +25,9 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
   - Footer-Buttons: „Speichern" (nur sichern, Status bleibt „Eingereicht") oder „Speichern + Kunde anlegen" (sichert die Änderungen UND legt Kunde+Projekt mit den korrigierten Werten an).
 - Tippfehler in Email/Name landen so nicht mehr ungefiltert in der Kunden-Datenbank.
 
-## 2026-05-16
+### Onboarding-Stammdaten Auto-Fill + Umlaut-Cleanup
+- **Stammdaten füllen sich jetzt automatisch aus den Antworten**: Bisher waren die Felder im Bearbeiten-Modal leer, wenn die Vorlage andere Frage-IDs als `kontakt_*` nutzte (z. B. `nk_name`, `pv_email`, `projekt_name`). Ein neuer Extraktor erkennt Name, E-Mail, Telefon, Projektname, Adresse, Budget-Range, Räume, Stil, Notizen und Zeitrahmen anhand von Frage-Typ und Pattern auf ID/Titel — egal welche Konvention die Vorlage benutzt.
+- **Umlaute korrigiert**: Mehrere UI-Texte standen mit ASCII-Ersatz (`Raeume`, `Wuensche`, `pruefen`, `Loeschen`, `Schliessen`, `Hinzufuegen`, `Bestands-Moebel`, `Strasse`, …) drin und sind jetzt überall mit korrektem `ä/ö/ü/ß` geschrieben.
 
 ### Projekte überarbeitet — Phase 3 (Brutto-Default, Räume-Übersicht, PDF, Formular)
 - **Brutto als Default im Budget-Ring**: Die große Summe oben in der Projekt-Übersicht zeigt jetzt den Bruttowert, der Netto-Wert erscheint im Tooltip beim Hover.

@@ -57,7 +57,7 @@ function EintragHinzufuegen({ onAdd, placeholder }: { onAdd: (v: string) => void
         onClick={() => { onAdd(v); setV('') }}
         className="px-3 py-2 text-sm font-medium text-white bg-wellbeing-green hover:bg-wellbeing-green-dark rounded-lg inline-flex items-center gap-1.5"
       >
-        <Plus className="w-3.5 h-3.5" /> Hinzufuegen
+        <Plus className="w-3.5 h-3.5" /> Hinzufügen
       </button>
     </div>
   )
@@ -386,7 +386,7 @@ export default function DynamischesFeld({
   if (frage.typ === 'datum_rechner') {
     const v = (wert as { startdatum?: string; tage?: number } | undefined) ?? {}
     return (
-      <FormFeld label={label} fehler={fehler} hilfe={hilfe ?? 'Startdatum + gewuenschte Frist in Tagen.'}>
+      <FormFeld label={label} fehler={fehler} hilfe={hilfe ?? 'Startdatum + gewünschte Frist in Tagen.'}>
         <div className="grid grid-cols-2 gap-2">
           <input
             type="date"
@@ -421,7 +421,7 @@ export default function DynamischesFeld({
         label={label}
         fehler={fehler}
         hilfe={hilfe ?? (frage.typ === 'inventar'
-          ? 'Listen Sie Ihre Bestands-Moebel auf (eine Zeile pro Eintrag).'
+          ? 'Listen Sie Ihre Bestands-Möbel auf (eine Zeile pro Eintrag).'
           : 'Listen Sie auf, wer welche Entscheidung trifft.')}
       >
         <ul className="space-y-1.5 mb-2">
@@ -434,13 +434,13 @@ export default function DynamischesFeld({
             </li>
           ))}
         </ul>
-        <EintragHinzufuegen onAdd={add} placeholder={frage.placeholder ?? 'Eintrag hinzufuegen'} />
+        <EintragHinzufuegen onAdd={add} placeholder={frage.placeholder ?? 'Eintrag hinzufügen'} />
       </FormFeld>
     )
   }
 
   return (
-    <FormFeld label={label} fehler={fehler} hilfe="Dieser Fragetyp wird nicht unterstuetzt.">
+    <FormFeld label={label} fehler={fehler} hilfe="Dieser Fragetyp wird nicht unterstützt.">
       <div className="px-3 py-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg">
         Unbekannter Fragetyp: {frage.typ}
       </div>
