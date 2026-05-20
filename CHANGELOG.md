@@ -29,6 +29,14 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - **Stammdaten füllen sich jetzt automatisch aus den Antworten**: Bisher waren die Felder im Bearbeiten-Modal leer, wenn die Vorlage andere Frage-IDs als `kontakt_*` nutzte (z. B. `nk_name`, `pv_email`, `projekt_name`). Ein neuer Extraktor erkennt Name, E-Mail, Telefon, Projektname, Adresse, Budget-Range, Räume, Stil, Notizen und Zeitrahmen anhand von Frage-Typ und Pattern auf ID/Titel — egal welche Konvention die Vorlage benutzt.
 - **Umlaute korrigiert**: Mehrere UI-Texte standen mit ASCII-Ersatz (`Raeume`, `Wuensche`, `pruefen`, `Loeschen`, `Schliessen`, `Hinzufuegen`, `Bestands-Moebel`, `Strasse`, …) drin und sind jetzt überall mit korrektem `ä/ö/ü/ß` geschrieben.
 
+### Datei-Quick-View (Bilder + PDFs inline ansehen)
+- **Endlich kein Download-Klick mehr für jeden Blick auf eine Datei**: Neuer Vollbild-Vorschau-Modus für Bilder (Lightbox) und PDFs (Browser-Viewer im iframe). Funktioniert an vier Stellen:
+  - **Onboarding-Bearbeiten-Modal** → Tab „Dateien": Eye-Icon oder Klick auf den Dateinamen öffnet die Vorschau direkt.
+  - **Projekt-Dateien** (Projekt-Detailseite, Card „Dateien"): gleiches Verhalten.
+  - **Partner-Verträge**: Klick auf Icon-Box oder Vertragstitel öffnet die PDF inline; Eye-Icon zusätzlich im Hover-Aktions-Cluster.
+  - **Chat-Anhänge**: PDF-Karten zeigen jetzt das Eye-Icon und öffnen die PDF im selben Modal-Stil wie die schon vorhandene Bild-Lightbox.
+- Download-Button bleibt überall als Fallback erhalten (für „in neuem Tab öffnen" oder echtes Herunterladen). Für nicht-vorschaufähige Dateien (Word, Excel, Zip, …) zeigt der Modal stattdessen Datei-Metadaten + „Im neuen Tab öffnen / Herunterladen"-Buttons.
+
 ### Projekte überarbeitet — Phase 3 (Brutto-Default, Räume-Übersicht, PDF, Formular)
 - **Brutto als Default im Budget-Ring**: Die große Summe oben in der Projekt-Übersicht zeigt jetzt den Bruttowert, der Netto-Wert erscheint im Tooltip beim Hover.
 - **Projekt-Übersichts-Card im Räume-Tab**: Ausklappbare Card oben auf dem Räume-Tab — Produkt-Summen, Zusatzkosten, Service-Pauschale, Gesamt, Aufteilung pro Raum und Freigabe-Status. Werte stimmen mit PDF und Detail-Seite überein.

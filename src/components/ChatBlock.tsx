@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import Image from 'next/image'
 import {
-  MessageCircle, Send, Paperclip, Mic, X, FileText, Download,
+  MessageCircle, Send, Paperclip, Mic, X, FileText, Download, Eye,
   Play, Pause, Image as ImageIcon, Square,
 } from 'lucide-react'
 import type { ClientNachricht } from '@/lib/supabase/types'
@@ -16,6 +16,8 @@ import {
   chatAnhangSignedUrl,
 } from '@/app/actions/portal'
 import { useRealtimeRefresh } from '@/lib/hooks/useRealtimeRefresh'
+import FilePreviewModal from '@/components/FilePreviewModal'
+import { istPdfMime } from '@/lib/file-mime'
 
 interface Props {
   projektId:          string
@@ -198,6 +200,7 @@ function AnhangRenderer({
   const [url, setUrl] = useState<string | null>(null)
   const [fehler, setFehler] = useState<string | null>(null)
   const [bildAuf, setBildAuf] = useState(false)
+  const [pdfAuf, setPdfAuf]   = useState(false)
 
   function refetch() {
     if (!n.anhang_pfad || n.id.startsWith('temp-')) return
@@ -285,8 +288,50 @@ function AnhangRenderer({
     return <AudioPlayer url={url} dauer={n.anhang_dauer} istEigene={istEigene} onError={refetch} />
   }
 
-  // Datei
+  // Datei — PDF bekommt Inline-Preview, andere Dateien bleiben reiner Download.
   const groesseKb = n.anhang_groesse ? Math.round(n.anhang_groesse / 1024) : null
+  const istPdf = istPdfMime(n.anhang_typ)
+
+  if (istPdf) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setPdfAuf(true)}
+          className={`flex items-center gap-2.5 m-1.5 px-3 py-2.5 rounded-xl transition-colors w-[calc(100%-0.75rem)] text-left ${
+            istEigene
+              ? 'bg-white/10 hover:bg-white/20 text-white'
+              : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
+          }`}
+        >
+          <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+            istEigene ? 'bg-white/20' : 'bg-white border border-gray-200'
+          }`}>
+            <FileText className={`w-4 h-4 ${istEigene ? 'text-white' : 'text-gray-500'}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium truncate">{n.anhang_name ?? 'PDF'}</p>
+            {groesseKb !== null && (
+              <p className={`text-[10px] ${istEigene ? 'text-white/70' : 'text-gray-400'}`}>
+                {groesseKb} KB · PDF
+              </p>
+            )}
+          </div>
+          <Eye className="w-4 h-4 shrink-0 opacity-70" />
+        </button>
+        {pdfAuf && (
+          <FilePreviewModal
+            dateiname={n.anhang_name ?? 'PDF'}
+            mimeType={n.anhang_typ ?? 'application/pdf'}
+            groesse={n.anhang_groesse}
+            url={url}
+            onClose={() => setPdfAuf(false)}
+          />
+        )}
+      </>
+    )
+  }
+
   return (
     <a
       href={url}
