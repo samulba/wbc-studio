@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Plus, Trash2, Download, FileText, Image as ImageIcon, AlertTriangle, Save, Briefcase, User, ExternalLink } from 'lucide-react'
+import { X, Plus, Trash2, Download, FileText, Image as ImageIcon, AlertTriangle, Save, Briefcase, User, ExternalLink, Eye } from 'lucide-react'
 import { useModal } from '@/lib/hooks/useModal'
 import DynamischesFeld, { FormFeld, inputCls } from '@/components/onboarding/DynamischesFeld'
+import FilePreviewModal from '@/components/FilePreviewModal'
 import {
   anfrageBearbeiten,
   onboardingDateiEntfernenAdmin,
@@ -12,6 +13,7 @@ import {
 } from '@/app/actions/onboarding-erweitert'
 import { getAnfrageDateien, onboardingDateiSignierteUrl } from '@/app/actions/onboarding-uploads'
 import { extrahiereStammdatenAusAntworten } from '@/lib/onboarding-stammdaten'
+import { kannInlineVorschau } from '@/lib/file-mime'
 import type { OnboardingAnfrage, OnboardingVorlage, OnboardingDatei } from '@/lib/supabase/types'
 
 interface Props {
@@ -521,8 +523,9 @@ function DateienListe({
   istPending: boolean
 }) {
   const [oeffneId, setOeffneId] = useState<string | null>(null)
+  const [preview, setPreview]   = useState<OnboardingDatei | null>(null)
 
-  async function oeffnen(id: string) {
+  async function herunterladen(id: string) {
     setOeffneId(id)
     const res = await onboardingDateiSignierteUrl(id)
     setOeffneId(null)
@@ -536,40 +539,70 @@ function DateienListe({
     return <p className="text-sm text-gray-500 text-center py-8">Keine Dateien vorhanden.</p>
   }
   return (
-    <ul className="space-y-2">
-      {dateien.map((d) => {
-        const istBild = d.dateityp.startsWith('image/')
-        return (
-          <li key={d.id} className="flex items-center gap-3 px-3 py-2.5 bg-white border border-gray-200 rounded-lg">
-            <span className="text-gray-400 shrink-0">
-              {istBild ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{d.dateiname}</p>
-              <p className="text-[11px] text-gray-400">{d.dateityp}{d.dateigroesse ? ` · ${formatBytes(d.dateigroesse)}` : ''}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => oeffnen(d.id)}
-              disabled={oeffneId === d.id}
-              className="text-gray-400 hover:text-wellbeing-green p-1.5 rounded disabled:opacity-50"
-              aria-label="Öffnen"
-            >
-              <Download className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => onLoeschen(d.id)}
-              disabled={istPending}
-              className="text-gray-400 hover:text-red-500 p-1.5 rounded disabled:opacity-50"
-              aria-label="Löschen"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </li>
-        )
-      })}
-    </ul>
+    <>
+      <ul className="space-y-2">
+        {dateien.map((d) => {
+          const istBild     = d.dateityp.startsWith('image/')
+          const vorschauOk  = kannInlineVorschau(d.dateityp)
+          return (
+            <li key={d.id} className="flex items-center gap-3 px-3 py-2.5 bg-white border border-gray-200 rounded-lg">
+              <button
+                type="button"
+                onClick={() => vorschauOk && setPreview(d)}
+                disabled={!vorschauOk}
+                className={`flex items-center gap-3 flex-1 min-w-0 text-left ${vorschauOk ? 'cursor-pointer group' : 'cursor-default'}`}
+              >
+                <span className="text-gray-400 shrink-0">
+                  {istBild ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium text-gray-900 truncate ${vorschauOk ? 'group-hover:text-wellbeing-green' : ''}`}>{d.dateiname}</p>
+                  <p className="text-[11px] text-gray-400">{d.dateityp}{d.dateigroesse ? ` · ${formatBytes(d.dateigroesse)}` : ''}</p>
+                </div>
+              </button>
+              {vorschauOk && (
+                <button
+                  type="button"
+                  onClick={() => setPreview(d)}
+                  className="text-gray-400 hover:text-wellbeing-green p-1.5 rounded"
+                  aria-label="Vorschau"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => herunterladen(d.id)}
+                disabled={oeffneId === d.id}
+                className="text-gray-400 hover:text-wellbeing-green p-1.5 rounded disabled:opacity-50"
+                aria-label="Herunterladen / in neuem Tab öffnen"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onLoeschen(d.id)}
+                disabled={istPending}
+                className="text-gray-400 hover:text-red-500 p-1.5 rounded disabled:opacity-50"
+                aria-label="Löschen"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+
+      {preview && (
+        <FilePreviewModal
+          dateiname={preview.dateiname}
+          mimeType={preview.dateityp}
+          groesse={preview.dateigroesse}
+          urlFetcher={() => onboardingDateiSignierteUrl(preview.id).then((r) => r.url ?? null)}
+          onClose={() => setPreview(null)}
+        />
+      )}
+    </>
   )
 }
 
