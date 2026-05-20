@@ -16,6 +16,15 @@ Format: **YYYY-MM-DD** mit Stichpunkten in einfachem Deutsch.
 - **Backfill**: Alte Anfragen mit Status „Abgeschlossen", aber ohne verknüpften Kunden werden von Migration 113 automatisch auf „Eingereicht" zurückgesetzt — sie waren ja nie wirklich verarbeitet.
 - Migration **113** (`onboarding_anfragen.status` CHECK + RLS-Policy + Backfill) muss manuell in Supabase ausgeführt werden — komplett additiv, keine bestehenden Daten gehen verloren.
 
+### Onboarding-Doppel-Review (Kunde + Admin)
+- **Kunde sieht vor dem Absenden alle seine Angaben in einem Popup** — Stammdaten, alle Frage-Antworten und hochgeladene Dateien. Buttons: „Zurück bearbeiten" (Modal schließt, Formular scrollt nach oben) oder „Verbindlich absenden" (sendet die Anfrage ab). Funktioniert sowohl im Standard- als auch im dynamischen Vorlagen-Formular.
+- **Admin kann eingereichte Anfragen vor dem Anlegen prüfen und korrigieren**: Neuer Button „Daten prüfen & bearbeiten" öffnet ein Modal mit drei Tabs:
+  - **Stammdaten**: Name, Email, Telefon, Projektname, Adresse, Budget, Zeitrahmen, Räume, Stil, Notizen.
+  - **Antworten**: Jede vom Kunden ausgefüllte Frage kann hier direkt editiert werden (Upload-Felder verweisen auf den Dateien-Tab).
+  - **Dateien**: Liste aller Uploads mit Download und Löschen.
+  - Footer-Buttons: „Speichern" (nur sichern, Status bleibt „Eingereicht") oder „Speichern + Kunde anlegen" (sichert die Änderungen UND legt Kunde+Projekt mit den korrigierten Werten an).
+- Tippfehler in Email/Name landen so nicht mehr ungefiltert in der Kunden-Datenbank.
+
 ## 2026-05-16
 
 ### Projekte überarbeitet — Phase 3 (Brutto-Default, Räume-Übersicht, PDF, Formular)

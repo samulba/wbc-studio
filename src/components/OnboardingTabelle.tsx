@@ -19,6 +19,7 @@ import {
 } from '@/app/actions/onboarding'
 import { kundeUndProjektAusOnboarding } from '@/app/actions/onboarding-erweitert'
 import DynamischeAntwortenAnzeige from '@/components/onboarding/DynamischeAntwortenAnzeige'
+import AnfrageBearbeitenModal from '@/components/onboarding/AnfrageBearbeitenModal'
 import type { OnboardingAnfrage, OnboardingStatus, OnboardingVorlage } from '@/lib/supabase/types'
 
 // ── Filter-Typ ────────────────────────────────────────────────
@@ -433,6 +434,7 @@ function AnfrageDetail({
   const [kopiert, setKopiert]        = useState(false)
   const [fehler, setFehler]          = useState<string | null>(null)
   const [empfaengerOffen, setEmpfaengerOffen] = useState(false)
+  const [editOffen, setEditOffen]    = useState(false)
   const offen = anfrage.status === 'offen' || anfrage.status === 'in_bearbeitung'
   const hatDaten = istEingereicht(anfrage)
   const hatProjektName = !!anfrage.projekt_name
@@ -632,6 +634,16 @@ function AnfrageDetail({
 
       {/* Aktionen */}
       <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-gray-200">
+        {darfAnlegen && (
+          <button
+            onClick={() => setEditOffen(true)}
+            disabled={isPending}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-wellbeing-green border border-wellbeing-green/30 hover:bg-wellbeing-green/5 disabled:opacity-50 rounded-lg transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Daten prüfen &amp; bearbeiten
+          </button>
+        )}
         {darfAnlegen && hatProjektName && (
           <button
             onClick={handleKundeUndProjektAnlegen}
@@ -698,6 +710,14 @@ function AnfrageDetail({
           initialLabel={anfrage.empfaenger_label ?? ''}
           initialEmail={anfrage.empfaenger_email ?? ''}
           onClose={() => setEmpfaengerOffen(false)}
+        />
+      )}
+
+      {editOffen && (
+        <AnfrageBearbeitenModal
+          anfrage={anfrage}
+          vorlage={anfrage.vorlage_snapshot ?? vorlage ?? null}
+          onClose={() => setEditOffen(false)}
         />
       )}
     </div>

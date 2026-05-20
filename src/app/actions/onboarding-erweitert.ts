@@ -807,27 +807,35 @@ export async function onboardingDateiEntfernenAdmin(
   dateiId: string,
 ): Promise<{ erfolg: boolean; fehler?: string }> {
   try {
-    const supabase = await createClient()
-    const orgId    = await getOrganisationId()
-    const admin    = createAdminClient()
+    // org-id auflösen via authenticated user
+    await createClient() // sicherstellen dass Auth-Session da ist
+    const orgId = await getOrganisationId()
+    const admin = createAdminClient()
 
-    // 1) Datei + Org-Pruefung via Anfrage-Join
+    // 1) Datei laden
     const { data: datei } = await admin
       .from('onboarding_dateien')
-      .select('id, storage_pfad, anfrage_id, organisation_id, onboarding_anfragen!inner(organisation_id)')
+      .select('id, storage_pfad, anfrage_id, organisation_id')
       .eq('id', dateiId)
       .maybeSingle()
     if (!datei) return { erfolg: false, fehler: 'Datei nicht gefunden.' }
 
-    // Org-Check: entweder direkt am Datei-Eintrag ODER ueber die Anfrage
-    const anfrageOrg = (datei.onboarding_anfragen as unknown as { organisation_id: string | null } | null)?.organisation_id
-    const eigeneOrg = datei.organisation_id === orgId || anfrageOrg === orgId
+    // 2) Org-Check: entweder direkt oder ueber die Anfrage
+    let eigeneOrg = datei.organisation_id === orgId
+    if (!eigeneOrg) {
+      const { data: anfrage } = await admin
+        .from('onboarding_anfragen')
+        .select('organisation_id')
+        .eq('id', datei.anfrage_id)
+        .maybeSingle()
+      eigeneOrg = anfrage?.organisation_id === orgId
+    }
     if (!eigeneOrg) return { erfolg: false, fehler: 'Keine Berechtigung.' }
 
-    // 2) Storage-Objekt loeschen (Admin-Client wegen RLS auf storage.objects)
+    // 3) Storage-Objekt loeschen (Admin-Client wegen RLS auf storage.objects)
     await admin.storage.from('onboarding-uploads').remove([datei.storage_pfad])
 
-    // 3) DB-Eintrag loeschen
+    // 4) DB-Eintrag loeschen
     await admin
       .from('onboarding_dateien')
       .delete()
